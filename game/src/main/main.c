@@ -25,6 +25,7 @@ typedef struct {
   music_t music;
   sample_t clips[SFX_COUNT];
   bool muted;
+  float music_gain;
 } audio_state_t;
 
 typedef struct {
@@ -39,7 +40,7 @@ typedef struct {
 static void fill_audio(void* user, int16_t* out, int frames) {
   audio_state_t* audio = user;
   mixer_render(&audio->mixer, out, frames);
-  if (!audio->muted) music_mix(&audio->music, out, frames, 0.5f);
+  if (!audio->muted) music_mix(&audio->music, out, frames, audio->music_gain);
 }
 
 static void play(audio_state_t* audio, sfx_id_t id, float volume) {
@@ -158,6 +159,7 @@ int main(int argc, char** argv) {
 
   static audio_state_t audio;
   mixer_init(&audio.mixer);
+  audio.music_gain = 0.5f;
   bool sound = sfx_build(audio.clips) && audio_open(fill_audio, &audio);
   if (!sound) fprintf(stderr, "no sound: %s\n", SDL_GetError());
 
@@ -188,12 +190,15 @@ int main(int argc, char** argv) {
 
     if (on_title) {
       title_time += (float)frame;
+      /* Keep the music out of the way of the voice. */
+      audio.music_gain = (title_time > VOICE_DELAY && title_time < VOICE_DELAY + 2.0f) ? 0.12f : 0.5f;
       if (sound && !voiced && title_time > VOICE_DELAY) {
         play(&audio, SFX_VOICE_FABIO, 1.0f);
         voiced = true;
       }
       if (start && title_time > 0.3f) {
         on_title = false;
+        audio.music_gain = 0.5f;
         world_init(world, options.seed);
         world->view_w = gfx_view_width(gfx);
         play(&audio, SFX_PICKUP, 0.6f);

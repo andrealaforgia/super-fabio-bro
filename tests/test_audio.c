@@ -84,7 +84,23 @@ static void music_adds_to_the_buffer_instead_of_replacing_it(void) {
   CHECK(out[0] == 1000 && out[99] == 1000);
 }
 
+static void the_spoken_lines_are_loud_and_long_enough_to_be_understood(void) {
+  sample_t clips[SFX_COUNT];
+  CHECK(sfx_build(clips));
+  CHECK(peak(&clips[SFX_VOICE_FABIO]) > 28000);
+  CHECK(clips[SFX_VOICE_FABIO].length > MIXER_RATE);
+  CHECK(peak(&clips[SFX_GROAN]) > 25000);
+  CHECK(clips[SFX_GROAN].length > MIXER_RATE * 3 / 2);
+  /* The words are spread over the clip, not squeezed into its start. */
+  const sample_t* voice = &clips[SFX_VOICE_FABIO];
+  int late = 0;
+  for (int i = voice->length * 2 / 3; i < voice->length; i++) late += abs(voice->data[i]) > 3000;
+  CHECK(late > 500);
+  sfx_free(clips);
+}
+
 void run_audio_tests(void) {
+  RUN(the_spoken_lines_are_loud_and_long_enough_to_be_understood);
   RUN(every_sound_effect_is_built_audible_and_short);
   RUN(every_game_event_has_a_sound);
   RUN(explosions_are_louder_than_the_rest_of_the_noise);

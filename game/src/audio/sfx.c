@@ -3,6 +3,7 @@
 #include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdlib.h>
 
 #include "rng.h"
 
@@ -143,13 +144,6 @@ static double block_voice(double t, double d, rng_t* r, void* s) {
   return 0.3 * triangle(f * t) * decay(fmod(t, 0.08), 6.0);
 }
 
-static double groan_voice(double t, double d, rng_t* r, void* s) {
-  (void)d; (void)r; (void)s;
-  double f = 95.0 + 25.0 * sin(TAU * 5.0 * t) - 30.0 * t;
-  return 0.35 * (saw(f * t) + 0.5 * saw(f * 2.01 * t)) *
-         sin(3.14159 * t / 0.7);
-}
-
 static double death_voice(double t, double d, rng_t* r, void* s) {
   (void)d; (void)r; (void)s;
   static const double notes[] = {392.0, 370.0, 349.0, 330.0, 293.0, 262.0};
@@ -200,25 +194,22 @@ static const phoneme_t kSpeech[] = {
     {500, 900, 2500, 0.34, 205, 125, 0.0, 1.0},    /* o  */
 };
 
-static double speech_voice(double t, double d, rng_t* r, void* s) {
-  (void)d;
+static double speak(const phoneme_t* table, int count, double t, rng_t* r) {
   static double y1[3], y2[3], f[3], phase;
-  const int count = (int)(sizeof(kSpeech) / sizeof(kSpeech[0]));
   if (t == 0.0) {
     for (int k = 0; k < 3; k++) y1[k] = y2[k] = 0.0, f[k] = 500.0 + 500.0 * k;
     phase = 0.0;
   }
-  (void)s;
   double start = 0.0;
   const phoneme_t* now = NULL;
   double local = 0.0;
   for (int i = 0; i < count; i++) {
-    if (t < start + kSpeech[i].duration) {
-      now = &kSpeech[i];
+    if (t < start + table[i].duration) {
+      now = &table[i];
       local = (t - start) / now->duration;
       break;
     }
-    start += kSpeech[i].duration;
+    start += table[i].duration;
   }
   if (!now) return 0.0;
   double target[3] = {now->f1, now->f2, now->f3};
@@ -226,13 +217,12 @@ static double speech_voice(double t, double d, rng_t* r, void* s) {
   phase += pitch / MIXER_RATE;
   double voiced = pitch > 0.0 ? saw(phase) * (1.0 - now->hiss) : 0.0;
   double source = voiced + noise(r) * now->hiss;
-  double envelope = sin(3.14159 * fmin(1.0, local * 1.0)) ;
-  envelope = fmin(1.0, envelope * 3.0);
+  double envelope = fmin(1.0, sin(3.14159 * local) * 3.0);
   double out = 0.0;
   static const double weight[3] = {1.0, 0.7, 0.4};
-  static const double bandwidth[3] = {90.0, 130.0, 200.0};
+  static const double bandwidth[3] = {70.0, 110.0, 180.0};
   for (int k = 0; k < 3; k++) {
-    f[k] += (target[k] - f[k]) * 0.004;
+    f[k] += (target[k] - f[k]) * 0.006;
     double rr = exp(-3.14159 * bandwidth[k] * (now->hiss > 0.9 ? 6.0 : 1.0) / MIXER_RATE);
     double a1 = 2.0 * rr * cos(TAU * f[k] / MIXER_RATE), a2 = -rr * rr;
     double y = (1.0 - rr) * source + a1 * y1[k] + a2 * y2[k];
@@ -241,6 +231,41 @@ static double speech_voice(double t, double d, rng_t* r, void* s) {
     out += weight[k] * y;
   }
   return out * now->level * envelope * 0.2;
+}
+
+static double speech_voice(double t, double d, rng_t* r, void* s) {
+  (void)d; (void)s;
+  return speak(kSpeech, (int)(sizeof(kSpeech) / sizeof(kSpeech[0])), t, r);
+}
+
+/* "I don't test..." in a low, rasping, dragging zombie voice. */
+static const phoneme_t kZombie[] = {
+    {800, 1250, 2500, 0.15, 98, 104, 0.25, 1.0}, /* a of I */
+    {300, 2200, 2900, 0.10, 104, 96, 0.25, 0.9}, /* ee of I */
+    {250, 1100, 2200, 0.05, 90, 90, 0.0, 0.4},   /* d */
+    {500, 900, 2500, 0.22, 96, 88, 0.25, 1.0},   /* o */
+    {250, 1300, 2200, 0.10, 90, 88, 0.1, 0.6},   /* n */
+    {3000, 4200, 5200, 0.04, 0, 0, 1.0, 0.7},    /* t */
+    {530, 1840, 2480, 0.15, 96, 92, 0.25, 1.0},  /* e */
+    {4500, 5500, 6500, 0.12, 0, 0, 1.0, 0.8},    /* s */
+    {3000, 4200, 5200, 0.05, 0, 0, 1.0, 0.7},    /* t */
+    {400, 1000, 2400, 0.08, 0, 0, 0.0, 0.0},     /* pause */
+    {600, 1100, 2400, 0.50, 90, 55, 0.35, 0.7},  /* ...uhh */
+};
+
+static double zombie_voice(double t, double d, rng_t* r, void* s) {
+  (void)d; (void)s;
+  return speak(kZombie, (int)(sizeof(kZombie) / sizeof(kZombie[0])), t, r);
+}
+
+/* Brings a clip's loudest sample up to `peak`: speech comes out quiet. */
+static void normalise(sample_t* clip, double peak) {
+  int16_t* data = (int16_t*)clip->data;
+  int loudest = 1;
+  for (int i = 0; i < clip->length; i++)
+    if (abs(data[i]) > loudest) loudest = abs(data[i]);
+  double gain = peak / loudest;
+  for (int i = 0; i < clip->length; i++) data[i] = (int16_t)(data[i] * gain);
 }
 
 bool sfx_build(sample_t clips[SFX_COUNT]) {
@@ -259,11 +284,15 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_BUMP], 0.15, bump_voice, 11);
   ok = ok && render(&clips[SFX_STOMP], 0.2, stomp_voice, 12);
   ok = ok && render(&clips[SFX_BLOCK], 0.3, block_voice, 13);
-  ok = ok && render(&clips[SFX_GROAN], 0.8, groan_voice, 14);
+  ok = ok && render(&clips[SFX_GROAN], 1.7, zombie_voice, 14);
   ok = ok && render(&clips[SFX_DEATH], 1.2, death_voice, 15);
   ok = ok && render(&clips[SFX_WIN], 1.5, win_voice, 16);
   ok = ok && render(&clips[SFX_HEAL], 0.35, heal_voice, 17);
   ok = ok && render(&clips[SFX_VOICE_FABIO], 1.5, speech_voice, 18);
+  if (ok) {
+    normalise(&clips[SFX_VOICE_FABIO], 31000.0);
+    normalise(&clips[SFX_GROAN], 28000.0);
+  }
   if (!ok) sfx_free(clips);
   return ok;
 }
@@ -291,7 +320,7 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_BUMP: return SFX_BUMP;
     case EVENT_STOMP: return SFX_STOMP;
     case EVENT_BLOCK_OPENS: *volume = 0.5f; return SFX_BLOCK;
-    case EVENT_GROAN: *volume = 0.35f; return SFX_GROAN;
+    case EVENT_GROAN: *volume = 0.6f; return SFX_GROAN;
     case EVENT_DEATH: return SFX_DEATH;
     case EVENT_WIN: return SFX_WIN;
     case EVENT_HEAL: return SFX_HEAL;
