@@ -63,7 +63,7 @@ buttons_t bot_decide(const world_t* world, bot_t* bot, float dt) {
   buttons_t b = {0};
   bot_travel(world, bot, dt, &b, true);
 
-  bool armed = p->has_gun || p->spell_time > 0.0f;
+  bool armed = p->ammo > 0 || p->spell_time > 0.0f;
   if (armed && enemy_ahead(world, 460.0f, 70.0f)) b.shoot = true;
   if (enemy_ahead(world, 44.0f, 70.0f)) b.melee = true;
 

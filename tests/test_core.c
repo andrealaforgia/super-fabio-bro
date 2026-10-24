@@ -78,6 +78,22 @@ static void controls_report_edges_once(void) {
   CHECK(controls.pressed.jump);
 }
 
+static void music_and_sound_toggles_are_separate_edges(void) {
+  controls_t controls;
+  memset(&controls, 0, sizeof(controls));
+  buttons_t keys;
+  memset(&keys, 0, sizeof(keys));
+  keys.mute = true;
+  controls_update(&controls, &keys);
+  CHECK(controls.pressed.mute && !controls.pressed.sound);
+  keys.mute = false;
+  keys.sound = true;
+  controls_update(&controls, &keys);
+  CHECK(controls.pressed.sound && !controls.pressed.mute);
+  controls_update(&controls, &keys);
+  CHECK(!controls.pressed.sound);
+}
+
 static void mixer_plays_a_sample_once_then_stops(void) {
   int16_t data[100];
   for (int i = 0; i < 100; i++) data[i] = 1000;
@@ -123,6 +139,7 @@ void run_core_tests(void) {
   RUN(stepper_caps_a_stalled_frame);
   RUN(stepper_always_runs_one_step);
   RUN(controls_report_edges_once);
+  RUN(music_and_sound_toggles_are_separate_edges);
   RUN(mixer_plays_a_sample_once_then_stops);
   RUN(mixer_sums_voices_and_clips);
   RUN(mixer_steals_a_voice_when_full);

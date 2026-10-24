@@ -12,7 +12,7 @@
 typedef struct {
   bool left, right, up, down;
   bool jump, run, shoot, melee, drink;
-  bool pause, confirm, restart, fullscreen, mute;
+  bool pause, confirm, restart, fullscreen, mute, sound;
 } buttons_t;
 
 typedef struct {

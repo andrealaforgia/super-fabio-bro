@@ -105,7 +105,8 @@ static void actions(world_t* world, const controls_t* controls, float dt) {
     if (spell) {
       world_cast_spell(world);
       p->gun_cooldown = SPELL_COOLDOWN;
-    } else if (p->has_gun) {
+    } else if (p->ammo > 0) {
+      p->ammo--;
       world_fire_bullet(world);
       p->gun_cooldown = GUN_COOLDOWN;
     }

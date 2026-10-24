@@ -125,7 +125,7 @@ static void in_the_air_the_jump_frame_follows_the_climb_and_the_fall(void) {
 
 static void the_pistol_changes_how_he_stands_and_walks(void) {
   player_t p = standing();
-  p.has_gun = true;
+  p.ammo = PISTOL_AMMO;
   CHECK(pose_player(&p).strip == STRIP_FAB_GUNAIM);
   p.vx = 100.0f;
   CHECK(pose_player(&p).strip == STRIP_FAB_GUNWALK);
@@ -160,7 +160,7 @@ static void every_pose_is_a_frame_that_exists(void) {
     p.vx = (float)(i % 400) - 100.0f;
     p.vy = (float)(i % 1500) - 700.0f;
     p.grounded = (i % 3) != 0;
-    p.has_gun = (i % 5) == 0;
+    p.ammo = (i % 5) == 0 ? PISTOL_AMMO : 0;
     p.walk_phase = (float)i * 0.37f;
     p.anim_time = (float)i * 0.013f;
     p.melee_timer = (i % 7) == 0 ? 0.34f * (float)(i % 11) / 11.0f : 0.0f;

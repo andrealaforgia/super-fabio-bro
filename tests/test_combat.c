@@ -43,7 +43,7 @@ static void without_a_gun_shooting_does_nothing(void) {
 
 static void with_a_gun_a_bullet_leaves_the_muzzle(void) {
   world_t* world = fresh();
-  world->player.has_gun = true;
+  world->player.ammo = PISTOL_AMMO;
   buttons_t fire = shoot_button();
   step(world, &fire, 0.02f);
   CHECK(live_bullets(world) == 1);
@@ -51,9 +51,52 @@ static void with_a_gun_a_bullet_leaves_the_muzzle(void) {
   free(world);
 }
 
+static void a_pistol_holds_fifteen_bullets_and_each_shot_uses_one(void) {
+  world_t* world = fresh();
+  CHECK(PISTOL_AMMO == 15);
+  world->player.ammo = PISTOL_AMMO;
+  buttons_t fire = shoot_button();
+  step(world, &fire, 0.02f);
+  CHECK(world->player.ammo == PISTOL_AMMO - 1);
+  free(world);
+}
+
+static void an_empty_pistol_does_not_fire(void) {
+  world_t* world = fresh();
+  world->player.ammo = 1;
+  buttons_t fire = shoot_button();
+  step(world, &fire, 0.02f);
+  CHECK(world->player.ammo == 0);
+  world_clear_events(world);
+  step(world, &fire, 1.0f);
+  CHECK(!world_has_event(world, EVENT_SHOOT));
+  CHECK(world->player.ammo == 0);
+  free(world);
+}
+
+static void another_pistol_adds_fifteen_more_bullets(void) {
+  world_t* world = fresh();
+  world->player.ammo = 4;
+  world_spawn_pickup(world, ITEM_PISTOL, world->player.x, world->player.y - 12.0f);
+  step(world, NULL, 0.8f);
+  CHECK(world->player.ammo == 4 + PISTOL_AMMO);
+  free(world);
+}
+
+static void the_spell_does_not_use_bullets(void) {
+  world_t* world = fresh();
+  world->player.ammo = 3;
+  world->player.spell_time = 10.0f;
+  buttons_t cast = shoot_button();
+  step(world, &cast, 0.5f);
+  CHECK(world_has_event(world, EVENT_SPELL));
+  CHECK(world->player.ammo == 3);
+  free(world);
+}
+
 static void a_bullet_explodes_a_zombie(void) {
   world_t* world = fresh();
-  world->player.has_gun = true;
+  world->player.ammo = PISTOL_AMMO;
   spawn_zombie(world, world->player.x + 250.0f, world->player.y);
   world->enemies[0].speed = 0.0f;
   buttons_t fire = shoot_button();
@@ -82,7 +125,7 @@ static void the_explosion_effect_shows_then_fades(void) {
 
 static void a_bullet_explodes_a_bug(void) {
   world_t* world = fresh();
-  world->player.has_gun = true;
+  world->player.ammo = PISTOL_AMMO;
   spawn_bug(world, BUG_BEETLE, world->player.x + 200.0f, world->player.y);
   world->enemies[0].speed = 0.0f;
   buttons_t fire = shoot_button();
@@ -95,7 +138,7 @@ static void a_bullet_explodes_a_bug(void) {
 
 static void a_wall_stops_a_bullet(void) {
   world_t* world = fresh();
-  world->player.has_gun = true;
+  world->player.ammo = PISTOL_AMMO;
   world->level.tiles[GROUND_ROW - 1][14] = TILE_STONE;
   world->level.tiles[GROUND_ROW - 2][14] = TILE_STONE;
   spawn_zombie(world, 18 * TILE, world->player.y);
@@ -110,7 +153,7 @@ static void a_wall_stops_a_bullet(void) {
 
 static void the_gun_fires_a_few_times_a_second_not_every_frame(void) {
   world_t* world = fresh();
-  world->player.has_gun = true;
+  world->player.ammo = PISTOL_AMMO;
   buttons_t fire = shoot_button();
   int shots = 0;
   for (int i = 0; i < 240; i++) {
@@ -124,7 +167,7 @@ static void the_gun_fires_a_few_times_a_second_not_every_frame(void) {
 
 static void shooting_goes_the_way_he_faces(void) {
   world_t* world = fresh();
-  world->player.has_gun = true;
+  world->player.ammo = PISTOL_AMMO;
   buttons_t left;
   memset(&left, 0, sizeof(left));
   left.left = true;
@@ -224,7 +267,7 @@ static void a_second_potion_waits_until_the_first_has_faded(void) {
 static void under_the_spell_shooting_casts_a_ray_even_without_a_gun(void) {
   world_t* world = fresh();
   world->player.spell_time = 10.0f;
-  CHECK(!world->player.has_gun);
+  CHECK(world->player.ammo == 0);
   spawn_zombie(world, world->player.x + 150.0f, world->player.y);
   spawn_zombie(world, world->player.x + 330.0f, world->player.y);
   spawn_bug(world, BUG_BEETLE, world->player.x + 480.0f, world->player.y);
@@ -265,7 +308,7 @@ static void once_the_spell_fades_he_is_unarmed_again(void) {
 
 static void the_spell_outranks_the_pistol_but_the_pistol_returns(void) {
   world_t* world = fresh();
-  world->player.has_gun = true;
+  world->player.ammo = PISTOL_AMMO;
   world->player.spell_time = 0.3f;
   buttons_t fire = shoot_button();
   step(world, &fire, 0.1f);
@@ -278,6 +321,10 @@ static void the_spell_outranks_the_pistol_but_the_pistol_returns(void) {
 
 void run_combat_tests(void) {
   RUN(without_a_gun_shooting_does_nothing);
+  RUN(a_pistol_holds_fifteen_bullets_and_each_shot_uses_one);
+  RUN(an_empty_pistol_does_not_fire);
+  RUN(another_pistol_adds_fifteen_more_bullets);
+  RUN(the_spell_does_not_use_bullets);
   RUN(with_a_gun_a_bullet_leaves_the_muzzle);
   RUN(a_bullet_explodes_a_zombie);
   RUN(the_explosion_effect_shows_then_fades);

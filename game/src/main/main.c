@@ -24,7 +24,8 @@ typedef struct {
   mixer_t mixer;
   music_t music;
   sample_t clips[SFX_COUNT];
-  bool muted;
+  bool music_muted;
+  bool sound_muted;
   float music_gain;
 } audio_state_t;
 
@@ -41,10 +42,11 @@ typedef struct {
 static void fill_audio(void* user, int16_t* out, int frames) {
   audio_state_t* audio = user;
   mixer_render(&audio->mixer, out, frames);
-  if (!audio->muted) music_mix(&audio->music, out, frames, audio->music_gain);
+  if (!audio->music_muted) music_mix(&audio->music, out, frames, audio->music_gain);
 }
 
 static void play(audio_state_t* audio, sfx_id_t id, float volume) {
+  if (audio->sound_muted) return;
   audio_lock();
   mixer_play(&audio->mixer, &audio->clips[id], volume);
   audio_unlock();
@@ -101,7 +103,7 @@ static int take_snapshot(gfx_t* gfx, const look_t* look, const options_t* o) {
     player_t* p = &world->player;
     world->spawning = false;
     p->x += 300.0f;
-    p->has_gun = true;
+    p->ammo = PISTOL_AMMO;
     p->spell_time = 9.0f;
     world->camera_x = p->x - world->view_w * 0.42f;
     spawn_zombie(world, p->x - 150.0f, p->y);
@@ -185,7 +187,8 @@ int main(int argc, char** argv) {
     buttons_t buttons = keyboard_read();
     controls_update(&controls, &buttons);
     if (controls.pressed.fullscreen) gfx_toggle_fullscreen(gfx);
-    if (controls.pressed.mute) audio.muted = !audio.muted;
+    if (controls.pressed.mute) audio.music_muted = !audio.music_muted;
+    if (controls.pressed.sound) audio.sound_muted = !audio.sound_muted;
     bool start = controls.pressed.jump || controls.pressed.confirm;
 
     gfx_begin(gfx, 0, 0, 0);

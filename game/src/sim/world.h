@@ -37,6 +37,7 @@
 #define PLAYER_H 52.0f
 #define PLAYER_HP 5
 #define POTION_SECONDS 14.0f
+#define PISTOL_AMMO 15 /* bullets each pistol adds */
 #define SPELL_LENGTH 620.0f
 #define BULLET_SPEED 760.0f
 
@@ -80,7 +81,7 @@ typedef struct {
   int hp;
   float invulnerable;
   float hurt_timer;
-  bool has_gun;
+  int ammo; /* bullets left; the pistol is in hand while there are any */
   int potions;
   float spell_time; /* seconds of TDD spell left */
   float gun_cooldown;

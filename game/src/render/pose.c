@@ -73,16 +73,16 @@ pose_t pose_player(const player_t* p) {
 
   bool moving = fabsf(p->vx) > 12.0f;
   if (!p->grounded) {
-    if (p->has_gun) return make(STRIP_FAB_GUNWALK, 2);
+    if (p->ammo > 0) return make(STRIP_FAB_GUNWALK, 2);
     int frame = p->vy < -240.0f ? 1 : (p->vy < 120.0f ? 2 : (p->vy < 520.0f ? 3 : 4));
     return make(STRIP_FAB_JUMP, frame);
   }
   if (!moving) {
-    if (p->has_gun) return make(STRIP_FAB_GUNAIM, 0);
+    if (p->ammo > 0) return make(STRIP_FAB_GUNAIM, 0);
     static const int breathing[4] = {0, 1, 2, 1};
     return make(STRIP_FAB_IDLE, breathing[(int)(p->anim_time * 2.5f) % 4]);
   }
-  if (p->has_gun) return make(STRIP_FAB_GUNWALK, (int)p->walk_phase);
+  if (p->ammo > 0) return make(STRIP_FAB_GUNWALK, (int)p->walk_phase);
   /* The generated walk frames barely differ from one another; the run frames
    * swing arms and legs, so they carry walking too. */
   return make(STRIP_FAB_RUN, (int)p->walk_phase);

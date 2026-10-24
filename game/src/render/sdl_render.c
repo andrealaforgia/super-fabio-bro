@@ -362,9 +362,12 @@ static void draw_hud(const frame_t* f) {
   shadow_text(gfx, x - 2.0f, 46.0f, "E TO DRINK", 1.6f, 200, 255, 200);
 
   x += 120.0f;
-  if (p->has_gun) {
+  if (p->ammo > 0) {
     const sprite_t* gun = look_sprite(f->look, (pose_t){STRIP_PISTOL, 0});
     gfx_draw(gfx, gun->texture, NULL, rect(x, 10.0f, 42.0f, 32.0f), &none);
+    snprintf(text, sizeof(text), "X%02d", p->ammo);
+    bool low = p->ammo <= 3;
+    shadow_text(gfx, x + 50.0f, 12.0f, text, 3.0f, 255, low ? 110 : 255, low ? 110 : 255);
     shadow_text(gfx, x - 2.0f, 46.0f, "J TO SHOOT", 1.6f, 220, 220, 220);
   } else {
     shadow_text(gfx, x, 14.0f, "NO GUN", 2.4f, 150, 150, 170);

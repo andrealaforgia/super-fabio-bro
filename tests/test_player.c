@@ -174,7 +174,7 @@ static void pickups_from_a_block_are_collected_by_walking_into_them(void) {
   CHECK(world->player.potions == 1);
   world_spawn_pickup(world, ITEM_PISTOL, world->player.x, world->player.y - 12.0f);
   step(world, NULL, 0.8f);
-  CHECK(world->player.has_gun);
+  CHECK(world->player.ammo == PISTOL_AMMO);
   free(world);
 }
 

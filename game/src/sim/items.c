@@ -19,7 +19,7 @@ static void collect(world_t* world, item_kind_t kind, float x) {
       world->score += 250;
       break;
     case ITEM_PISTOL:
-      p->has_gun = true;
+      p->ammo += PISTOL_AMMO;
       world->score += 250;
       break;
     case ITEM_MUSHROOM:

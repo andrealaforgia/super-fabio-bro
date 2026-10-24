@@ -28,7 +28,7 @@ start.
 
 | Key | Does |
 |---|---|
-| arrows or WASD | move |
+| arrows, or A and D | move |
 | space, Z, up | jump (hold for height; land on enemies to squash them) |
 | shift | run |
 | J, F, control | shoot the pistol; under the spell, cast the ray |
@@ -36,10 +36,13 @@ start.
 | E, Q | drink a TDD potion |
 | P, escape | pause |
 | M | music on or off |
+| S | sound effects and voices on or off |
 | F11 | full screen |
 
 - Hit `?` blocks from below. The first row holds the pistol and a potion.
-- The pistol fires bullets that explode zombies and bugs.
+- The pistol fires bullets that explode zombies and bugs. Each pistol adds
+  15 bullets, counted next to it at the top of the screen; when they run out
+  the pistol is gone until you find another.
 - A potion gives 14 seconds of the TDD spell: shooting casts a piercing ray
   through everything in line, gun or no gun. A bar shows it fading.
 - Zombies walk in from both edges at regular intervals, faster as you go.

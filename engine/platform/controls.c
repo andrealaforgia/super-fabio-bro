@@ -17,6 +17,7 @@ void controls_update(controls_t* controls, const buttons_t* now) {
   pressed.restart = now->restart && !before->restart;
   pressed.fullscreen = now->fullscreen && !before->fullscreen;
   pressed.mute = now->mute && !before->mute;
+  pressed.sound = now->sound && !before->sound;
   controls->pressed = pressed;
   controls->held = *now;
 }
