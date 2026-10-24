@@ -241,7 +241,21 @@ static void draw_player(const frame_t* f) {
   float alpha = 1.0f;
   if (p->alive && p->invulnerable > 0.0f && fmodf(f->world->time, 0.12f) < 0.06f)
     alpha = 0.35f;
-  draw_sprite(f, pose_player(p), p->x, p->y, FABIO_SCALE, p->facing < 0, alpha);
+  /* A bounce with every footfall and a lean into the stride, on top of the
+   * frames. */
+  float bounce = 0.0f, lean = 0.0f;
+  if (p->alive && p->grounded && fabsf(p->vx) > 12.0f && p->hurt_timer <= 0.0f) {
+    bounce = -fabsf(sinf(p->walk_phase * PI / 4.0f)) * 3.0f;
+    lean = (fabsf(p->vx) > 230.0f ? 5.0f : 3.0f) * (float)p->facing;
+  }
+  const sprite_t* sprite = look_sprite(f->look, pose_player(p));
+  float w = (float)sprite->w * FABIO_SCALE, h = (float)sprite->h * FABIO_SCALE;
+  float ax = (float)sprite->anchor_x * FABIO_SCALE;
+  bool flip = p->facing < 0;
+  float left = flip ? p->x - (w - ax) : p->x - ax;
+  draw_t options = {flip, alpha, lean, 0, 0, 0};
+  gfx_draw(f->gfx, sprite->texture, NULL,
+           rect(left - f->cam_x, p->y - h + bounce, w, h), &options);
 }
 
 static void draw_effects(const frame_t* f) {

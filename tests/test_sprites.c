@@ -86,18 +86,28 @@ static void a_standing_fabio_breathes_through_the_idle_frames(void) {
   CHECK(seen[0] && seen[1] && seen[2]);
 }
 
-static void walking_cycles_the_walk_frames_and_running_the_run_frames(void) {
+static void walking_and_running_cycle_the_swinging_run_frames(void) {
   player_t p = standing();
   p.vx = 170.0f;
   p.walk_phase = 3.2f;
-  CHECK(pose_player(&p).strip == STRIP_FAB_WALK);
-  CHECK(pose_player(&p).frame == 3);
-  p.walk_phase = 12.0f;
-  CHECK(pose_player(&p).frame == 2);
-  p.vx = 285.0f;
   CHECK(pose_player(&p).strip == STRIP_FAB_RUN);
+  CHECK(pose_player(&p).frame == 3);
+  p.walk_phase = 11.0f;
+  CHECK(pose_player(&p).frame == 3);
+  p.vx = 285.0f;
   p.walk_phase = 100.0f;
-  CHECK(pose_player(&p).frame < 8);
+  CHECK(pose_player(&p).strip == STRIP_FAB_RUN && pose_player(&p).frame < 8);
+}
+
+static void walking_visits_every_frame_so_the_legs_really_move(void) {
+  player_t p = standing();
+  p.vx = 175.0f;
+  bool seen[8] = {false};
+  for (float phase = 0.0f; phase < 8.0f; phase += 0.1f) {
+    p.walk_phase = phase;
+    seen[pose_player(&p).frame] = true;
+  }
+  for (int i = 0; i < 8; i++) CHECK(seen[i]);
 }
 
 static void in_the_air_the_jump_frame_follows_the_climb_and_the_fall(void) {
@@ -191,7 +201,8 @@ void run_sprites_tests(void) {
   RUN(every_sprite_the_game_draws_was_cooked);
   RUN(cooked_sprites_have_sensible_sizes_and_anchors);
   RUN(a_standing_fabio_breathes_through_the_idle_frames);
-  RUN(walking_cycles_the_walk_frames_and_running_the_run_frames);
+  RUN(walking_and_running_cycle_the_swinging_run_frames);
+  RUN(walking_visits_every_frame_so_the_legs_really_move);
   RUN(in_the_air_the_jump_frame_follows_the_climb_and_the_fall);
   RUN(the_pistol_changes_how_he_stands_and_walks);
   RUN(actions_override_movement_poses);

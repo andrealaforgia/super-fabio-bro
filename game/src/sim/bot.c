@@ -27,12 +27,12 @@ static bool enemy_ahead(const world_t* world, float reach, float height) {
   return false;
 }
 
-buttons_t bot_decide(const world_t* world, bot_t* bot, float dt) {
+void bot_travel(const world_t* world, bot_t* bot, float dt, buttons_t* b,
+                bool run_always) {
   const player_t* p = &world->player;
   const level_t* level = &world->level;
-  buttons_t b = {0};
-  b.right = true;
-  b.run = true;
+  b->right = true;
+  b->run = run_always;
 
   float ahead = p->x + 22.0f;
   bool wall = level_solid_at(level, ahead, p->y - 6.0f) ||
@@ -41,18 +41,26 @@ buttons_t bot_decide(const world_t* world, bot_t* bot, float dt) {
   bool pit = !level_solid_at(level, edge, p->y + 4.0f) &&
              !level_solid_at(level, edge, p->y + 36.0f) &&
              !level_solid_at(level, edge, p->y + 68.0f);
+  int width = pit ? pit_width(level, p->x, p->y) : 0;
+  if (width >= 4) b->run = true;
   if (p->grounded && (wall || pit)) {
-    /* A fresh press needs the button released first. */
-    /* A narrow pit wants a short hop so he lands before the next one. */
-    bool narrow = pit && pit_width(level, p->x, p->y) <= 3;
-    bot->jump_hold = bot->jump_hold > 0.0f ? 0.0f : (narrow ? 0.14f : 0.75f);
+    /* A fresh press needs the button released first. A narrow pit wants a
+     * short hop so he lands before the next one. */
+    bot->jump_hold = bot->jump_hold > 0.0f ? 0.0f : (pit && width <= 3 ? 0.14f : 0.75f);
   } else if (p->grounded) {
     bot->jump_hold = 0.0f;
   }
   if (bot->jump_hold > 0.0f) {
-    b.jump = true;
+    b->jump = true;
     bot->jump_hold -= dt;
   }
+  if (!p->grounded && bot->jump_hold > 0.0f && width >= 4) b->run = true;
+}
+
+buttons_t bot_decide(const world_t* world, bot_t* bot, float dt) {
+  const player_t* p = &world->player;
+  buttons_t b = {0};
+  bot_travel(world, bot, dt, &b, true);
 
   bool armed = p->has_gun || p->spell_time > 0.0f;
   if (armed && enemy_ahead(world, 460.0f, 70.0f)) b.shoot = true;

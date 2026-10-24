@@ -182,7 +182,7 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
   if (moved.hit_ceiling) world_bump_block(world, moved.ceiling_col, moved.ceiling_row);
 
   if (p->grounded && fabsf(p->vx) > 8.0f)
-    p->walk_phase += fabsf(p->vx) * dt * 0.06f;
+    p->walk_phase += fabsf(p->vx) * dt * 0.075f;
   remember_safe_ground(level, p);
 
   if (p->y > level_height() + 96.0f) fall_into_pit(world);

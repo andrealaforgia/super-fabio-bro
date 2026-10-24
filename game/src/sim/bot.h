@@ -16,5 +16,9 @@ typedef struct {
 } bot_t;
 
 buttons_t bot_decide(const world_t* world, bot_t* bot, float dt);
+/* Just the movement: heads right, jumping walls and pits. Runs only when a
+ * pit calls for it unless `run_always`. */
+void bot_travel(const world_t* world, bot_t* bot, float dt, buttons_t* buttons,
+                bool run_always);
 
 #endif  // GAME_SIM_BOT_H_

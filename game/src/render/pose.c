@@ -83,8 +83,9 @@ pose_t pose_player(const player_t* p) {
     return make(STRIP_FAB_IDLE, breathing[(int)(p->anim_time * 2.5f) % 4]);
   }
   if (p->has_gun) return make(STRIP_FAB_GUNWALK, (int)p->walk_phase);
-  if (fabsf(p->vx) > 230.0f) return make(STRIP_FAB_RUN, (int)(p->walk_phase * 0.8f));
-  return make(STRIP_FAB_WALK, (int)p->walk_phase);
+  /* The generated walk frames barely differ from one another; the run frames
+   * swing arms and legs, so they carry walking too. */
+  return make(STRIP_FAB_RUN, (int)p->walk_phase);
 }
 
 pose_t pose_zombie(const enemy_t* z, const player_t* p) {
