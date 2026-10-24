@@ -44,6 +44,7 @@ typedef struct {
   bool entered;
   int stage;
   float stage_time;
+  float stage_x;
   float jump_hold, jump_cool;
   int base_zombies, base_bugs, base_hp;
   bool hurt_seen, drink_sent;

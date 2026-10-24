@@ -104,7 +104,7 @@ static void scenery(level_t* level, uint32_t seed) {
   rng_t rng;
   rng_seed(&rng, seed);
   level->decor_count = 0;
-  for (int col = 4; col < 440 && level->decor_count < MAX_LEVEL_DECOR; col += rng_range(&rng, 4, 9)) {
+  for (int col = 4; col < 460 && level->decor_count < MAX_LEVEL_DECOR; col += rng_range(&rng, 4, 9)) {
     if (!tile_is_solid(level_tile(level, col, GROUND_ROW))) continue;
     if (level_tile(level, col, GROUND_ROW - 1) != TILE_EMPTY) continue;
     int roll = rng_range(&rng, 0, 9);
@@ -154,8 +154,8 @@ void demo_world_init(world_t* world, demo_t* demo, uint32_t seed) {
   item_platform(level, 320, ITEM_POTION);
   item_platform(level, 384, ITEM_PISTOL);
   /* The castle, up a flight of stairs. */
-  stairs(level, 414, 4);
-  level->castle_x = (float)(436 * TILE);
+  stairs(level, 428, 4);
+  level->castle_x = (float)(450 * TILE);
   level->goal_x = level->castle_x;
   scenery(level, seed);
 
@@ -212,8 +212,9 @@ static void spawn_from_the_right(world_t* world, bool bug, int variant,
                                  float jitter, float height) {
   float x = world->camera_x + world->view_w + EDGE_MARGIN + jitter;
   if (x > level_width() - TILE) x = level_width() - TILE;
-  int before = world->enemies[0].alive;
-  (void)before;
+  /* Never inside a stair or a pipe. */
+  bool flier = bug && (variant == BUG_FLY || variant == BUG_BEE);
+  if (!flier && level_solid_at(&world->level, x, GROUND_Y - 8.0f)) return;
   if (!bug) {
     spawn_zombie(world, x, GROUND_Y);
   } else {
@@ -333,6 +334,7 @@ static bool fight(world_t* world, demo_t* d, buttons_t* b, float duration) {
     b->right = true;
     if (p->grounded && p->y > GROUND_Y - 4.0f) {
       d->stage = 1;
+      d->stage_x = p->x;
       d->stage_time = 0.0f;
     }
     return false;
@@ -345,7 +347,9 @@ static bool fight(world_t* world, demo_t* d, buttons_t* b, float duration) {
   /* Let them come into view before the shooting starts. */
   if (enemy_ahead(world, 430.0f)) b->shoot = true;
   const enemy_t* near = nearest_enemy(world);
-  if (near && near->x > p->x + 160.0f && !enemy_ahead(world, 430.0f)) b->right = true;
+  if (near && near->x > p->x + 160.0f && !enemy_ahead(world, 430.0f) &&
+      p->x < d->stage_x + 6.0f * TILE)
+    b->right = true;
   if (near && fabsf(near->x - p->x) < 44.0f) b->melee = true;
   return d->wave >= WAVE_COUNT && d->stage_time > duration && enemies_alive(world) == 0;
 }
@@ -393,7 +397,7 @@ buttons_t demo_decide(world_t* world, demo_t* d, float dt) {
     case STEP_STOMP_BUG: next = encounter(world, d, &b, true, BUG_BEETLE, false); break;
     case STEP_PUSHED_BY_BUG: next = encounter(world, d, &b, true, BUG_SMALL, true); break;
     case STEP_BLOCK:
-      if (p->grounded && p->x < (float)((step->arg - 3) * TILE)) {
+      if (p->x < (float)((step->arg - 3) * TILE)) {
         bot_travel(world, &d->travel, dt, &b, false);
       } else {
         next = under_block(world, d, &b, step->arg);

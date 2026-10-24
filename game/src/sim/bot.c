@@ -46,7 +46,7 @@ void bot_travel(const world_t* world, bot_t* bot, float dt, buttons_t* b,
   if (p->grounded && (wall || pit)) {
     /* A fresh press needs the button released first. A narrow pit wants a
      * short hop so he lands before the next one. */
-    bot->jump_hold = bot->jump_hold > 0.0f ? 0.0f : (pit && width <= 3 ? 0.14f : 0.75f);
+    bot->jump_hold = bot->jump_hold > 0.0f ? 0.0f : (pit && width <= 3 && b->run ? 0.14f : 0.75f);
   } else if (p->grounded) {
     bot->jump_hold = 0.0f;
   }

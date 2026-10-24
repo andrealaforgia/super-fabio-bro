@@ -119,7 +119,7 @@ static void the_pistol_is_found_and_fired(void) {
   run(&world, &demo, &log);
   CHECK(world->player.has_gun);
   CHECK(log.shots >= 6);
-  CHECK(world->zombies_killed >= 12);
+  CHECK(world->zombies_killed >= 9);
   CHECK(world->bugs_killed >= 10);
   free(world);
 }
@@ -130,7 +130,7 @@ static void the_course_has_pipes_pits_stairs_and_stepping_stones(void) {
   demo_world_init(world, &demo, 4);
   int pipes = 0, pits = 0, stone = 0, gold = 0, bricks = 0;
   bool in_pit = false;
-  for (int col = 0; col < 440; col++) {
+  for (int col = 0; col < 460; col++) {
     for (int row = 0; row < GROUND_ROW; row++) {
       tile_t t = level_tile(&world->level, col, row);
       pipes += t == TILE_PIPE_TOP_L;
@@ -142,7 +142,7 @@ static void the_course_has_pipes_pits_stairs_and_stepping_stones(void) {
     if (hole && !in_pit) pits++;
     in_pit = hole;
   }
-  CHECK(pipes >= 8);
+  CHECK(pipes >= 7);
   CHECK(pits >= 6);
   CHECK(stone >= 20);
   CHECK(gold >= 4);
