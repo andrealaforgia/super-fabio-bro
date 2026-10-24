@@ -46,19 +46,6 @@ start.
   Bugs crawl or fly. Touching them costs a heart; mushrooms give one back;
   pits cost one too.
 
-## The demo
-
-```
-./super-fabio-bros --demo
-```
-
-Fabio plays himself, through the real game: the cover and "It's me! Fabio!",
-a walk, a zombie stomped, another that pushes him back before he stomps it,
-the same with bugs, a `?` block that gives the TDD potion, the spell blasting
-zombies and bugs, a second block with the pistol, and shooting. Escape quits. `--delay 10` waits ten seconds behind a countdown first, so you
-can start a screen recording (QuickTime: File, New Screen Recording) before
-the cover and its voice begin.
-
 ## Build, test, tools
 
 ```
@@ -66,6 +53,7 @@ make test           # every test group, no window needed
 make sanitize       # the same under AddressSanitizer and UBSan
 make snapshot       # a bot plays 20 s, saved to snapshot.bmp, plus the title
 ./super-fabio-bros --showcase --snapshot show.bmp   # a staged fight
+./super-fabio-bros --delay 10   # a countdown first, to start a screen recording
 ./super-fabio-bros --help
 ```
 

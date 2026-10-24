@@ -475,12 +475,6 @@ void render_title(gfx_t* gfx, const look_t* look, float time) {
   }
 }
 
-void render_caption(gfx_t* gfx, const char* text) {
-  float w = gfx_view_width(gfx);
-  gfx_rect(gfx, rect(0, GFX_VIEW_HEIGHT - 52.0f, w, 52.0f), 10, 0, 20, 170);
-  centred_text(gfx, w * 0.5f, GFX_VIEW_HEIGHT - 40.0f, text, 3.4f, 255, 240, 120);
-}
-
 void render_countdown(gfx_t* gfx, float seconds_left) {
   float w = gfx_view_width(gfx);
   gfx_rect(gfx, rect(0, 0, w, GFX_VIEW_HEIGHT), 16, 10, 40, 255);

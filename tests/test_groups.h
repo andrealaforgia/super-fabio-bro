@@ -11,6 +11,5 @@ void run_bot_tests(void);
 void run_scenery_tests(void);
 void run_sprites_tests(void);
 void run_audio_tests(void);
-void run_demo_tests(void);
 
 #endif  // TESTS_TEST_GROUPS_H_

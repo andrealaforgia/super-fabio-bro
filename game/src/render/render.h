@@ -14,7 +14,5 @@ void render_title(gfx_t* gfx, const look_t* look, float time);
 void render_pause(gfx_t* gfx);
 /* A big countdown, for setting up a screen recording. */
 void render_countdown(gfx_t* gfx, float seconds_left);
-/* A line of text on a dark strip at the bottom of the screen. */
-void render_caption(gfx_t* gfx, const char* text);
 
 #endif  // GAME_RENDER_RENDER_H_

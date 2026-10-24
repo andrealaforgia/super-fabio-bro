@@ -13,7 +13,7 @@ static const test_group_t groups[] = {
     {"physics", run_physics_tests}, {"player", run_player_tests},
     {"enemy", run_enemy_tests},     {"combat", run_combat_tests},
     {"bot", run_bot_tests},         {"scenery", run_scenery_tests},
-    {"sprites", run_sprites_tests}, {"audio", run_audio_tests}, {"demo", run_demo_tests},
+    {"sprites", run_sprites_tests}, {"audio", run_audio_tests},
 };
 
 int main(int argc, char* argv[]) {

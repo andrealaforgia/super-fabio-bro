@@ -27,7 +27,8 @@ static bool enemy_ahead(const world_t* world, float reach, float height) {
   return false;
 }
 
-void bot_travel(const world_t* world, bot_t* bot, float dt, buttons_t* b,
+/* Just the movement: heads right, jumping walls and pits. */
+static void bot_travel(const world_t* world, bot_t* bot, float dt, buttons_t* b,
                 bool run_always) {
   const player_t* p = &world->player;
   const level_t* level = &world->level;
