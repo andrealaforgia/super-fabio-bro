@@ -47,6 +47,7 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_GROUND_ROCK] = {"ground_rock", 0},
     [STRIP_PIPE_CAP] = {"pipe_cap", 0},
     [STRIP_PIPE_BODY] = {"pipe_body", 0},
+    [STRIP_BUBBLE] = {"bubble_a", 0},
 };
 
 static pose_t make(strip_id_t strip, int frame) {

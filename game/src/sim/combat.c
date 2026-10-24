@@ -167,7 +167,9 @@ static void touch_enemies(world_t* world) {
     if (!e->alive) continue;
     if (!rect_overlaps(inset(player_rect(p), 3.0f), inset(enemy_rect(e), 3.0f)))
       continue;
-    bool from_above = p->vy > 60.0f && p->y < e->y - e->h * 0.45f;
+    /* Landing on the top part counts; low bugs get a little extra leeway. */
+    float stomp_line = fmaxf(e->y - e->h * 0.45f, e->y - e->h + 16.0f);
+    bool from_above = p->vy > 60.0f && p->y < stomp_line;
     if (from_above) {
       world_kill_enemy(world, e, false);
       p->vy = -STOMP_BOUNCE;

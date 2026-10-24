@@ -54,6 +54,7 @@ typedef enum {
   STRIP_GROUND_ROCK,
   STRIP_PIPE_CAP,
   STRIP_PIPE_BODY,
+  STRIP_BUBBLE,
   STRIP_COUNT
 } strip_id_t;
 

@@ -46,6 +46,17 @@ start.
   Bugs crawl or fly. Touching them costs a heart; mushrooms give one back;
   pits cost one too.
 
+## The demo
+
+```
+./super-fabio-bros --demo
+```
+
+Fabio plays himself, through the real game: the cover and "It's me! Fabio!",
+a walk, a zombie stomped, another that pushes him back before he stomps it,
+the same with bugs, a `?` block that gives the TDD potion, the spell blasting
+zombies and bugs, a second block with the pistol, and shooting. Escape quits.
+
 ## Build, test, tools
 
 ```

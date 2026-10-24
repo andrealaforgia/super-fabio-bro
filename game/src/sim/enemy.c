@@ -44,6 +44,7 @@ void spawn_zombie(world_t* world, float x, float y) {
   e->speed = 42.0f + rng_float(&world->rng) * 26.0f + progress * 22.0f;
   e->anim_time = rng_float(&world->rng) * 3.0f;
   e->hop_cooldown = 0.5f;
+  e->phase_seed = rng_float(&world->rng) * 6.28f;
   world_emit(world, EVENT_GROAN, x);
 }
 

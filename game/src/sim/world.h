@@ -122,6 +122,7 @@ typedef struct {
   float phase;
   float anim_time;
   float base_y;
+  float phase_seed; /* de-synchronises the zombies' floating speech */
 } enemy_t;
 
 typedef struct {

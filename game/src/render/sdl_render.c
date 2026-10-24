@@ -209,6 +209,13 @@ static void draw_enemies(const frame_t* f) {
     if (e->kind == ENEMY_ZOMBIE) {
       draw_sprite(f, pose_zombie(e, &f->world->player), e->x, e->y, ZOMBIE_SCALE,
                   e->facing < 0, 1.0f);
+      /* "I DON'T TEST!" floats and sways above the head. */
+      float t = f->world->time * 2.6f + e->phase_seed;
+      float sway = sinf(t * 0.7f) * 5.0f, bob = sinf(t) * 4.0f;
+      float pulse = 1.0f + sinf(t * 2.3f) * 0.05f;
+      draw_centred(f, (pose_t){STRIP_BUBBLE, 0}, e->x + 12.0f * (float)(-e->facing) * 0.0f + sway,
+                   e->y - 56.0f - 38.0f + bob, 0.78f * pulse, 0.78f * pulse,
+                   sinf(t * 0.9f) * 4.0f, false, 1.0f);
     } else {
       static const float scale[BUG_VARIANTS] = {0.4f, 0.42f, 0.42f, 0.4f, 0.4f};
       float wiggle = sinf(e->anim_time * 18.0f) * 7.0f;
@@ -452,4 +459,10 @@ void render_title(gfx_t* gfx, const look_t* look, float time) {
     for (int i = 0; i < 5; i++)
       shadow_text(gfx, lx - widest, 130.0f + (float)i * 26.0f, kTips[i], 2.0f, 255, 255, 255);
   }
+}
+
+void render_caption(gfx_t* gfx, const char* text) {
+  float w = gfx_view_width(gfx);
+  gfx_rect(gfx, rect(0, GFX_VIEW_HEIGHT - 52.0f, w, 52.0f), 10, 0, 20, 170);
+  centred_text(gfx, w * 0.5f, GFX_VIEW_HEIGHT - 40.0f, text, 3.4f, 255, 240, 120);
 }

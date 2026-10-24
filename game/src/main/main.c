@@ -7,6 +7,7 @@
 
 #include "bot.h"
 #include "controls.h"
+#include "demo.h"
 #include "mixer.h"
 #include "render.h"
 #include "sdl_audio.h"
@@ -33,6 +34,7 @@ typedef struct {
   float seconds;
   bool title;
   bool showcase;
+  bool demo;
   uint32_t seed;
   int width, height;
 } options_t;
@@ -59,7 +61,7 @@ static void play_events(audio_state_t* audio, world_t* world) {
 }
 
 static options_t parse(int argc, char** argv) {
-  options_t o = {NULL, 4.0f, false, false, (uint32_t)time(NULL), 0, 0};
+  options_t o = {NULL, 4.0f, false, false, false, (uint32_t)time(NULL), 0, 0};
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--snapshot") && i + 1 < argc) o.snapshot = argv[++i];
     else if (!strcmp(argv[i], "--seconds") && i + 1 < argc) o.seconds = (float)atof(argv[++i]);
@@ -68,8 +70,9 @@ static options_t parse(int argc, char** argv) {
     else if (!strcmp(argv[i], "--height") && i + 1 < argc) o.height = atoi(argv[++i]);
     else if (!strcmp(argv[i], "--title")) o.title = true;
     else if (!strcmp(argv[i], "--showcase")) o.showcase = true;
+    else if (!strcmp(argv[i], "--demo")) o.demo = true;
     else {
-      printf("usage: super-fabio-bros [--seed N] [--snapshot out.bmp [--seconds S] [--title|--showcase]"
+      printf("usage: super-fabio-bros [--seed N] [--snapshot out.bmp [--seconds S] [--demo] [--title|--showcase]"
              " [--width W --height H]]\n");
       exit(!strcmp(argv[i], "--help") ? 0 : 2);
     }
@@ -87,9 +90,27 @@ static int take_snapshot(gfx_t* gfx, const look_t* look, const options_t* o) {
     return ok ? 0 : 1;
   }
   world_t* world = malloc(sizeof(*world));
-  world_init(world, o->seed);
+  demo_t demo;
+  if (o->demo) demo_world_init(world, &demo, o->seed);
+  else world_init(world, o->seed);
   gfx_begin(gfx, 0, 0, 0);
   world->view_w = gfx_view_width(gfx);
+  if (o->demo) {
+    controls_t pad;
+    memset(&pad, 0, sizeof(pad));
+    for (float t = 0.0f; t < o->seconds && !demo_finished(&demo); t += 1.0f / 120.0f) {
+      buttons_t now = demo_decide(world, &demo, 1.0f / 120.0f);
+      controls_update(&pad, &now);
+      world_update(world, &pad, 1.0f / 120.0f);
+      world_clear_events(world);
+    }
+    render_world(gfx, look, world);
+    render_caption(gfx, demo_caption(&demo));
+    bool ok = gfx_save_bmp(gfx, o->snapshot);
+    gfx_end(gfx);
+    free(world);
+    return ok ? 0 : 1;
+  }
   bot_t bot;
   memset(&bot, 0, sizeof(bot));
   controls_t controls;
@@ -165,6 +186,10 @@ int main(int argc, char** argv) {
 
   world_t* world = malloc(sizeof(*world));
   world_init(world, options.seed);
+  demo_t demo;
+  controls_t demo_pad;
+  memset(&demo_pad, 0, sizeof(demo_pad));
+  float end_time = 0.0f;
   bool on_title = true, voiced = false, paused = false, running = true;
   float title_time = 0.0f;
   controls_t controls;
@@ -196,14 +221,40 @@ int main(int argc, char** argv) {
         play(&audio, SFX_VOICE_FABIO, 1.0f);
         voiced = true;
       }
+      /* In the demo nobody touches the keyboard: space is "pressed" for us
+       * once the voice has had its say. */
+      if (options.demo) start = title_time > VOICE_DELAY + 3.0f;
       if (start && title_time > 0.3f) {
         on_title = false;
         audio.music_gain = 0.5f;
-        world_init(world, options.seed);
+        if (options.demo) demo_world_init(world, &demo, options.seed);
+        else world_init(world, options.seed);
+        end_time = 0.0f;
         world->view_w = gfx_view_width(gfx);
         play(&audio, SFX_PICKUP, 0.6f);
       }
       render_title(gfx, &look, title_time);
+    } else if (options.demo) {
+      if (controls.pressed.pause) running = false;
+      double step;
+      int steps = stepper_plan(frame, FIXED_STEP, 0.1, &step);
+      for (int i = 0; i < steps && !demo_finished(&demo); i++) {
+        buttons_t now = demo_decide(world, &demo, (float)step);
+        controls_update(&demo_pad, &now);
+        world_update(world, &demo_pad, (float)step);
+      }
+      if (sound) play_events(&audio, world);
+      else world_clear_events(world);
+      render_world(gfx, &look, world);
+      render_caption(gfx, demo_caption(&demo));
+      if (demo_finished(&demo)) {
+        end_time += (float)frame;
+        if (end_time > 3.0f) {
+          on_title = true;
+          voiced = false;
+          title_time = 0.0f;
+        }
+      }
     } else {
       bool over = world->state == STATE_GAME_OVER || world->state == STATE_WON;
       if (controls.pressed.pause && !over) paused = !paused;

@@ -12,5 +12,7 @@
 void render_world(gfx_t* gfx, const look_t* look, const world_t* world);
 void render_title(gfx_t* gfx, const look_t* look, float time);
 void render_pause(gfx_t* gfx);
+/* A line of text on a dark strip at the bottom of the screen. */
+void render_caption(gfx_t* gfx, const char* text);
 
 #endif  // GAME_RENDER_RENDER_H_

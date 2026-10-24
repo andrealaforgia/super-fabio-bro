@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 GROUPS = (
     "core", "level", "physics", "player", "enemy", "combat", "bot",
-    "scenery", "sprites", "audio",
+    "scenery", "sprites", "audio", "demo",
 )
 
 
