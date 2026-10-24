@@ -1,0 +1,16 @@
+/**
+ * @file render.h
+ * @brief Draws the world, the heads-up display and the title, pause, game
+ * over and victory screens.
+ */
+#ifndef GAME_RENDER_RENDER_H_
+#define GAME_RENDER_RENDER_H_
+
+#include "look.h"
+#include "world.h"
+
+void render_world(gfx_t* gfx, const look_t* look, const world_t* world);
+void render_title(gfx_t* gfx, const look_t* look, float time);
+void render_pause(gfx_t* gfx);
+
+#endif  // GAME_RENDER_RENDER_H_

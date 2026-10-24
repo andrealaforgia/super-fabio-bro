@@ -1,0 +1,10 @@
+super-fabio-bros
+render_snapshot
+*.o
+*.d
+*.a
+*.dSYM
+**/.DS_Store
+__pycache__/
+assets_cooked/
+snapshot*.bmp
