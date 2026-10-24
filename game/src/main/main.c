@@ -35,6 +35,7 @@ typedef struct {
   bool title;
   bool showcase;
   bool demo;
+  float delay;
   uint32_t seed;
   int width, height;
 } options_t;
@@ -61,7 +62,7 @@ static void play_events(audio_state_t* audio, world_t* world) {
 }
 
 static options_t parse(int argc, char** argv) {
-  options_t o = {NULL, 4.0f, false, false, false, (uint32_t)time(NULL), 0, 0};
+  options_t o = {NULL, 4.0f, false, false, false, 0.0f, (uint32_t)time(NULL), 0, 0};
   for (int i = 1; i < argc; i++) {
     if (!strcmp(argv[i], "--snapshot") && i + 1 < argc) o.snapshot = argv[++i];
     else if (!strcmp(argv[i], "--seconds") && i + 1 < argc) o.seconds = (float)atof(argv[++i]);
@@ -71,8 +72,9 @@ static options_t parse(int argc, char** argv) {
     else if (!strcmp(argv[i], "--title")) o.title = true;
     else if (!strcmp(argv[i], "--showcase")) o.showcase = true;
     else if (!strcmp(argv[i], "--demo")) o.demo = true;
+    else if (!strcmp(argv[i], "--delay") && i + 1 < argc) o.delay = (float)atof(argv[++i]);
     else {
-      printf("usage: super-fabio-bros [--seed N] [--snapshot out.bmp [--seconds S] [--demo] [--title|--showcase]"
+      printf("usage: super-fabio-bros [--seed N] [--snapshot out.bmp [--seconds S] [--demo] [--delay SECONDS] [--title|--showcase]"
              " [--width W --height H]]\n");
       exit(!strcmp(argv[i], "--help") ? 0 : 2);
     }
@@ -190,6 +192,7 @@ int main(int argc, char** argv) {
   controls_t demo_pad;
   memset(&demo_pad, 0, sizeof(demo_pad));
   float end_time = 0.0f;
+  float delay_left = options.delay; /* time to start a screen recording */
   bool on_title = true, voiced = false, paused = false, running = true;
   float title_time = 0.0f;
   controls_t controls;
@@ -213,6 +216,13 @@ int main(int argc, char** argv) {
     gfx_begin(gfx, 0, 0, 0);
     world->view_w = gfx_view_width(gfx);
 
+    if (delay_left > 0.0f) {
+      delay_left -= (float)frame;
+      audio.music_gain = 0.0f;
+      render_countdown(gfx, delay_left);
+      gfx_end(gfx);
+      continue;
+    }
     if (on_title) {
       title_time += (float)frame;
       /* Keep the music out of the way of the voice. */

@@ -480,3 +480,13 @@ void render_caption(gfx_t* gfx, const char* text) {
   gfx_rect(gfx, rect(0, GFX_VIEW_HEIGHT - 52.0f, w, 52.0f), 10, 0, 20, 170);
   centred_text(gfx, w * 0.5f, GFX_VIEW_HEIGHT - 40.0f, text, 3.4f, 255, 240, 120);
 }
+
+void render_countdown(gfx_t* gfx, float seconds_left) {
+  float w = gfx_view_width(gfx);
+  gfx_rect(gfx, rect(0, 0, w, GFX_VIEW_HEIGHT), 16, 10, 40, 255);
+  char text[16];
+  snprintf(text, sizeof(text), "%d", (int)ceilf(seconds_left));
+  centred_text(gfx, w * 0.5f, 140.0f, text, 24.0f, 255, 220, 90);
+  centred_text(gfx, w * 0.5f, 340.0f, "STARTING SOON", 4.0f, 255, 255, 255);
+  centred_text(gfx, w * 0.5f, 390.0f, "START YOUR SCREEN RECORDING", 2.4f, 190, 230, 255);
+}
