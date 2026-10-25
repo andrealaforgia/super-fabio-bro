@@ -8,7 +8,6 @@
 #define SPAWN_MARGIN 40.0f
 #define BOOK_READER_W 26.0f
 #define BOOK_READER_H 54.0f
-#define BOOK_READER_SPEED 24.0f
 
 static const struct {
   float w, h, speed;
@@ -68,8 +67,7 @@ void spawn_book_reader(world_t* world, float x, float y) {
   e->y = y;
   e->w = BOOK_READER_W;
   e->h = BOOK_READER_H;
-  e->speed = BOOK_READER_SPEED * (0.8f + rng_float(&world->rng) * 0.4f);
-  e->facing = rng_chance(&world->rng, 0.5f) ? 1 : -1;
+  e->facing = world->player.x < x ? -1 : 1; /* looking back at Fabio */
   e->anim_time = 0.0f; /* he starts out reading */
 }
 
@@ -78,19 +76,14 @@ book_reader_mood_t book_reader_mood(const enemy_t* m) {
   return in_cycle < BOOK_READER_READ_SECONDS ? BOOK_READER_READING : BOOK_READER_LAUGHING;
 }
 
-/* He ambles along with his nose in the book, turns back at a wall or a drop,
- * and stands still while he laughs. */
-static void amble_reading(world_t* world, enemy_t* e, float dt) {
-  bool amble = book_reader_mood(e) == BOOK_READER_READING;
-  float ahead = e->x + (float)e->facing * (BOOK_READER_W * 0.5f + 6.0f);
-  bool drop = e->grounded && !level_solid_at(&world->level, ahead, e->y + 8.0f);
-  if (amble && drop) e->facing = -e->facing;
-  e->vx = amble ? (float)e->facing * e->speed : 0.0f;
+/* He never walks: he stands where he appeared, reading and laughing, and only
+ * falls until there is ground under him. */
+static void stand_in_place(world_t* world, enemy_t* e, float dt) {
+  e->vx = 0.0f;
   e->vy = fminf(e->vy + GRAVITY * dt, MAX_FALL);
   move_result_t moved = physics_move(&world->level, &e->x, &e->y, &e->vx,
                                      &e->vy, e->w, e->h, dt);
   e->grounded = moved.grounded;
-  if (amble && (moved.hit_left || moved.hit_right)) e->facing = -e->facing;
 }
 
 static bool is_flier(const enemy_t* e) {
@@ -134,7 +127,7 @@ void enemies_update(world_t* world, float dt) {
   for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
     e->anim_time += dt;
     if (e->kind == ENEMY_BOOK_READER)
-      amble_reading(world, e, dt);
+      stand_in_place(world, e, dt);
     else if (is_flier(e))
       fly_towards_player(world, e, dt);
     else
@@ -160,9 +153,11 @@ static bool ground_in_column(const world_t* world, int col, float* y) {
   return false;
 }
 
-static bool pick_spawn_point(world_t* world, bool ground, float* x, float* y) {
+/* A spot just off screen, on the right with probability `right_chance`. */
+static bool pick_spawn_point(world_t* world, bool ground, float right_chance,
+                             float* x, float* y) {
   for (int attempt = 0; attempt < 6; attempt++) {
-    bool right = rng_chance(&world->rng, 0.72f);
+    bool right = rng_chance(&world->rng, right_chance);
     float edge = right ? world->camera_x + world->view_w + SPAWN_MARGIN
                        : world->camera_x - SPAWN_MARGIN;
     float px = edge + (right ? 1.0f : -1.0f) * rng_float(&world->rng) * 90.0f;
@@ -193,7 +188,7 @@ void spawner_update(world_t* world, float dt) {
     int limit = 5 + (int)(progress * 6.0f);
     float x, y;
     if (world_count_enemies(world, ENEMY_ZOMBIE) < limit &&
-        pick_spawn_point(world, true, &x, &y)) {
+        pick_spawn_point(world, true, 0.72f, &x, &y)) {
       spawn_zombie(world, x, y);
       world->zombie_timer = lerpf(4.2f, 1.7f, progress) +
                             rng_float(&world->rng) * 1.2f;
@@ -205,10 +200,10 @@ void spawner_update(world_t* world, float dt) {
   world->book_reader_timer -= dt;
   if (world->book_reader_timer <= 0.0f) {
     float x, y;
-    if (world_count_enemies(world, ENEMY_BOOK_READER) < 1 &&
-        pick_spawn_point(world, true, &x, &y)) {
+    if (world_count_enemies(world, ENEMY_BOOK_READER) < BOOK_READER_MAX &&
+        pick_spawn_point(world, true, 1.0f, &x, &y)) {
       spawn_book_reader(world, x, y);
-      world->book_reader_timer = 32.0f + rng_float(&world->rng) * 28.0f;
+      world->book_reader_timer = 12.0f + rng_float(&world->rng) * 12.0f;
     } else {
       world->book_reader_timer = 1.0f;
     }
@@ -219,7 +214,7 @@ void spawner_update(world_t* world, float dt) {
     int variant = rng_range(&world->rng, 0, BUG_VARIANTS - 1);
     float x, y;
     if (world_count_enemies(world, ENEMY_BUG) < limit &&
-        pick_spawn_point(world, !kBugs[variant].flies, &x, &y)) {
+        pick_spawn_point(world, !kBugs[variant].flies, 0.72f, &x, &y)) {
       spawn_bug(world, variant, x, y);
       world->bug_timer = lerpf(6.5f, 3.2f, progress) +
                          rng_float(&world->rng) * 2.0f;

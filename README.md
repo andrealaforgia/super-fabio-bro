@@ -53,8 +53,9 @@ start.
 - Zombies walk in from both edges at regular intervals, faster as you go.
   Bugs crawl or fly. Touching them costs a heart; mushrooms give one back;
   pits cost one too.
-- Now and then the Book Reader wanders in, reading Fabio's book. He
-  is harmless: touching him, jumping on him or swinging the pickaxe does
+- Every 12 to 24 seconds a Book Reader turns up ahead of you, up to three at
+  a time, reading Fabio's book. He never moves from where he appears and is
+  harmless: touching him, jumping on him or swinging the pickaxe does
   nothing. He reads for a few seconds, laughs his head off for a couple,
   reads again, laughs again, and so on. A bullet or the TDD ray sets him off:
   he swells, flashes and bursts in a shower of pages (500 points). His frames

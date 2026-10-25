@@ -237,8 +237,11 @@ void spawner_update(world_t* world, float dt);
 void spawn_zombie(world_t* world, float x, float y);
 void spawn_bug(world_t* world, int variant, float x, float y);
 void spawn_book_reader(world_t* world, float x, float y);
-/* He reads, laughs, reads again, laughs again, whatever Fabio does: a loop
- * of BOOK_READER_READ_SECONDS then BOOK_READER_LAUGH_SECONDS, from his anim_time. */
+/* They come every 12 to 24 seconds, ahead of Fabio, and stay where they
+ * appear: never more than this many at once. */
+#define BOOK_READER_MAX 3
+/* Each reads, laughs, reads again, laughs again, whatever Fabio does: a loop
+ * of BOOK_READER_READ_SECONDS then BOOK_READER_LAUGH_SECONDS, from anim_time. */
 #define BOOK_READER_READ_SECONDS 3.0f
 #define BOOK_READER_LAUGH_SECONDS 2.4f
 typedef enum { BOOK_READER_READING, BOOK_READER_LAUGHING } book_reader_mood_t;

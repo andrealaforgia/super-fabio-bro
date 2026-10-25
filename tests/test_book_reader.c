@@ -20,7 +20,7 @@ static int live_effects(const world_t* world, fx_kind_t kind) {
   return n;
 }
 
-static void the_book_reader_turns_up_by_himself_off_screen(void) {
+static void the_book_reader_turns_up_by_himself_ahead_of_fabio(void) {
   world_t* world = fresh();
   world->spawning = true;
   world->zombie_timer = 1e9f;
@@ -34,25 +34,29 @@ static void the_book_reader_turns_up_by_himself_off_screen(void) {
   size_t cursor = 0;
   const enemy_t* m = pool_next_active(&world->enemies, &cursor);
   CHECK(m != NULL && m->kind == ENEMY_BOOK_READER);
-  CHECK(m->x < world->camera_x || m->x > world->camera_x + world->view_w);
+  CHECK(m->x > world->camera_x + world->view_w); /* off screen, to the right */
+  CHECK(m->facing == -1);                        /* looking back at Fabio */
   world_free(world);
 }
 
-static void there_is_only_one_book_reader_at_a_time_and_he_comes_back_later(void) {
+static void they_come_often_but_never_more_than_a_few_at_once(void) {
   world_t* world = fresh();
   world->spawning = true;
   world->zombie_timer = 1e9f;
   world->bug_timer = 1e9f;
   world->book_reader_timer = 0.1f;
   world->player.invulnerable = 1e9f;
+  step(world, NULL, 0.2f);
+  CHECK(world_count_enemies(world, ENEMY_BOOK_READER) == 1);
+  /* The next one is due within 12 to 24 seconds. */
+  CHECK(world->book_reader_timer > 12.0f && world->book_reader_timer <= 24.5f);
   int most = 0;
-  for (int i = 0; i < 100; i++) {
+  for (int i = 0; i < 200; i++) {
     step(world, NULL, 1.0f);
     int n = world_count_enemies(world, ENEMY_BOOK_READER);
     if (n > most) most = n;
-    world->player.x = fminf(world->player.x, 40.0f * TILE);
   }
-  CHECK(most == 1);
+  CHECK(most == BOOK_READER_MAX);
   world_free(world);
 }
 
@@ -188,35 +192,34 @@ static void each_mood_shows_its_own_frames(void) {
   world_free(world);
 }
 
-static void he_ambles_while_reading_and_stands_still_while_laughing(void) {
+static void he_stays_exactly_where_he_is_reading_or_laughing(void) {
   world_t* world = fresh();
   world->player.invulnerable = 1000.0f;
   spawn_book_reader(world, world->player.x + 700.0f, world->player.y);
   enemy_t* m = enemy_at(world, 0);
-  float start = m->x;
-  step(world, NULL, BOOK_READER_READ_SECONDS - 0.5f);
-  CHECK(fabsf(m->x - start) > 10.0f);
-  step(world, NULL, 0.7f);
-  CHECK(book_reader_mood(m) == BOOK_READER_LAUGHING);
-  float laughing_at = m->x;
-  step(world, NULL, BOOK_READER_LAUGH_SECONDS - 0.4f);
-  CHECK(fabsf(m->x - laughing_at) < 1.0f);
+  float x = m->x, y = m->y;
+  bool read = false, laughed = false;
+  for (int i = 0; i < 12 * 5; i++) {
+    step(world, NULL, 1.0f);
+    read = read || book_reader_mood(m) == BOOK_READER_READING;
+    laughed = laughed || book_reader_mood(m) == BOOK_READER_LAUGHING;
+    CHECK(m->x == x && m->y == y);
+  }
+  CHECK(read && laughed);
   world_free(world);
 }
 
-static void he_turns_back_at_a_drop_instead_of_falling_in(void) {
+static void dropped_in_mid_air_he_lands_and_then_stays(void) {
   world_t* world = fresh();
   world->player.invulnerable = 1000.0f;
-  for (int col = 30; col < 40; col++)
-    for (int row = GROUND_ROW; row < LEVEL_ROWS; row++)
-      world->level.tiles[row][col] = TILE_EMPTY;
-  world->player.x = 5.0f * TILE;
-  spawn_book_reader(world, 28.5f * TILE, world->player.y);
-  enemy_at(world, 0)->facing = 1;
-  enemy_at(world, 0)->speed = 60.0f;
-  step(world, NULL, 4.0f);
-  CHECK(world_count_enemies(world, ENEMY_BOOK_READER) == 1);
-  CHECK(enemy_at(world, 0)->x < 30.0f * TILE);
+  spawn_book_reader(world, world->player.x + 700.0f, world->player.y - 150.0f);
+  step(world, NULL, 1.5f);
+  enemy_t* m = enemy_at(world, 0);
+  CHECK(m->grounded);
+  CHECK(fabsf(m->y - (float)(GROUND_ROW * TILE)) < 1.0f);
+  float x = m->x;
+  step(world, NULL, 5.0f);
+  CHECK(m->x == x);
   world_free(world);
 }
 
@@ -241,8 +244,8 @@ static void his_burst_has_a_pose_for_every_moment(void) {
 }
 
 void run_book_reader_tests(void) {
-  RUN(the_book_reader_turns_up_by_himself_off_screen);
-  RUN(there_is_only_one_book_reader_at_a_time_and_he_comes_back_later);
+  RUN(the_book_reader_turns_up_by_himself_ahead_of_fabio);
+  RUN(they_come_often_but_never_more_than_a_few_at_once);
   RUN(walking_into_him_does_no_harm);
   RUN(landing_on_him_or_swinging_the_pickaxe_does_not_set_him_off);
   RUN(a_bullet_makes_him_burst_and_scores);
@@ -251,8 +254,8 @@ void run_book_reader_tests(void) {
   RUN(he_reads_then_laughs_then_reads_again_and_so_on);
   RUN(the_loop_does_not_depend_on_where_fabio_is);
   RUN(each_mood_shows_its_own_frames);
-  RUN(he_ambles_while_reading_and_stands_still_while_laughing);
-  RUN(he_turns_back_at_a_drop_instead_of_falling_in);
+  RUN(he_stays_exactly_where_he_is_reading_or_laughing);
+  RUN(dropped_in_mid_air_he_lands_and_then_stays);
   RUN(the_bot_does_not_waste_bullets_on_him);
   RUN(his_burst_has_a_pose_for_every_moment);
 }
