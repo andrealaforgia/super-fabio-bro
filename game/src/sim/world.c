@@ -5,7 +5,7 @@
 
 void world_emit(world_t* world, event_kind_t kind, float x) {
   if (world->event_count >= MAX_EVENTS) return;
-  world->events[world->event_count++] = (event_t){kind, x};
+  world->events[world->event_count++] = (sim_event_t){kind, x};
 }
 
 void world_clear_events(world_t* world) { world->event_count = 0; }

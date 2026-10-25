@@ -52,9 +52,9 @@ texture_t gfx_texture_from_file(gfx_t* gfx, const char* path, bool smooth);
 void gfx_texture_free(texture_t* texture);
 
 /* `src` may be NULL for the whole texture. */
-void gfx_draw(gfx_t* gfx, texture_t texture, const rect_t* src, rect_t dst,
+void gfx_draw(gfx_t* gfx, texture_t texture, const frect_t* src, frect_t dst,
               const draw_t* options);
-void gfx_rect(gfx_t* gfx, rect_t rect, uint8_t r, uint8_t g, uint8_t b,
+void gfx_rect(gfx_t* gfx, frect_t rect, uint8_t r, uint8_t g, uint8_t b,
               uint8_t a);
 void gfx_text(gfx_t* gfx, float x, float y, const char* text, float scale,
               uint8_t r, uint8_t g, uint8_t b);

@@ -98,7 +98,7 @@ void world_cast_spell(world_t* world) {
     x1 = x;
   }
   float left = fminf(x0, x1), right = fmaxf(x0, x1);
-  rect_t beam = {left, y - 16.0f, right - left, 32.0f};
+  frect_t beam = {left, y - 16.0f, right - left, 32.0f};
   for (int i = 0; i < MAX_ENEMIES; i++) {
     enemy_t* e = &world->enemies[i];
     if (e->alive && rect_overlaps(beam, enemy_rect(e)))
@@ -125,7 +125,7 @@ static void update_bullets(world_t* world, float dt) {
       b->alive = false;
       continue;
     }
-    rect_t box = {b->x - 6.0f, b->y - 12.0f, 12.0f, 24.0f};
+    frect_t box = {b->x - 6.0f, b->y - 12.0f, 12.0f, 24.0f};
     for (int e = 0; e < MAX_ENEMIES; e++) {
       enemy_t* enemy = &world->enemies[e];
       if (enemy->alive && rect_overlaps(box, enemy_rect(enemy))) {
@@ -143,7 +143,7 @@ static void update_melee(world_t* world) {
       p->melee_timer < 0.06f)
     return;
   float x0 = p->facing > 0 ? p->x : p->x - MELEE_REACH;
-  rect_t reach = {x0 - 4.0f, p->y - PLAYER_H - 6.0f, MELEE_REACH + 8.0f,
+  frect_t reach = {x0 - 4.0f, p->y - PLAYER_H - 6.0f, MELEE_REACH + 8.0f,
                   PLAYER_H + 6.0f};
   for (int i = 0; i < MAX_ENEMIES; i++) {
     enemy_t* e = &world->enemies[i];
@@ -154,8 +154,8 @@ static void update_melee(world_t* world) {
   }
 }
 
-static rect_t inset(rect_t r, float by) {
-  rect_t out = {r.x + by, r.y + by, r.w - 2.0f * by, r.h - 2.0f * by};
+static frect_t inset(frect_t r, float by) {
+  frect_t out = {r.x + by, r.y + by, r.w - 2.0f * by, r.h - 2.0f * by};
   return out;
 }
 

@@ -18,8 +18,8 @@ static const struct {
     {22.0f, 18.0f, 120.0f, false} /* small beetle: quick */
 };
 
-rect_t enemy_rect(const enemy_t* e) {
-  rect_t r = {e->x - e->w * 0.5f, e->y - e->h, e->w, e->h};
+frect_t enemy_rect(const enemy_t* e) {
+  frect_t r = {e->x - e->w * 0.5f, e->y - e->h, e->w, e->h};
   return r;
 }
 

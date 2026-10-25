@@ -71,7 +71,7 @@ typedef enum {
 typedef struct {
   event_kind_t kind;
   float x;
-} event_t;
+} sim_event_t;
 
 typedef struct {
   float x, y, vx, vy;
@@ -184,7 +184,7 @@ typedef struct {
   effect_t effects[MAX_EFFECTS];
   particle_t particles[MAX_PARTICLES];
   bump_t bumps[MAX_BUMPS];
-  event_t events[MAX_EVENTS];
+  sim_event_t events[MAX_EVENTS];
   int event_count;
 
   rng_t rng;
@@ -209,8 +209,8 @@ float world_progress(const world_t* world);
 void world_clear_events(world_t* world);
 bool world_has_event(const world_t* world, event_kind_t kind);
 int world_count_enemies(const world_t* world, enemy_kind_t kind);
-rect_t player_rect(const player_t* player);
-rect_t enemy_rect(const enemy_t* enemy);
+frect_t player_rect(const player_t* player);
+frect_t enemy_rect(const enemy_t* enemy);
 void world_emit(world_t* world, event_kind_t kind, float x);
 
 /* physics.c */

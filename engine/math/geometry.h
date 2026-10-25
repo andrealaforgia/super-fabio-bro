@@ -9,12 +9,8 @@
 #include <stdbool.h>
 
 typedef struct {
-  float x, y;
-} vec2_t;
-
-typedef struct {
   float x, y, w, h;
-} rect_t;
+} frect_t;
 
 static inline float clampf(float value, float low, float high) {
   return value < low ? low : (value > high ? high : value);
@@ -27,12 +23,12 @@ static inline float approachf(float value, float target, float step) {
   return value - step < target ? target : value - step;
 }
 
-static inline bool rect_overlaps(rect_t a, rect_t b) {
+static inline bool rect_overlaps(frect_t a, frect_t b) {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h &&
          b.y < a.y + a.h;
 }
 
-static inline float rect_right(rect_t r) { return r.x + r.w; }
-static inline float rect_bottom(rect_t r) { return r.y + r.h; }
+static inline float rect_right(frect_t r) { return r.x + r.w; }
+static inline float rect_bottom(frect_t r) { return r.y + r.h; }
 
 #endif  // ENGINE_MATH_GEOMETRY_H_

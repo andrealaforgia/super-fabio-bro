@@ -15,8 +15,8 @@ typedef struct {
   float view_w;
 } frame_t;
 
-static rect_t rect(float x, float y, float w, float h) {
-  rect_t r = {x, y, w, h};
+static frect_t rect(float x, float y, float w, float h) {
+  frect_t r = {x, y, w, h};
   return r;
 }
 
@@ -127,8 +127,8 @@ static void draw_tiles(const frame_t* f) {
         case TILE_GRASS: {
           const sprite_t* grass = look_sprite(f->look, (pose_t){STRIP_GROUND_GRASS, 0});
           const sprite_t* dirt = look_sprite(f->look, (pose_t){STRIP_GROUND_DIRT, 0});
-          rect_t gsrc = {(float)((col % 3) * 40), 0, 40, (float)grass->h};
-          rect_t dsrc = {(float)((col % 3) * 40), 0, 40, (float)dirt->h};
+          frect_t gsrc = {(float)((col % 3) * 40), 0, 40, (float)grass->h};
+          frect_t dsrc = {(float)((col % 3) * 40), 0, 40, (float)dirt->h};
           gfx_draw(f->gfx, dirt->texture, &dsrc,
                    rect(x - f->cam_x - 0.4f, y + 10.0f, TILE + 0.8f, 22.4f), NULL);
           gfx_draw(f->gfx, grass->texture, &gsrc,
@@ -148,7 +148,7 @@ static void draw_tiles(const frame_t* f) {
           bool top = tile == TILE_PIPE_TOP_L || tile == TILE_PIPE_TOP_R;
           bool right = tile == TILE_PIPE_TOP_R || tile == TILE_PIPE_BODY_R;
           const sprite_t* s = look_sprite(f->look, (pose_t){top ? STRIP_PIPE_CAP : STRIP_PIPE_BODY, 0});
-          rect_t src = {right ? (float)(s->w / 2) : 0.0f, 0, (float)(s->w / 2), (float)s->h};
+          frect_t src = {right ? (float)(s->w / 2) : 0.0f, 0, (float)(s->w / 2), (float)s->h};
           gfx_draw(f->gfx, s->texture, &src,
                    rect(x - f->cam_x - 0.4f, y - 0.4f, TILE + 0.8f, TILE + 0.8f), NULL);
           break;

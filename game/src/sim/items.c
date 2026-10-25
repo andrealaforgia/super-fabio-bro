@@ -78,13 +78,13 @@ void items_update(world_t* world, float dt) {
     }
   }
   if (!p->alive) return;
-  rect_t body = player_rect(p);
+  frect_t body = player_rect(p);
   const level_t* level = &world->level;
 
   for (int i = 0; i < level->item_count; i++) {
     if (world->item_taken[i]) continue;
     const placement_t* item = &level->items[i];
-    rect_t box = {item->x - ITEM_REACH, item->y - ITEM_REACH, ITEM_REACH * 2.0f,
+    frect_t box = {item->x - ITEM_REACH, item->y - ITEM_REACH, ITEM_REACH * 2.0f,
                   ITEM_REACH * 2.0f};
     if (rect_overlaps(body, box)) {
       world->item_taken[i] = true;
@@ -105,7 +105,7 @@ void items_update(world_t* world, float dt) {
       pickup->alive = false;
       continue;
     }
-    rect_t box = {pickup->x - ITEM_REACH, pickup->y - ITEM_REACH,
+    frect_t box = {pickup->x - ITEM_REACH, pickup->y - ITEM_REACH,
                   ITEM_REACH * 2.0f, ITEM_REACH * 2.0f};
     if (pickup->age > 0.25f && rect_overlaps(body, box)) {
       pickup->alive = false;

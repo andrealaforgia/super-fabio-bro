@@ -169,7 +169,7 @@ void gfx_texture_free(texture_t* texture) {
   texture->handle = NULL;
 }
 
-void gfx_draw(gfx_t* gfx, texture_t texture, const rect_t* src, rect_t dst,
+void gfx_draw(gfx_t* gfx, texture_t texture, const frect_t* src, frect_t dst,
               const draw_t* options) {
   if (!texture.handle) return;
   SDL_Rect source;
@@ -201,7 +201,7 @@ void gfx_draw(gfx_t* gfx, texture_t texture, const rect_t* src, rect_t dst,
                     &target, angle, NULL, flip);
 }
 
-void gfx_rect(gfx_t* gfx, rect_t rect, uint8_t r, uint8_t g, uint8_t b,
+void gfx_rect(gfx_t* gfx, frect_t rect, uint8_t r, uint8_t g, uint8_t b,
               uint8_t a) {
   SDL_SetRenderDrawColor(gfx->renderer, r, g, b, a);
   SDL_FRect target = {rect.x, rect.y, rect.w, rect.h};

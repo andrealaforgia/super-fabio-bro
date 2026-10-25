@@ -13,8 +13,8 @@
 #define DRINK_TIME 0.65f
 #define MAX_POTIONS 5
 
-rect_t player_rect(const player_t* p) {
-  rect_t r = {p->x - PLAYER_W * 0.5f, p->y - PLAYER_H, PLAYER_W, PLAYER_H};
+frect_t player_rect(const player_t* p) {
+  frect_t r = {p->x - PLAYER_W * 0.5f, p->y - PLAYER_H, PLAYER_W, PLAYER_H};
   return r;
 }
 
