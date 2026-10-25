@@ -30,7 +30,6 @@ ENGINE_PURE_SOURCES = (
 
 def source_directories():
     directories = sorted((ROOT / "engine/core").iterdir())
-    directories += sorted((ROOT / "engine_old").iterdir())
     directories += sorted((ROOT / "game/src").iterdir())
     return [p for p in directories if p.is_dir()]
 
@@ -38,8 +37,6 @@ def source_directories():
 def sources():
     found = [ROOT / "engine" / name for name in ENGINE_PURE_SOURCES]
     for directory in sorted((ROOT / "game/src").iterdir()):
-        found += sorted(directory.glob("*.c"))
-    for directory in sorted((ROOT / "engine_old").iterdir()):
         found += sorted(directory.glob("*.c"))
     return [p for p in found if p.name != "main.c" and not p.name.startswith("sdl_")]
 

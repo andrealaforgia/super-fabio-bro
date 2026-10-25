@@ -6,13 +6,12 @@
 #include <time.h>
 
 #include "bot.h"
+#include "audio.h"
 #include "buttons.h"
 #include "command_line.h"
 #include "controls.h"
 #include "graphics.h"
-#include "mixer.h"
 #include "render.h"
-#include "sdl_audio.h"
 #include "sdl_keys.h"
 #include "sfx.h"
 #include "stepper.h"
@@ -21,15 +20,6 @@
 #define SPRITE_DIR "assets_cooked/sprites"
 #define FIXED_STEP (1.0 / 120.0)
 #define VOICE_DELAY 0.7f
-
-typedef struct {
-  mixer_t mixer;
-  music_t music;
-  sample_t clips[SFX_COUNT];
-  bool music_muted;
-  bool sound_muted;
-  float music_gain;
-} audio_state_t;
 
 typedef struct {
   const char* snapshot;
@@ -41,24 +31,26 @@ typedef struct {
   int width, height;
 } options_t;
 
-static void fill_audio(void* user, int16_t* out, int frames) {
-  audio_state_t* audio = user;
-  mixer_render(&audio->mixer, out, frames);
-  if (!audio->music_muted) music_mix(&audio->music, out, frames, audio->music_gain);
+static void music_source(void* user, int16_t* out, int frames, float gain) {
+  music_mix(user, out, frames, gain);
 }
 
-static void play(audio_state_t* audio, sfx_id_t id, float volume) {
-  if (audio->sound_muted) return;
-  audio_lock();
-  mixer_play(&audio->mixer, &audio->clips[id], volume);
-  audio_unlock();
+/* Synthesises every sound effect and hands it to the engine's mixer. */
+static bool install_sounds(audio_context_ptr audio) {
+  sample_t clips[SFX_COUNT];
+  if (!sfx_build(clips)) return false;
+  bool ok = true;
+  for (int i = 0; i < SFX_COUNT; i++)
+    ok = set_sound(audio, i, clips[i].data, clips[i].length) && ok;
+  sfx_free(clips);
+  return ok;
 }
 
-static void play_events(audio_state_t* audio, world_t* world) {
+static void play_events(audio_context_ptr audio, world_t* world) {
   for (int i = 0; i < world->event_count; i++) {
     float volume;
     sfx_id_t id = sfx_for_event(world->events[i].kind, &volume);
-    play(audio, id, volume);
+    play_sound_at_volume(audio, (int)id, volume);
   }
   world_clear_events(world);
 }
@@ -177,11 +169,15 @@ int main(int argc, char** argv) {
     return status;
   }
 
-  static audio_state_t audio;
-  mixer_init(&audio.mixer);
-  audio.music_gain = 0.5f;
-  bool sound = sfx_build(audio.clips) && audio_open(fill_audio, &audio);
-  if (!sound) fprintf(stderr, "no sound: %s\n", SDL_GetError());
+  static music_t music;
+  audio_context_ptr audio = init_audio_context(SFX_COUNT, engine.volume);
+  bool sound = audio && install_sounds(audio);
+  if (!sound) fprintf(stderr, "no sound\n");
+  bool music_on = true, sound_on = true;
+  if (audio) {
+    set_music_source(audio, music_source, &music);
+    set_music_gain(audio, 0.5f);
+  }
 
   world_t* world = malloc(sizeof(*world));
   world_init(world, (uint32_t)options.seed);
@@ -203,8 +199,14 @@ int main(int argc, char** argv) {
     buttons_t buttons = read_buttons();
     controls_update(&controls, buttons);
     if (controls_pressed(&controls, BTN_FULLSCREEN)) toggle_fullscreen(gfx);
-    if (controls_pressed(&controls, BTN_MUTE)) audio.music_muted = !audio.music_muted;
-    if (controls_pressed(&controls, BTN_SOUND)) audio.sound_muted = !audio.sound_muted;
+    if (audio && controls_pressed(&controls, BTN_MUTE)) {
+      music_on = !music_on;
+      set_music_enabled(audio, music_on);
+    }
+    if (audio && controls_pressed(&controls, BTN_SOUND)) {
+      sound_on = !sound_on;
+      set_sound_enabled(audio, sound_on);
+    }
     bool start = controls_pressed(&controls, BTN_JUMP) || controls_pressed(&controls, BTN_CONFIRM);
 
     begin_frame(gfx, 0, 0, 0);
@@ -212,7 +214,7 @@ int main(int argc, char** argv) {
 
     if (delay_left > 0.0f) {
       delay_left -= (float)frame;
-      audio.music_gain = 0.0f;
+      if (audio) set_music_gain(audio, 0.0f);
       render_countdown(gfx, &look, delay_left);
       present_frame(gfx);
       continue;
@@ -220,17 +222,17 @@ int main(int argc, char** argv) {
     if (on_title) {
       title_time += (float)frame;
       /* Keep the music out of the way of the voice. */
-      audio.music_gain = (title_time > VOICE_DELAY && title_time < VOICE_DELAY + 2.0f) ? 0.12f : 0.5f;
+      if (audio) set_music_gain(audio, (title_time > VOICE_DELAY && title_time < VOICE_DELAY + 2.0f) ? 0.12f : 0.5f);
       if (sound && !voiced && title_time > VOICE_DELAY) {
-        play(&audio, SFX_VOICE_FABIO, 1.0f);
+        play_sound_at_volume(audio, SFX_VOICE_FABIO, 1.0f);
         voiced = true;
       }
       if (start && title_time > 0.3f) {
         on_title = false;
-        audio.music_gain = 0.5f;
+        if (audio) set_music_gain(audio, 0.5f);
         world_init(world, (uint32_t)options.seed);
         world->view_w = gfx->view_width;
-        play(&audio, SFX_PICKUP, 0.6f);
+        play_sound_at_volume(audio, SFX_PICKUP, 0.6f);
       }
       render_title(gfx, &look, title_time);
     } else {
@@ -249,7 +251,7 @@ int main(int argc, char** argv) {
           /* A press counts for the first step only. */
           controls_consume_presses(&substep);
         }
-        if (sound) play_events(&audio, world);
+        if (sound) play_events(audio, world);
         else world_clear_events(world);
       }
       render_world(gfx, &look, world);
@@ -258,8 +260,7 @@ int main(int argc, char** argv) {
     present_frame(gfx);
   }
 
-  audio_close();
-  if (sound) sfx_free(audio.clips);
+  terminate_audio_context(audio);
   look_free(&look);
   terminate_graphics_context(&graphics);
   free(world);

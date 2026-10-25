@@ -18,7 +18,7 @@ SDL2_CFLAGS := $(shell $(SDL2_CONFIG) --cflags)
 SDL2_LFLAGS := $(shell $(SDL2_CONFIG) --libs) -lSDL2_image
 
 ENGINE_CORE = graphics math input audio time utils memory events
-ENGINE_DIRS = $(foreach d,$(ENGINE_CORE),engine/core/$(d)) engine_old/audio
+ENGINE_DIRS = $(foreach d,$(ENGINE_CORE),engine/core/$(d))
 GAME_DIRS = $(wildcard game/src/*)
 
 ENGINE_SRC = $(foreach dir,$(ENGINE_DIRS),$(wildcard $(dir)/*.c))
