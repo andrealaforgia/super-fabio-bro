@@ -23,17 +23,9 @@ frect_t enemy_rect(const enemy_t* e) {
   return r;
 }
 
-static enemy_t* free_enemy(world_t* world) {
-  for (int i = 0; i < MAX_ENEMIES; i++)
-    if (!world->enemies[i].alive) return &world->enemies[i];
-  return NULL;
-}
-
 void spawn_zombie(world_t* world, float x, float y) {
-  enemy_t* e = free_enemy(world);
+  enemy_t* e = pool_acquire(&world->enemies, NULL);
   if (!e) return;
-  *e = (enemy_t){0};
-  e->alive = true;
   e->kind = ENEMY_ZOMBIE;
   e->x = x;
   e->y = y;
@@ -49,10 +41,9 @@ void spawn_zombie(world_t* world, float x, float y) {
 }
 
 void spawn_bug(world_t* world, int variant, float x, float y) {
-  enemy_t* e = free_enemy(world);
-  if (!e || variant < 0 || variant >= BUG_VARIANTS) return;
-  *e = (enemy_t){0};
-  e->alive = true;
+  if (variant < 0 || variant >= BUG_VARIANTS) return;
+  enemy_t* e = pool_acquire(&world->enemies, NULL);
+  if (!e) return;
   e->kind = ENEMY_BUG;
   e->variant = variant;
   e->x = x;
@@ -103,9 +94,8 @@ static void fly_towards_player(world_t* world, enemy_t* e, float dt) {
 
 void enemies_update(world_t* world, float dt) {
   const player_t* p = &world->player;
-  for (int i = 0; i < MAX_ENEMIES; i++) {
-    enemy_t* e = &world->enemies[i];
-    if (!e->alive) continue;
+  size_t cursor = 0;
+  for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
     e->anim_time += dt;
     if (is_flier(e))
       fly_towards_player(world, e, dt);
@@ -113,7 +103,7 @@ void enemies_update(world_t* world, float dt) {
       walk_towards_player(world, e, dt);
     bool fell = e->y > level_height() + 120.0f;
     bool left_behind = fabsf(e->x - p->x) > 2400.0f;
-    if (fell || left_behind) e->alive = false;
+    if (fell || left_behind) pool_release_object(&world->enemies, e);
   }
 }
 

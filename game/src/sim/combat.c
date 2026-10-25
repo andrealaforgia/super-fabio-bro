@@ -9,41 +9,34 @@
 
 void world_add_effect(world_t* world, fx_kind_t kind, float x, float y,
                       float duration, int facing) {
-  for (int i = 0; i < MAX_EFFECTS; i++) {
-    effect_t* fx = &world->effects[i];
-    if (fx->alive) continue;
-    *fx = (effect_t){true, kind, x, y, 0.0f, duration, facing};
-    return;
-  }
+  effect_t* fx = pool_acquire(&world->effects, NULL);
+  if (fx) *fx = (effect_t){kind, x, y, 0.0f, duration, facing};
 }
 
 void world_burst(world_t* world, float x, float y, int count, uint8_t r,
                  uint8_t g, uint8_t b, float speed) {
   for (int n = 0; n < count; n++) {
-    for (int i = 0; i < MAX_PARTICLES; i++) {
-      particle_t* particle = &world->particles[i];
-      if (particle->alive) continue;
-      float angle = rng_float(&world->rng) * 6.2832f;
-      float power = speed * (0.3f + rng_float(&world->rng) * 0.7f);
-      particle->alive = true;
-      particle->x = x;
-      particle->y = y;
-      particle->vx = cosf(angle) * power;
-      particle->vy = sinf(angle) * power - speed * 0.4f;
-      particle->age = 0.0f;
-      particle->life = 0.4f + rng_float(&world->rng) * 0.5f;
-      particle->size = 2.0f + rng_float(&world->rng) * 4.0f;
-      particle->r = r;
-      particle->g = g;
-      particle->b = b;
-      break;
-    }
+    particle_t* particle = pool_acquire(&world->particles, NULL);
+    if (!particle) break;
+    float angle = rng_float(&world->rng) * 6.2832f;
+    float power = speed * (0.3f + rng_float(&world->rng) * 0.7f);
+    particle->x = x;
+    particle->y = y;
+    particle->vx = cosf(angle) * power;
+    particle->vy = sinf(angle) * power - speed * 0.4f;
+    particle->age = 0.0f;
+    particle->life = 0.4f + rng_float(&world->rng) * 0.5f;
+    particle->size = 2.0f + rng_float(&world->rng) * 4.0f;
+    particle->r = r;
+    particle->g = g;
+    particle->b = b;
   }
 }
 
 void world_kill_enemy(world_t* world, enemy_t* e, bool by_spell) {
-  if (!e->alive) return;
-  e->alive = false;
+  if (!pool_is_active(&world->enemies, pool_index_of(&world->enemies, e)))
+    return;
+  pool_release_object(&world->enemies, e);
   float cx = e->x, cy = e->y - e->h * 0.5f;
   if (e->kind == ENEMY_ZOMBIE) {
     world_add_effect(world, by_spell ? FX_ZOMBIE_GREEN : FX_ZOMBIE_BOOM, cx,
@@ -74,17 +67,14 @@ static void muzzle(const world_t* world, float* x, float* y) {
 
 void world_fire_bullet(world_t* world) {
   player_t* p = &world->player;
-  for (int i = 0; i < MAX_BULLETS; i++) {
-    bullet_t* bullet = &world->bullets[i];
-    if (bullet->alive) continue;
-    float x, y;
-    muzzle(world, &x, &y);
-    *bullet = (bullet_t){true, x, y, (float)p->facing * BULLET_SPEED, 1.1f};
-    world_add_effect(world, FX_MUZZLE, x, y, 0.07f, p->facing);
-    p->shoot_pose = 0.2f;
-    world_emit(world, EVENT_SHOOT, x);
-    return;
-  }
+  bullet_t* bullet = pool_acquire(&world->bullets, NULL);
+  if (!bullet) return;
+  float x, y;
+  muzzle(world, &x, &y);
+  *bullet = (bullet_t){x, y, (float)p->facing * BULLET_SPEED, 1.1f};
+  world_add_effect(world, FX_MUZZLE, x, y, 0.07f, p->facing);
+  p->shoot_pose = 0.2f;
+  world_emit(world, EVENT_SHOOT, x);
 }
 
 void world_cast_spell(world_t* world) {
@@ -99,38 +89,34 @@ void world_cast_spell(world_t* world) {
   }
   float left = fminf(x0, x1), right = fmaxf(x0, x1);
   frect_t beam = {left, y - 16.0f, right - left, 32.0f};
-  for (int i = 0; i < MAX_ENEMIES; i++) {
-    enemy_t* e = &world->enemies[i];
-    if (e->alive && frect_overlaps(beam, enemy_rect(e)))
-      world_kill_enemy(world, e, true);
+  size_t cursor = 0;
+  for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
+    if (frect_overlaps(beam, enemy_rect(e))) world_kill_enemy(world, e, true);
   }
-  for (int i = 0; i < MAX_RAYS; i++) {
-    if (world->rays[i].alive) continue;
-    world->rays[i] = (ray_t){x0, x1, y, 0.0f, p->facing, true};
-    break;
-  }
+  ray_t* ray = pool_acquire(&world->rays, NULL);
+  if (ray) *ray = (ray_t){x0, x1, y, 0.0f, p->facing};
   world_burst(world, x1, y, 6, 110, 200, 255, 160.0f);
   p->cast_pose = 0.28f;
   world_emit(world, EVENT_SPELL, x0);
 }
 
 static void update_bullets(world_t* world, float dt) {
-  for (int i = 0; i < MAX_BULLETS; i++) {
-    bullet_t* b = &world->bullets[i];
-    if (!b->alive) continue;
+  size_t cursor = 0;
+  for (bullet_t* b; (b = pool_next_active(&world->bullets, &cursor));) {
     b->x += b->vx * dt;
     b->life -= dt;
     if (b->life <= 0.0f || level_solid_at(&world->level, b->x, b->y)) {
       world_burst(world, b->x, b->y, 4, 250, 210, 90, 120.0f);
-      b->alive = false;
+      pool_release_object(&world->bullets, b);
       continue;
     }
     frect_t box = {b->x - 6.0f, b->y - 12.0f, 12.0f, 24.0f};
-    for (int e = 0; e < MAX_ENEMIES; e++) {
-      enemy_t* enemy = &world->enemies[e];
-      if (enemy->alive && frect_overlaps(box, enemy_rect(enemy))) {
+    size_t target_cursor = 0;
+    for (enemy_t* enemy;
+         (enemy = pool_next_active(&world->enemies, &target_cursor));) {
+      if (frect_overlaps(box, enemy_rect(enemy))) {
         world_kill_enemy(world, enemy, false);
-        b->alive = false;
+        pool_release_object(&world->bullets, b);
         break;
       }
     }
@@ -145,9 +131,9 @@ static void update_melee(world_t* world) {
   float x0 = p->facing > 0 ? p->x : p->x - MELEE_REACH;
   frect_t reach = {x0 - 4.0f, p->y - PLAYER_H - 6.0f, MELEE_REACH + 8.0f,
                   PLAYER_H + 6.0f};
-  for (int i = 0; i < MAX_ENEMIES; i++) {
-    enemy_t* e = &world->enemies[i];
-    if (e->alive && frect_overlaps(reach, enemy_rect(e))) {
+  size_t cursor = 0;
+  for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
+    if (frect_overlaps(reach, enemy_rect(e))) {
       world_kill_enemy(world, e, false);
       p->melee_struck = true;
     }
@@ -162,9 +148,8 @@ static frect_t inset(frect_t r, float by) {
 static void touch_enemies(world_t* world) {
   player_t* p = &world->player;
   if (!p->alive) return;
-  for (int i = 0; i < MAX_ENEMIES; i++) {
-    enemy_t* e = &world->enemies[i];
-    if (!e->alive) continue;
+  size_t cursor = 0;
+  for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
     if (!frect_overlaps(inset(player_rect(p), 3.0f), inset(enemy_rect(e), 3.0f)))
       continue;
     /* Landing on the top part counts; low bugs get a little extra leeway. */
@@ -186,25 +171,24 @@ void combat_update(world_t* world, float dt) {
   update_melee(world);
   touch_enemies(world);
 
-  for (int i = 0; i < MAX_RAYS; i++) {
-    ray_t* ray = &world->rays[i];
-    if (!ray->alive) continue;
+  size_t cursor = 0;
+  for (ray_t* ray; (ray = pool_next_active(&world->rays, &cursor));) {
     ray->age += dt;
-    if (ray->age > 0.22f) ray->alive = false;
+    if (ray->age > 0.22f) pool_release_object(&world->rays, ray);
   }
-  for (int i = 0; i < MAX_EFFECTS; i++) {
-    effect_t* fx = &world->effects[i];
-    if (!fx->alive) continue;
+  cursor = 0;
+  for (effect_t* fx; (fx = pool_next_active(&world->effects, &cursor));) {
     fx->age += dt;
-    if (fx->age >= fx->duration) fx->alive = false;
+    if (fx->age >= fx->duration) pool_release_object(&world->effects, fx);
   }
-  for (int i = 0; i < MAX_PARTICLES; i++) {
-    particle_t* particle = &world->particles[i];
-    if (!particle->alive) continue;
+  cursor = 0;
+  for (particle_t* particle;
+       (particle = pool_next_active(&world->particles, &cursor));) {
     particle->age += dt;
     particle->vy += 900.0f * dt;
     particle->x += particle->vx * dt;
     particle->y += particle->vy * dt;
-    if (particle->age >= particle->life) particle->alive = false;
+    if (particle->age >= particle->life)
+      pool_release_object(&world->particles, particle);
   }
 }

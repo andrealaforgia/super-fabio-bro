@@ -102,9 +102,9 @@ static void draw_decor(const frame_t* f) {
 }
 
 static float bump_offset(const world_t* world, int col, int row) {
-  for (int i = 0; i < MAX_BUMPS; i++) {
-    const bump_t* b = &world->bumps[i];
-    if (b->age > 0.0f && b->col == col && b->row == row)
+  size_t cursor = 0;
+  for (const bump_t* b; (b = pool_next_active(&world->bumps, &cursor));) {
+    if (b->col == col && b->row == row)
       return -sinf(b->age / 0.18f * PI) * 9.0f;
   }
   return 0.0f;
@@ -195,9 +195,9 @@ static void draw_items(const frame_t* f) {
       default: break;
     }
   }
-  for (int i = 0; i < MAX_PICKUPS; i++) {
-    const pickup_t* p = &f->world->pickups[i];
-    if (!p->alive) continue;
+  size_t pickup_cursor = 0;
+  for (const pickup_t* p;
+       (p = pool_next_active(&f->world->pickups, &pickup_cursor));) {
     strip_id_t strip = p->kind == ITEM_POTION ? STRIP_BOTTLE
                        : p->kind == ITEM_PISTOL ? STRIP_PISTOL : STRIP_MUSHROOM;
     float scale = p->kind == ITEM_POTION ? 0.3f : 0.4f;
@@ -208,9 +208,9 @@ static void draw_items(const frame_t* f) {
 }
 
 static void draw_enemies(const frame_t* f) {
-  for (int i = 0; i < MAX_ENEMIES; i++) {
-    const enemy_t* e = &f->world->enemies[i];
-    if (!e->alive) continue;
+  size_t enemy_cursor = 0;
+  for (const enemy_t* e;
+       (e = pool_next_active(&f->world->enemies, &enemy_cursor));) {
     if (e->x < f->cam_x - 120.0f || e->x > f->cam_x + f->view_w + 120.0f) continue;
     if (e->kind == ENEMY_ZOMBIE) {
       draw_sprite(f, pose_zombie(e, &f->world->player), e->x, e->y, ZOMBIE_SCALE,
@@ -265,9 +265,9 @@ static void draw_player(const frame_t* f) {
 }
 
 static void draw_effects(const frame_t* f) {
-  for (int i = 0; i < MAX_EFFECTS; i++) {
-    const effect_t* fx = &f->world->effects[i];
-    if (!fx->alive) continue;
+  size_t effect_cursor = 0;
+  for (const effect_t* fx;
+       (fx = pool_next_active(&f->world->effects, &effect_cursor));) {
     float life = fx->age / fx->duration;
     float scale, lift;
     switch (fx->kind) {
@@ -284,15 +284,13 @@ static void draw_effects(const frame_t* f) {
     draw_centred(f, pose_effect(fx->kind), x, y, scale, scale, 0.0f,
                  fx->kind == FX_MUZZLE && fx->facing < 0, alpha);
   }
-  for (int i = 0; i < MAX_BULLETS; i++) {
-    const bullet_t* b = &f->world->bullets[i];
-    if (b->alive)
-      draw_centred(f, (pose_t){STRIP_FX_BULLET, 0}, b->x, b->y, 0.3f, 0.3f, 0.0f,
-                   b->vx < 0.0f, 1.0f);
-  }
-  for (int i = 0; i < MAX_RAYS; i++) {
-    const ray_t* r = &f->world->rays[i];
-    if (!r->alive) continue;
+  size_t bullet_cursor = 0;
+  for (const bullet_t* b;
+       (b = pool_next_active(&f->world->bullets, &bullet_cursor));)
+    draw_centred(f, (pose_t){STRIP_FX_BULLET, 0}, b->x, b->y, 0.3f, 0.3f, 0.0f,
+                 b->vx < 0.0f, 1.0f);
+  size_t ray_cursor = 0;
+  for (const ray_t* r; (r = pool_next_active(&f->world->rays, &ray_cursor));) {
     const sprite_t* s = look_sprite(f->look, (pose_t){STRIP_FX_RAY, 0});
     float length = r->x1 - r->x0;
     float jitter = sinf(r->age * 120.0f) * 3.0f;
@@ -304,9 +302,9 @@ static void draw_effects(const frame_t* f) {
     render_sprite(f->gfx, &f->look->glow, NULL,
              rect(left - f->cam_x, r->y - 24.0f, fabsf(length), 48.0f), &halo);
   }
-  for (int i = 0; i < MAX_PARTICLES; i++) {
-    const particle_t* p = &f->world->particles[i];
-    if (!p->alive) continue;
+  size_t particle_cursor = 0;
+  for (const particle_t* p;
+       (p = pool_next_active(&f->world->particles, &particle_cursor));) {
     float a = 1.0f - p->age / p->life;
     fill_rect(f->gfx, rect(p->x - f->cam_x, p->y, p->size, p->size), p->r, p->g, p->b,
              (uint8_t)(a * 255.0f));

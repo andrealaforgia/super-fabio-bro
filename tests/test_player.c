@@ -5,8 +5,7 @@
 #include "test_world.h"
 
 static world_t* fresh(void) {
-  world_t* world = malloc(sizeof(*world));
-  empty_world(world);
+  world_t* world = new_empty_world();
   settle(world);
   return world;
 }
@@ -21,7 +20,7 @@ static void fabio_stands_on_the_ground_when_nothing_is_pressed(void) {
   CHECK(world->player.grounded);
   CHECK_NEAR(world->player.vx, 0.0, 0.001);
   CHECK(world->player.alive && world->player.hp == PLAYER_HP);
-  free(world);
+  world_free(world);
 }
 
 static void he_walks_and_faces_the_way_he_goes(void) {
@@ -34,7 +33,7 @@ static void he_walks_and_faces_the_way_he_goes(void) {
   buttons_t right = held(true, false, false, false);
   step(world, &right, 0.6f);
   CHECK(world->player.facing == 1);
-  free(world);
+  world_free(world);
 }
 
 static void running_is_faster_than_walking(void) {
@@ -77,7 +76,7 @@ static void a_full_jump_climbs_high_enough_for_the_highest_platform(void) {
   /* Platform tops are 4 tiles above the ground. */
   CHECK(apex > 4.0f * TILE + 6.0f);
   CHECK(apex < 6.0f * TILE);
-  free(world);
+  world_free(world);
 }
 
 static void letting_go_early_makes_a_short_hop(void) {
@@ -106,7 +105,7 @@ static void a_running_jump_clears_a_six_tile_pit(void) {
   step(world, &go, 1.4f);
   CHECK(world->player.hp == PLAYER_HP);
   CHECK(world->player.x > 20 * TILE);
-  free(world);
+  world_free(world);
 }
 
 static void he_can_stand_on_a_platform_he_jumps_onto(void) {
@@ -122,7 +121,7 @@ static void he_can_stand_on_a_platform_he_jumps_onto(void) {
   buttons_t stop = held(false, false, false, false);
   step(world, &stop, 0.6f);
   CHECK(world->player.y <= (GROUND_ROW - 4) * TILE + 0.5f || world->player.grounded);
-  free(world);
+  world_free(world);
 }
 
 static void hitting_a_question_block_from_below_releases_its_item(void) {
@@ -134,10 +133,9 @@ static void hitting_a_question_block_from_below_releases_its_item(void) {
   step(world, &jump, 0.6f);
   CHECK(world->level.tiles[GROUND_ROW - 4][10] == TILE_USED);
   CHECK(world_has_event(world, EVENT_BLOCK_OPENS) || world_event_count(world) > 0);
-  int pickups = 0;
-  for (int i = 0; i < MAX_PICKUPS; i++) pickups += world->pickups[i].alive;
+  int pickups = (int)pool_get_active_count(&world->pickups);
   CHECK(pickups == 1 || world->player.potions == 1);
-  free(world);
+  world_free(world);
 }
 
 static void a_coin_block_pays_out_at_once(void) {
@@ -149,7 +147,7 @@ static void a_coin_block_pays_out_at_once(void) {
   step(world, &jump, 0.6f);
   CHECK(world->coins == 1);
   CHECK(world->score >= 100);
-  free(world);
+  world_free(world);
 }
 
 static void bricks_bump_but_stay_bricks(void) {
@@ -159,7 +157,7 @@ static void bricks_bump_but_stay_bricks(void) {
   buttons_t jump = held(false, false, true, false);
   step(world, &jump, 0.6f);
   CHECK(world->level.tiles[GROUND_ROW - 4][10] == TILE_BRICK);
-  free(world);
+  world_free(world);
 }
 
 static void pickups_from_a_block_are_collected_by_walking_into_them(void) {
@@ -170,7 +168,7 @@ static void pickups_from_a_block_are_collected_by_walking_into_them(void) {
   world_spawn_pickup(world, ITEM_PISTOL, world->player.x, world->player.y - 12.0f);
   step(world, NULL, 0.8f);
   CHECK(world->player.ammo == PISTOL_AMMO);
-  free(world);
+  world_free(world);
 }
 
 static void placed_coins_and_mushrooms_are_taken_once(void) {
@@ -184,7 +182,7 @@ static void placed_coins_and_mushrooms_are_taken_once(void) {
   CHECK(world->player.hp == 4);
   step(world, NULL, 0.2f);
   CHECK(world->coins == 1);
-  free(world);
+  world_free(world);
 }
 
 static void a_pit_costs_a_heart_and_puts_him_back_on_safe_ground(void) {
@@ -200,7 +198,7 @@ static void a_pit_costs_a_heart_and_puts_him_back_on_safe_ground(void) {
   CHECK(world->player.x < 14 * TILE);
   CHECK(world->player.invulnerable > 0.0f);
   CHECK(world->state == STATE_PLAYING);
-  free(world);
+  world_free(world);
 }
 
 static void touching_a_zombie_hurts_then_protects_for_a_while(void) {
@@ -211,7 +209,7 @@ static void touching_a_zombie_hurts_then_protects_for_a_while(void) {
   CHECK(world_has_event(world, EVENT_HURT) || world->player.hurt_timer > 0.0f);
   step(world, NULL, 0.3f);
   CHECK(world->player.hp == PLAYER_HP - 1);
-  free(world);
+  world_free(world);
 }
 
 static void losing_the_last_heart_ends_the_game(void) {
@@ -223,7 +221,7 @@ static void losing_the_last_heart_ends_the_game(void) {
   CHECK(!world->player.alive);
   step(world, NULL, 2.5f);
   CHECK(world->state == STATE_GAME_OVER);
-  free(world);
+  world_free(world);
 }
 
 static void reaching_the_castle_wins(void) {
@@ -233,7 +231,7 @@ static void reaching_the_castle_wins(void) {
   step(world, &go, 0.5f);
   CHECK(world->state == STATE_WON);
   CHECK(world->score >= PLAYER_HP * 1000);
-  free(world);
+  world_free(world);
 }
 
 void run_player_tests(void) {

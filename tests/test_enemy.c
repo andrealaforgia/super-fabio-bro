@@ -5,8 +5,7 @@
 #include "test_world.h"
 
 static world_t* fresh(void) {
-  world_t* world = malloc(sizeof(*world));
-  empty_world(world);
+  world_t* world = new_empty_world();
   settle(world);
   return world;
 }
@@ -25,9 +24,8 @@ static void zombies_appear_at_regular_intervals_off_screen(void) {
   float last_spawn = -1.0f, shortest = 100.0f, longest = 0.0f;
   for (int i = 0; i < 60 * 60; i++) {
     step(world, NULL, 1.0f / 60.0f);
-    for (int k = 0; k < MAX_ENEMIES; k++) {
-      enemy_t* e = &world->enemies[k];
-      if (!e->alive) continue;
+    size_t cursor = 0;
+    for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
       /* Each zombie is seen the moment it appears, then cleared away. */
       CHECK(!on_screen(world, e->x));
       CHECK(e->facing == (e->x > world->player.x ? -1 : 1));
@@ -38,13 +36,13 @@ static void zombies_appear_at_regular_intervals_off_screen(void) {
       }
       last_spawn = world->time;
       spawned++;
-      e->alive = false;
+      pool_release_object(&world->enemies, e);
     }
   }
   CHECK(spawned >= 8);
   CHECK(shortest > 1.0f);
   CHECK(longest < 9.0f);
-  free(world);
+  world_free(world);
 }
 
 static void a_zombie_walks_towards_fabio_from_either_side(void) {
@@ -54,14 +52,13 @@ static void a_zombie_walks_towards_fabio_from_either_side(void) {
   world->player.invulnerable = 1000.0f;
   step(world, NULL, 1.0f);
   int closer = 0;
-  for (int i = 0; i < MAX_ENEMIES; i++) {
-    const enemy_t* e = &world->enemies[i];
-    if (!e->alive) continue;
+  size_t cursor = 0;
+  for (const enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
     CHECK(fabsf(e->x - world->player.x) < 285.0f);
     closer++;
   }
   CHECK(closer == 2);
-  free(world);
+  world_free(world);
 }
 
 static void a_zombie_hops_over_a_block_in_its_way(void) {
@@ -73,7 +70,7 @@ static void a_zombie_hops_over_a_block_in_its_way(void) {
   step(world, NULL, 6.0f);
   CHECK(first_enemy(world) != NULL);
   CHECK(first_enemy(world)->x < 20 * TILE);
-  free(world);
+  world_free(world);
 }
 
 static void a_zombie_that_walks_into_a_pit_is_gone(void) {
@@ -83,11 +80,11 @@ static void a_zombie_that_walks_into_a_pit_is_gone(void) {
     for (int row = GROUND_ROW; row < LEVEL_ROWS; row++)
       world->level.tiles[row][col] = TILE_EMPTY;
   spawn_zombie(world, 26 * TILE, world->player.y);
-  world->enemies[0].speed = 90.0f;
+  enemy_at(world, 0)->speed = 90.0f;
   world->player.x = 10 * TILE;
   step(world, NULL, 6.0f);
   CHECK(world_count_enemies(world, ENEMY_ZOMBIE) == 0);
-  free(world);
+  world_free(world);
 }
 
 static void zombies_far_behind_are_forgotten(void) {
@@ -96,7 +93,7 @@ static void zombies_far_behind_are_forgotten(void) {
   spawn_zombie(world, 2.0f * TILE, world->player.y);
   step(world, NULL, 0.1f);
   CHECK(world_count_enemies(world, ENEMY_ZOMBIE) == 0);
-  free(world);
+  world_free(world);
 }
 
 static void there_is_a_cap_on_how_many_zombies_chase_him(void) {
@@ -114,7 +111,7 @@ static void there_is_a_cap_on_how_many_zombies_chase_him(void) {
   }
   CHECK(most <= 5 + 6);
   CHECK(most >= 3);
-  free(world);
+  world_free(world);
 }
 
 static void a_flying_bug_closes_in_and_hovers_near_fabio(void) {
@@ -126,7 +123,7 @@ static void a_flying_bug_closes_in_and_hovers_near_fabio(void) {
   CHECK(e != NULL);
   CHECK(fabsf(e->x - world->player.x) < 120.0f);
   CHECK(e->y > world->player.y - 140.0f && e->y < world->player.y + 10.0f);
-  free(world);
+  world_free(world);
 }
 
 static void ground_bugs_walk_and_the_dark_beetle_hops(void) {
@@ -136,11 +133,11 @@ static void ground_bugs_walk_and_the_dark_beetle_hops(void) {
   float lowest = 1e9f;
   for (int i = 0; i < 300; i++) {
     step(world, NULL, 1.0f / 60.0f);
-    if (world->enemies[0].y < lowest) lowest = world->enemies[0].y;
+    if (enemy_at(world, 0)->y < lowest) lowest = enemy_at(world, 0)->y;
   }
-  CHECK(world->enemies[0].x < world->player.x + 380.0f);
+  CHECK(enemy_at(world, 0)->x < world->player.x + 380.0f);
   CHECK(lowest < world->player.y - 10.0f);
-  free(world);
+  world_free(world);
 }
 
 static void bugs_come_with_the_zombies(void) {
@@ -155,7 +152,7 @@ static void bugs_come_with_the_zombies(void) {
     seen += world_count_enemies(world, ENEMY_BUG) > 0;
   }
   CHECK(seen > 10);
-  free(world);
+  world_free(world);
 }
 
 void run_enemy_tests(void) {

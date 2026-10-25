@@ -18,9 +18,9 @@ static void play(world_t* world, bot_t* bot, float seconds) {
 }
 
 static void every_level_can_be_walked_from_start_to_castle(void) {
-  world_t* world = malloc(sizeof(*world));
+  world_t* world = world_new(1, NULL);
   for (uint32_t seed = 1; seed <= 12; seed++) {
-    world_init(world, seed, NULL);
+    world_restart(world, seed);
     world->spawning = false;
     bot_t bot;
     memset(&bot, 0, sizeof(bot));
@@ -31,25 +31,24 @@ static void every_level_can_be_walked_from_start_to_castle(void) {
     CHECK(world->state == STATE_WON);
     CHECK(world->player.hp == PLAYER_HP);
   }
-  free(world);
+  world_free(world);
 }
 
 static void the_bot_picks_up_the_pistol_and_a_potion_on_the_way(void) {
-  world_t* world = malloc(sizeof(*world));
-  world_init(world, 1, NULL);
+  world_t* world = world_new(1, NULL);
   world->spawning = false;
   bot_t bot;
   memset(&bot, 0, sizeof(bot));
   play(world, &bot, 240.0f);
   CHECK(world->coins > 5);
   CHECK(world->score > 1000);
-  free(world);
+  world_free(world);
 }
 
 static void a_long_fight_keeps_the_world_consistent(void) {
-  world_t* world = malloc(sizeof(*world));
+  world_t* world = world_new(1, NULL);
   for (uint32_t seed = 1; seed <= 4; seed++) {
-    world_init(world, seed, NULL);
+    world_restart(world, seed);
     bot_t bot;
     memset(&bot, 0, sizeof(bot));
     controls_t controls;
@@ -63,16 +62,16 @@ static void a_long_fight_keeps_the_world_consistent(void) {
       CHECK(world->player.hp >= 0 && world->player.hp <= PLAYER_HP);
       CHECK(world->player.potions >= 0 && world->player.potions <= 5);
       CHECK(world->player.x >= 0.0f && world->player.x <= level_width());
-      for (int k = 0; k < MAX_ENEMIES; k++) {
-        const enemy_t* e = &world->enemies[k];
-        if (!e->alive) continue;
+      size_t cursor = 0;
+      for (const enemy_t* e;
+           (e = pool_next_active(&world->enemies, &cursor));) {
         CHECK(isfinite(e->x) && isfinite(e->y));
         CHECK(e->x > -200.0f && e->x < level_width() + 200.0f);
       }
       if (world->state == STATE_GAME_OVER || world->state == STATE_WON) break;
     }
   }
-  free(world);
+  world_free(world);
 }
 
 void run_bot_tests(void) {

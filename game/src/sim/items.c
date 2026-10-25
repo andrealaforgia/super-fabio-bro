@@ -36,22 +36,15 @@ static void collect(world_t* world, item_kind_t kind, float x) {
 }
 
 void world_spawn_pickup(world_t* world, item_kind_t kind, float x, float y) {
-  for (int i = 0; i < MAX_PICKUPS; i++) {
-    pickup_t* pickup = &world->pickups[i];
-    if (pickup->alive) continue;
-    *pickup = (pickup_t){true, kind, x, y, 0.0f, -300.0f, 0.0f};
-    return;
-  }
+  pickup_t* pickup = pool_acquire(&world->pickups, NULL);
+  if (pickup) *pickup = (pickup_t){kind, x, y, 0.0f, -300.0f, 0.0f};
 }
 
 void world_bump_block(world_t* world, int col, int row) {
   tile_t tile = level_tile(&world->level, col, row);
   if (tile != TILE_QBLOCK && tile != TILE_BRICK) return;
-  for (int i = 0; i < MAX_BUMPS; i++) {
-    if (world->bumps[i].age > 0.0f && world->bumps[i].age < BUMP_TIME) continue;
-    world->bumps[i] = (bump_t){col, row, 0.001f};
-    break;
-  }
+  bump_t* bump = pool_acquire(&world->bumps, NULL);
+  if (bump) *bump = (bump_t){col, row, 0.001f};
   float cx = (float)(col * TILE + TILE / 2);
   world_emit(world, EVENT_BUMP, cx);
   if (tile != TILE_QBLOCK) return;
@@ -70,12 +63,10 @@ void world_bump_block(world_t* world, int col, int row) {
 
 void items_update(world_t* world, float dt) {
   player_t* p = &world->player;
-  for (int i = 0; i < MAX_BUMPS; i++) {
-    bump_t* bump = &world->bumps[i];
-    if (bump->age > 0.0f) {
-      bump->age += dt;
-      if (bump->age >= BUMP_TIME) bump->age = 0.0f;
-    }
+  size_t bump_cursor = 0;
+  for (bump_t* bump; (bump = pool_next_active(&world->bumps, &bump_cursor));) {
+    bump->age += dt;
+    if (bump->age >= BUMP_TIME) pool_release_object(&world->bumps, bump);
   }
   if (!p->alive) return;
   frect_t body = player_rect(p);
@@ -92,9 +83,9 @@ void items_update(world_t* world, float dt) {
     }
   }
 
-  for (int i = 0; i < MAX_PICKUPS; i++) {
-    pickup_t* pickup = &world->pickups[i];
-    if (!pickup->alive) continue;
+  size_t pickup_cursor = 0;
+  for (pickup_t* pickup;
+       (pickup = pool_next_active(&world->pickups, &pickup_cursor));) {
     pickup->age += dt;
     float w = 24.0f, h = 24.0f;
     float feet = pickup->y + h * 0.5f;
@@ -102,13 +93,13 @@ void items_update(world_t* world, float dt) {
     physics_move(level, &pickup->x, &feet, &pickup->vx, &pickup->vy, w, h, dt);
     pickup->y = feet - h * 0.5f;
     if (pickup->y > level_height() + 100.0f) {
-      pickup->alive = false;
+      pool_release_object(&world->pickups, pickup);
       continue;
     }
     frect_t box = {pickup->x - ITEM_REACH, pickup->y - ITEM_REACH,
                   ITEM_REACH * 2.0f, ITEM_REACH * 2.0f};
     if (pickup->age > 0.25f && frect_overlaps(body, box)) {
-      pickup->alive = false;
+      pool_release_object(&world->pickups, pickup);
       collect(world, pickup->kind, pickup->x);
     }
   }

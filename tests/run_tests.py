@@ -26,6 +26,7 @@ ENGINE_PURE_SOURCES = (
     "core/input/controls.c",
     "core/audio/mixer.c",
     "core/events/event_system.c",
+    "core/memory/object_pool.c",
 )
 
 

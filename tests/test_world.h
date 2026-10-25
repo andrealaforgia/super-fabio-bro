@@ -1,6 +1,7 @@
 #ifndef TESTS_TEST_WORLD_H_
 #define TESTS_TEST_WORLD_H_
 
+#include <assert.h>
 #include <string.h>
 
 #include "world.h"
@@ -43,8 +44,9 @@ static inline void world_clear_events(world_t* world) {
   test_event_total = 0;
 }
 
-static inline void empty_world(world_t* world) {
-  world_init(world, 1, recording_events());
+static inline world_t* new_empty_world(void) {
+  world_t* world = world_new(1, recording_events());
+  assert(world);
   memset(world->level.tiles, 0, sizeof(world->level.tiles));
   memset(world->level.content, 0, sizeof(world->level.content));
   world->level.item_count = 0;
@@ -59,6 +61,7 @@ static inline void empty_world(world_t* world) {
   world->player.x = 10.0f * TILE;
   world->player.y = (float)(GROUND_ROW * TILE);
   world->camera_x = world->player.x - 400.0f;
+  return world;
 }
 
 static inline void step(world_t* world, const buttons_t* held, float seconds) {
@@ -75,9 +78,13 @@ static inline void step(world_t* world, const buttons_t* held, float seconds) {
 static inline void settle(world_t* world) { step(world, NULL, 0.3f); }
 
 static inline enemy_t* first_enemy(world_t* world) {
-  for (int i = 0; i < MAX_ENEMIES; i++)
-    if (world->enemies[i].alive) return &world->enemies[i];
-  return NULL;
+  size_t cursor = 0;
+  return pool_next_active(&world->enemies, &cursor);
+}
+
+/* The enemy in pool slot `index`; the first one spawned is in slot 0. */
+static inline enemy_t* enemy_at(world_t* world, size_t index) {
+  return pool_get_at(&world->enemies, index);
 }
 
 #endif  // TESTS_TEST_WORLD_H_

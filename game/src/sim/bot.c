@@ -17,9 +17,8 @@ static int pit_width(const level_t* level, float x, float y) {
 
 static bool enemy_ahead(const world_t* world, float reach, float height) {
   const player_t* p = &world->player;
-  for (int i = 0; i < MAX_ENEMIES; i++) {
-    const enemy_t* e = &world->enemies[i];
-    if (!e->alive) continue;
+  size_t cursor = 0;
+  for (const enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
     float dx = (e->x - p->x) * (float)p->facing;
     if (dx > 0.0f && dx < reach && fabsf((e->y - e->h * 0.5f) - (p->y - 30.0f)) < height)
       return true;

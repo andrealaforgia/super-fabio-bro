@@ -15,6 +15,7 @@
 
 #include "buttons.h"
 #include "event_system.h"
+#include "object_pool.h"
 #include "geometry.h"
 #include "level.h"
 #include "rng.h"
@@ -107,7 +108,6 @@ typedef enum {
 } bug_variant_t;
 
 typedef struct {
-  bool alive;
   enemy_kind_t kind;
   int variant;
   float x, y, vx, vy;
@@ -123,21 +123,18 @@ typedef struct {
 } enemy_t;
 
 typedef struct {
-  bool alive;
   item_kind_t kind;
   float x, y, vx, vy; /* centre */
   float age;
 } pickup_t;
 
 typedef struct {
-  bool alive;
   float x, y, vx, life;
 } bullet_t;
 
 typedef struct {
   float x0, x1, y, age;
   int facing;
-  bool alive;
 } ray_t;
 
 typedef enum {
@@ -152,14 +149,12 @@ typedef enum {
 } fx_kind_t;
 
 typedef struct {
-  bool alive;
   fx_kind_t kind;
   float x, y, age, duration;
   int facing;
 } effect_t;
 
 typedef struct {
-  bool alive;
   float x, y, vx, vy, age, life, size;
   uint8_t r, g, b;
 } particle_t;
@@ -172,14 +167,15 @@ typedef struct {
 typedef struct {
   level_t level;
   player_t player;
-  enemy_t enemies[MAX_ENEMIES];
-  pickup_t pickups[MAX_PICKUPS];
+  /* Everything that comes and goes lives in an engine object pool. */
+  object_pool_t enemies;   /* enemy_t */
+  object_pool_t pickups;   /* pickup_t */
   bool item_taken[MAX_LEVEL_ITEMS];
-  bullet_t bullets[MAX_BULLETS];
-  ray_t rays[MAX_RAYS];
-  effect_t effects[MAX_EFFECTS];
-  particle_t particles[MAX_PARTICLES];
-  bump_t bumps[MAX_BUMPS];
+  object_pool_t bullets;   /* bullet_t */
+  object_pool_t rays;      /* ray_t */
+  object_pool_t effects;   /* effect_t */
+  object_pool_t particles; /* particle_t */
+  object_pool_t bumps;     /* bump_t */
   event_system_ptr events; /* where the world announces what happens; may be NULL */
 
   rng_t rng;
@@ -197,9 +193,14 @@ typedef struct {
   int bugs_killed;
 } world_t;
 
-/* `events` is where the world publishes what happens (event_kind_t as the
- * type, the x position as a float payload); the caller owns it. */
-void world_init(world_t* world, uint32_t seed, event_system_ptr events);
+/* A new world with its object pools, or NULL when memory runs out.
+ * `events` is where the world publishes what happens (event_kind_t as the
+ * type, the x position as a float payload); the caller owns it, and it may be
+ * NULL. */
+world_t* world_new(uint32_t seed, event_system_ptr events);
+/* Starts the level again in the same world, keeping its pools and events. */
+void world_restart(world_t* world, uint32_t seed);
+void world_free(world_t* world);
 void world_update(world_t* world, const controls_t* controls, float dt);
 /* 0 at the start of the level, 1 at the castle. */
 float world_progress(const world_t* world);

@@ -62,8 +62,8 @@ static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const opt
     present_frame(gfx);
     return ok ? 0 : 1;
   }
-  world_t* world = malloc(sizeof(*world));
-  world_init(world, (uint32_t)o->seed, NULL);
+  world_t* world = world_new((uint32_t)o->seed, NULL);
+  if (!world) return 1;
   begin_frame(gfx, 0, 0, 0);
   world->view_w = gfx->view_width;
   bot_t bot;
@@ -87,12 +87,12 @@ static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const opt
     controls_update(&controls, BTN_SHOOT);
     for (int i = 0; i < 100; i++) world_update(world, &controls, 1.0f / 120.0f);
     spawn_zombie(world, p->x + 250.0f, p->y);
-    world_kill_enemy(world, &world->enemies[6], false);
+    world_kill_enemy(world, pool_get_at(&world->enemies, 6), false);
     for (int i = 0; i < 6; i++) world_update(world, &controls, 1.0f / 120.0f);
     render_world(gfx, look, world);
     bool ok = save_frame_bmp(gfx, o->snapshot);
     present_frame(gfx);
-    free(world);
+    world_free(world);
     return ok ? 0 : 1;
   }
   for (float t = 0.0f; t < o->seconds; t += 1.0f / 120.0f) {
@@ -103,7 +103,7 @@ static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const opt
   render_world(gfx, look, world);
   bool ok = save_frame_bmp(gfx, o->snapshot);
   present_frame(gfx);
-  free(world);
+  world_free(world);
   return ok ? 0 : 1;
 }
 
@@ -182,8 +182,8 @@ int main(int argc, char** argv) {
   if (sound)
     for (int kind = 0; kind < EVENT_KIND_COUNT; kind++)
       subscribe(&events, kind, play_event_sound, audio);
-  world_t* world = malloc(sizeof(*world));
-  world_init(world, (uint32_t)options.seed, &events);
+  world_t* world = world_new((uint32_t)options.seed, &events);
+  if (!world) return 1;
   float delay_left = options.delay; /* time to start a screen recording */
   bool on_title = true, voiced = false, paused = false, running = true;
   float title_time = 0.0f;
@@ -233,7 +233,7 @@ int main(int argc, char** argv) {
       if (start && title_time > 0.3f) {
         on_title = false;
         if (audio) set_music_gain(audio, 0.5f);
-        world_init(world, (uint32_t)options.seed, &events);
+        world_restart(world, (uint32_t)options.seed);
         world->view_w = gfx->view_width;
         play_sound_at_volume(audio, SFX_PICKUP, 0.6f);
       }
@@ -243,7 +243,7 @@ int main(int argc, char** argv) {
       if (controls_pressed(&controls, BTN_PAUSE) && !over) paused = !paused;
       if (over && start && world->state_time > 1.0f) {
         options.seed = (int)(((uint32_t)time(NULL) + (uint32_t)SDL_GetTicks()) & 0x7fffffffu);
-        world_init(world, (uint32_t)options.seed, &events);
+        world_restart(world, (uint32_t)options.seed);
         world->view_w = gfx->view_width;
       } else if (!paused) {
         double step;
@@ -264,7 +264,7 @@ int main(int argc, char** argv) {
   terminate_audio_context(audio);
   look_free(&look);
   terminate_graphics_context(&graphics);
-  free(world);
+  world_free(world);
   IMG_Quit();
   SDL_Quit();
   return 0;
