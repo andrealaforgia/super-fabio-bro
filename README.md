@@ -6,17 +6,22 @@ jumps through a scrolling world of mountains, pines and floating bricks while
 find the TDD potion, drink it and cast a spell until it fades. Reach the
 castle.
 
-C99 and SDL2, built the same way as `gta-like`: a small engine, a game layer
-on top, rules that run without a window so they can be tested, and an offline
-step that cooks the art.
+C99 and SDL2. The engine is the shared
+[sdl-2d-game-engine](https://github.com/andrealaforgia/sdl-2d-game-engine),
+a git submodule in `engine/`, with the game on top: rules that run without a
+window so they can be tested, and an offline step that cooks the art.
 
 ## Setup
 
 ```
-make install        # SDL2 and SDL2_image via Homebrew (or apt), and Pillow
+git clone --recurse-submodules git@github.com:andrealaforgia/super-fabio-bro.git
+make install        # the engine submodule, SDL2 and SDL2_image, and Pillow
 make                # builds the game and cooks the sprites
 make run
 ```
+
+Already cloned without `--recurse-submodules`? `make install` fetches the
+engine too (or `git submodule update --init`).
 
 The window opens as large as the desktop allows and resizes freely; F11 is
 full screen. The world is always one screen tall and as wide as the window.
@@ -55,25 +60,22 @@ start.
 make test           # every test group, no window needed
 make sanitize       # the same under AddressSanitizer and UBSan
 make snapshot       # a bot plays 20 s, saved to snapshot.bmp, plus the title
-./super-fabio-bros --showcase --snapshot show.bmp   # a staged fight
-./super-fabio-bros --delay 10   # a countdown first, to start a screen recording
-./super-fabio-bros --help
+./super-fabio-bros --showcase --snapshot=show.bmp   # a staged fight
+./super-fabio-bros --delay=10   # a countdown first, to start a screen recording
+./super-fabio-bros --help       # every option, the engine's and the game's
 ```
 
 ## Layout
 
 | Path | Holds |
 |---|---|
-| `engine/core` | deterministic RNG, frame stepper |
-| `engine/math` | vectors and rectangles |
-| `engine/platform` | controls with edge detection, SDL keyboard |
-| `engine/renderer` | SDL 2D drawing surface and the 5x7 arcade font |
-| `engine/audio` | pure voice mixer, SDL device |
+| `engine/` | the shared engine (submodule): window and view, sprites, pixel font, software mixer, controls, RNG, stepper, object pool, event system, command line |
 | `game/src/level` | tile map and the seeded level generator |
 | `game/src/sim` | the whole game: player, enemies, spawner, combat, pickups, bot |
 | `game/src/render` | poses, procedural scenery, the renderer |
 | `game/src/audio` | synthesised effects, the "It's me! Fabio!" voice, the music |
 | `game/src/assets` | the sprite manifest |
+| `game/src/main` | the loop, the key bindings, the options |
 | `scripts/cook_sprites.py` | cuts `assets/source/*.jpeg` into transparent PNGs |
 
 All sound is synthesised at start-up, voice included (formant synthesis). The
@@ -81,6 +83,8 @@ mountains, trees, clouds and castle are drawn procedurally. Fabio, the
 zombies, the bugs, the blocks and the pipes come from the generated sheets in
 `assets/source`.
 
-Nothing in `engine/` includes `game/`. Files named `sdl_*.c` are the only ones
-that touch SDL, and the tests leave them out. An autoplaying bot proves every
-generated level can be finished.
+The game depends on the engine and never the other way round. Files named
+`sdl_*.c` are the game's only ones that touch SDL, and the tests leave them
+out, along with the engine's SDL parts, which have their own tests in the
+engine repository. An autoplaying bot proves every generated level can be
+finished.

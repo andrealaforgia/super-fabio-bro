@@ -5,10 +5,10 @@ SDL2_CONFIG ?= $(shell command -v sdl2-config 2>/dev/null || echo /opt/homebrew/
 
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S), Linux)
-    INSTALL_CMD = sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-image-dev python3-pil
+    INSTALL_CMD = git submodule update --init --recursive && sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-image-dev python3-pil
     DEV_INSTALL_CMD = sudo apt-get update && sudo apt-get install -y cpplint clang-format
 else ifeq ($(UNAME_S), Darwin)
-    INSTALL_CMD = brew install sdl2 sdl2_image && python3 -m pip install pillow
+    INSTALL_CMD = git submodule update --init --recursive && brew install sdl2 sdl2_image && python3 -m pip install pillow
     DEV_INSTALL_CMD = brew install cpplint clang-format
 else
     $(error Unsupported platform)
@@ -64,11 +64,15 @@ install:
 dev_install:
 	$(DEV_INSTALL_CMD)
 
+# The engine is a submodule and lints and formats itself; only the game's own
+# files are checked here.
+OWN_HEADERS = $(filter-out engine/%,$(HEADERS))
+
 lint:
-	cpplint --quiet --root=. $(ENGINE_SRC) $(GAME_SRC) $(HEADERS) $(TEST_SRC)
+	cpplint --quiet --root=. $(GAME_SRC) $(OWN_HEADERS) $(TEST_SRC)
 
 format:
-	clang-format -i $(ENGINE_SRC) $(GAME_SRC) $(HEADERS) $(TEST_SRC)
+	clang-format -i $(GAME_SRC) $(OWN_HEADERS) $(TEST_SRC)
 
 test: assets
 	python3 tests/run_tests.py
