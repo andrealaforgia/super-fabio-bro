@@ -8,7 +8,9 @@
 
 #include "pose.h"
 #include "scenery.h"
-#include "sdl_gfx.h"
+#include "graphics.h"
+#include "pixel_font.h"
+#include "texture.h"
 
 #define CLOUD_VARIANTS 3
 
@@ -26,11 +28,12 @@ typedef struct {
   texture_t castle;
   texture_t glow;
   texture_t cover;
+  pixel_font_t font;
 } look_t;
 
 /* `sprite_dir` holds manifest.txt and the PNGs. Returns false and prints
  * what was missing. */
-bool look_load(look_t* look, gfx_t* gfx, const char* sprite_dir);
+bool look_load(look_t* look, graphics_context_ptr gfx, const char* sprite_dir);
 void look_free(look_t* look);
 const sprite_t* look_sprite(const look_t* look, pose_t pose);
 

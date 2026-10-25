@@ -22,7 +22,14 @@ static bool read_file(const char* path, char** text) {
   return true;
 }
 
-static bool load_strip(look_t* look, gfx_t* gfx, const char* dir,
+static texture_t load_image(graphics_context_ptr gfx, const char* path,
+                            bool smooth) {
+  texture_t texture = load_texture(gfx->renderer, path);
+  set_texture_smooth(&texture, smooth);
+  return texture;
+}
+
+static bool load_strip(look_t* look, graphics_context_ptr gfx, const char* dir,
                        const manifest_entry_t* entries, int count, int id) {
   const strip_spec_t* spec = &kStripSpecs[id];
   int frames = spec->frames > 0 ? spec->frames : 1;
@@ -41,8 +48,8 @@ static bool load_strip(look_t* look, gfx_t* gfx, const char* dir,
     }
     snprintf(path, sizeof(path), "%s/%s", dir, entry->file);
     sprite_t* sprite = &look->frames[id][f];
-    sprite->texture = gfx_texture_from_file(gfx, path, true);
-    if (!sprite->texture.handle) {
+    sprite->texture = load_image(gfx, path, true);
+    if (!sprite->texture.texture) {
       fprintf(stderr, "cannot load %s\n", path);
       return false;
     }
@@ -54,17 +61,18 @@ static bool load_strip(look_t* look, gfx_t* gfx, const char* dir,
   return true;
 }
 
-static texture_t from_image(gfx_t* gfx, image_t* image, bool smooth, bool additive) {
+static texture_t from_image(graphics_context_ptr gfx, image_t* image, bool smooth, bool additive) {
   texture_t texture = {NULL, 0, 0};
   if (image->pixels)
-    texture = gfx_texture_from_pixels(gfx, image->pixels, image->w, image->h,
+    texture = texture_from_pixels(gfx, image->pixels, image->w, image->h,
                                       smooth, additive);
   image_free(image);
   return texture;
 }
 
-bool look_load(look_t* look, gfx_t* gfx, const char* sprite_dir) {
+bool look_load(look_t* look, graphics_context_ptr gfx, const char* sprite_dir) {
   memset(look, 0, sizeof(*look));
+  look->font = build_pixel_font(gfx);
   char path[512];
   snprintf(path, sizeof(path), "%s/manifest.txt", sprite_dir);
   char* text = NULL;
@@ -96,24 +104,25 @@ bool look_load(look_t* look, gfx_t* gfx, const char* sprite_dir) {
   if (scenery_castle(&image)) look->castle = from_image(gfx, &image, false, false);
   if (scenery_glow(&image)) look->glow = from_image(gfx, &image, true, true);
   snprintf(path, sizeof(path), "%s/cover.png", sprite_dir);
-  look->cover = gfx_texture_from_file(gfx, path, true);
-  return look->sky.handle && look->castle.handle && look->glow.handle;
+  look->cover = load_image(gfx, path, true);
+  return look->sky.texture && look->castle.texture && look->glow.texture;
 }
 
 void look_free(look_t* look) {
   for (int id = 0; id < STRIP_COUNT; id++) {
     int frames = kStripSpecs[id].frames > 0 ? kStripSpecs[id].frames : 1;
     if (look->frames[id])
-      for (int f = 0; f < frames; f++) gfx_texture_free(&look->frames[id][f].texture);
+      for (int f = 0; f < frames; f++) free_texture(&look->frames[id][f].texture);
     free(look->frames[id]);
   }
-  gfx_texture_free(&look->sky);
-  for (int i = 0; i < MOUNTAIN_LAYERS; i++) gfx_texture_free(&look->layers[i]);
-  for (int i = 0; i < CLOUD_VARIANTS; i++) gfx_texture_free(&look->clouds[i]);
-  for (int i = 0; i < 3; i++) gfx_texture_free(&look->trees[i]);
-  gfx_texture_free(&look->castle);
-  gfx_texture_free(&look->glow);
-  gfx_texture_free(&look->cover);
+  free_texture(&look->sky);
+  for (int i = 0; i < MOUNTAIN_LAYERS; i++) free_texture(&look->layers[i]);
+  for (int i = 0; i < CLOUD_VARIANTS; i++) free_texture(&look->clouds[i]);
+  for (int i = 0; i < 3; i++) free_texture(&look->trees[i]);
+  free_texture(&look->castle);
+  free_texture(&look->glow);
+  free_texture(&look->cover);
+  free_pixel_font(&look->font);
   memset(look, 0, sizeof(*look));
 }
 

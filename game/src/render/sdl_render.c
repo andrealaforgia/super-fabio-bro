@@ -8,7 +8,7 @@
 #define ZOMBIE_SCALE 0.46f
 
 typedef struct {
-  gfx_t* gfx;
+  graphics_context_ptr gfx;
   const look_t* look;
   const world_t* world;
   float cam_x;
@@ -20,6 +20,12 @@ static frect_t rect(float x, float y, float w, float h) {
   return r;
 }
 
+static void fill_rect(graphics_context_ptr gfx, frect_t r, uint8_t red,
+                      uint8_t green, uint8_t blue, uint8_t alpha) {
+  draw_filled_rect_alpha(gfx, r.x, r.y, r.w, r.h, COLOR(red, green, blue),
+                         alpha);
+}
+
 /* Feet-anchored sprite. */
 static void draw_sprite(const frame_t* f, pose_t pose, float x, float y,
                         float scale, bool flip, float alpha) {
@@ -27,8 +33,8 @@ static void draw_sprite(const frame_t* f, pose_t pose, float x, float y,
   float w = (float)sprite->w * scale, h = (float)sprite->h * scale;
   float ax = (float)sprite->anchor_x * scale;
   float left = flip ? x - (w - ax) : x - ax;
-  draw_t options = {flip, alpha, 0.0f, 0, 0, 0};
-  gfx_draw(f->gfx, sprite->texture, NULL, rect(left - f->cam_x, y - h, w, h),
+  draw_options_t options = {flip, alpha, 0.0f, false, 0, 0, 0};
+  render_sprite(f->gfx, &sprite->texture, NULL, rect(left - f->cam_x, y - h, w, h),
            &options);
 }
 
@@ -38,20 +44,20 @@ static void draw_centred(const frame_t* f, pose_t pose, float cx, float cy,
                          float alpha) {
   const sprite_t* sprite = look_sprite(f->look, pose);
   float w = (float)sprite->w * sx, h = (float)sprite->h * sy;
-  draw_t options = {flip, alpha, angle, 0, 0, 0};
-  gfx_draw(f->gfx, sprite->texture, NULL,
+  draw_options_t options = {flip, alpha, angle, false, 0, 0, 0};
+  render_sprite(f->gfx, &sprite->texture, NULL,
            rect(cx - w * 0.5f - f->cam_x, cy - h * 0.5f, w, h), &options);
 }
 
 static void draw_texture_centred(const frame_t* f, texture_t texture, float cx,
                                  float cy, float w, float h, float alpha) {
-  draw_t options = {false, alpha, 0.0f, 0, 0, 0};
-  gfx_draw(f->gfx, texture, NULL,
+  draw_options_t options = {false, alpha, 0.0f, false, 0, 0, 0};
+  render_sprite(f->gfx, &texture, NULL,
            rect(cx - w * 0.5f - f->cam_x, cy - h * 0.5f, w, h), &options);
 }
 
 static void draw_backdrop(const frame_t* f) {
-  gfx_draw(f->gfx, f->look->sky, NULL, rect(0, 0, f->view_w, GFX_VIEW_HEIGHT), NULL);
+  render_sprite(f->gfx, &f->look->sky, NULL, rect(0, 0, f->view_w, VIEW_HEIGHT), NULL);
 
   /* Clouds drift slowly with the camera. */
   float period = 3200.0f;
@@ -62,8 +68,8 @@ static void draw_backdrop(const frame_t* f) {
     texture_t cloud = f->look->clouds[i % CLOUD_VARIANTS];
     float scale = 4.0f + (float)(i % 3);
     float y = 36.0f + (float)((i * 61) % 150);
-    gfx_draw(f->gfx, cloud, NULL,
-             rect(x, y, (float)cloud.w * scale, (float)cloud.h * scale), NULL);
+    render_sprite(f->gfx, &cloud, NULL,
+             rect(x, y, (float)cloud.width * scale, (float)cloud.height * scale), NULL);
   }
 
   static const float factor[MOUNTAIN_LAYERS] = {0.08f, 0.2f, 0.38f};
@@ -71,7 +77,7 @@ static void draw_backdrop(const frame_t* f) {
   for (int layer = 0; layer < MOUNTAIN_LAYERS; layer++) {
     float offset = fmodf(f->cam_x * factor[layer], span);
     for (float x = -offset; x < f->view_w; x += span)
-      gfx_draw(f->gfx, f->look->layers[layer], NULL,
+      render_sprite(f->gfx, &f->look->layers[layer], NULL,
                rect(x, 0, span, (float)(LAYER_H * SCENERY_PIXEL)), NULL);
   }
 }
@@ -82,15 +88,15 @@ static void draw_decor(const frame_t* f) {
     const decor_t* d = &level->decor[i];
     texture_t tree = f->look->trees[d->kind];
     float scale = d->kind == DECOR_BUSH ? 2.4f : 2.6f;
-    float w = (float)tree.w * scale, h = (float)tree.h * scale;
+    float w = (float)tree.width * scale, h = (float)tree.height * scale;
     if (d->x + w < f->cam_x || d->x - w > f->cam_x + f->view_w) continue;
-    gfx_draw(f->gfx, tree, NULL, rect(d->x - w * 0.5f - f->cam_x, d->y - h + 4.0f, w, h),
+    render_sprite(f->gfx, &tree, NULL, rect(d->x - w * 0.5f - f->cam_x, d->y - h + 4.0f, w, h),
              NULL);
   }
   float cw = 64.0f * 3.6f;
   float cx = level->castle_x;
   if (cx + cw > f->cam_x && cx - cw < f->cam_x + f->view_w)
-    gfx_draw(f->gfx, f->look->castle, NULL,
+    render_sprite(f->gfx, &f->look->castle, NULL,
              rect(cx - cw * 0.5f - f->cam_x, (float)(GROUND_ROW * TILE) - cw + 2.0f, cw, cw),
              NULL);
 }
@@ -107,7 +113,7 @@ static float bump_offset(const world_t* world, int col, int row) {
 static void draw_tile_sprite(const frame_t* f, strip_id_t strip, float x, float y) {
   const sprite_t* s = look_sprite(f->look, (pose_t){strip, 0});
   /* A hair larger than the tile hides seams between neighbours. */
-  gfx_draw(f->gfx, s->texture, NULL,
+  render_sprite(f->gfx, &s->texture, NULL,
            rect(x - f->cam_x - 0.4f, y - 0.4f, TILE + 0.8f, TILE + 0.8f), NULL);
 }
 
@@ -127,11 +133,11 @@ static void draw_tiles(const frame_t* f) {
         case TILE_GRASS: {
           const sprite_t* grass = look_sprite(f->look, (pose_t){STRIP_GROUND_GRASS, 0});
           const sprite_t* dirt = look_sprite(f->look, (pose_t){STRIP_GROUND_DIRT, 0});
-          frect_t gsrc = {(float)((col % 3) * 40), 0, 40, (float)grass->h};
-          frect_t dsrc = {(float)((col % 3) * 40), 0, 40, (float)dirt->h};
-          gfx_draw(f->gfx, dirt->texture, &dsrc,
+          rect_t gsrc = {(col % 3) * 40, 0, 40, grass->h};
+          rect_t dsrc = {(col % 3) * 40, 0, 40, dirt->h};
+          render_sprite(f->gfx, &dirt->texture, &dsrc,
                    rect(x - f->cam_x - 0.4f, y + 10.0f, TILE + 0.8f, 22.4f), NULL);
-          gfx_draw(f->gfx, grass->texture, &gsrc,
+          render_sprite(f->gfx, &grass->texture, &gsrc,
                    rect(x - f->cam_x - 0.4f, y - 1.0f, TILE + 0.8f, 16.0f), NULL);
           break;
         }
@@ -148,8 +154,8 @@ static void draw_tiles(const frame_t* f) {
           bool top = tile == TILE_PIPE_TOP_L || tile == TILE_PIPE_TOP_R;
           bool right = tile == TILE_PIPE_TOP_R || tile == TILE_PIPE_BODY_R;
           const sprite_t* s = look_sprite(f->look, (pose_t){top ? STRIP_PIPE_CAP : STRIP_PIPE_BODY, 0});
-          frect_t src = {right ? (float)(s->w / 2) : 0.0f, 0, (float)(s->w / 2), (float)s->h};
-          gfx_draw(f->gfx, s->texture, &src,
+          rect_t src = {right ? s->w / 2 : 0, 0, s->w / 2, s->h};
+          render_sprite(f->gfx, &s->texture, &src,
                    rect(x - f->cam_x - 0.4f, y - 0.4f, TILE + 0.8f, TILE + 0.8f), NULL);
           break;
         }
@@ -253,8 +259,8 @@ static void draw_player(const frame_t* f) {
   float ax = (float)sprite->anchor_x * FABIO_SCALE;
   bool flip = p->facing < 0;
   float left = flip ? p->x - (w - ax) : p->x - ax;
-  draw_t options = {flip, alpha, lean, 0, 0, 0};
-  gfx_draw(f->gfx, sprite->texture, NULL,
+  draw_options_t options = {flip, alpha, lean, false, 0, 0, 0};
+  render_sprite(f->gfx, &sprite->texture, NULL,
            rect(left - f->cam_x, p->y - h + bounce, w, h), &options);
 }
 
@@ -291,95 +297,96 @@ static void draw_effects(const frame_t* f) {
     float length = r->x1 - r->x0;
     float jitter = sinf(r->age * 120.0f) * 3.0f;
     float left = length >= 0.0f ? r->x0 : r->x1;
-    draw_t options = {r->facing < 0, 1.0f - r->age / 0.22f, 0.0f, 0, 0, 0};
-    gfx_draw(f->gfx, s->texture, NULL,
+    draw_options_t options = {r->facing < 0, 1.0f - r->age / 0.22f, 0.0f, false, 0, 0, 0};
+    render_sprite(f->gfx, &s->texture, NULL,
              rect(left - f->cam_x, r->y - 15.0f + jitter, fabsf(length), 30.0f), &options);
-    draw_t halo = {false, 0.5f * (1.0f - r->age / 0.22f), 0.0f, 0, 0, 0};
-    gfx_draw(f->gfx, f->look->glow, NULL,
+    draw_options_t halo = {false, 0.5f * (1.0f - r->age / 0.22f), 0.0f, false, 0, 0, 0};
+    render_sprite(f->gfx, &f->look->glow, NULL,
              rect(left - f->cam_x, r->y - 24.0f, fabsf(length), 48.0f), &halo);
   }
   for (int i = 0; i < MAX_PARTICLES; i++) {
     const particle_t* p = &f->world->particles[i];
     if (!p->alive) continue;
     float a = 1.0f - p->age / p->life;
-    gfx_rect(f->gfx, rect(p->x - f->cam_x, p->y, p->size, p->size), p->r, p->g, p->b,
+    fill_rect(f->gfx, rect(p->x - f->cam_x, p->y, p->size, p->size), p->r, p->g, p->b,
              (uint8_t)(a * 255.0f));
   }
 }
 
 /* ---- text and the heads-up display ---- */
 
-static void shadow_text(gfx_t* gfx, float x, float y, const char* text, float scale,
+static void shadow_text(graphics_context_ptr gfx, const pixel_font_t* font, float x, float y, const char* text, float scale,
                         uint8_t r, uint8_t g, uint8_t b) {
-  gfx_text(gfx, x + scale, y + scale, text, scale, 20, 10, 40);
-  gfx_text(gfx, x, y, text, scale, r, g, b);
+  render_pixel_text(font, gfx, x + scale, y + scale, text, scale, 20, 10, 40);
+  render_pixel_text(font, gfx, x, y, text, scale, r, g, b);
 }
 
-static void centred_text(gfx_t* gfx, float cx, float y, const char* text, float scale,
+static void centred_text(graphics_context_ptr gfx, const pixel_font_t* font, float cx, float y, const char* text, float scale,
                          uint8_t r, uint8_t g, uint8_t b) {
-  shadow_text(gfx, cx - gfx_text_width(text, scale) * 0.5f, y, text, scale, r, g, b);
+  shadow_text(gfx, font, cx - pixel_text_width(text, scale) * 0.5f, y, text, scale, r, g, b);
 }
 
-static void draw_heart(gfx_t* gfx, float x, float y, float px, bool full) {
+static void draw_heart(graphics_context_ptr gfx, float x, float y, float px, bool full) {
   static const char* kHeart[6] = {".##.##.", "#######", "#######", ".#####.", "..###..", "...#..."};
   for (int row = 0; row < 6; row++)
     for (int col = 0; col < 7; col++)
       if (kHeart[row][col] == '#') {
         if (full) {
           bool shine = row == 1 && col == 1;
-          gfx_rect(gfx, rect(x + col * px, y + row * px, px, px), shine ? 255 : 226,
+          fill_rect(gfx, rect(x + col * px, y + row * px, px, px), shine ? 255 : 226,
                    shine ? 200 : 40, shine ? 200 : 56, 255);
         } else {
-          gfx_rect(gfx, rect(x + col * px, y + row * px, px, px), 60, 40, 70, 200);
+          fill_rect(gfx, rect(x + col * px, y + row * px, px, px), 60, 40, 70, 200);
         }
       }
 }
 
 static void draw_hud(const frame_t* f) {
-  gfx_t* gfx = f->gfx;
+  graphics_context_ptr gfx = f->gfx;
+  const pixel_font_t* font = &f->look->font;
   const world_t* w = f->world;
   const player_t* p = &w->player;
-  gfx_rect(gfx, rect(0, 0, f->view_w, 66.0f), 10, 10, 30, 140);
+  fill_rect(gfx, rect(0, 0, f->view_w, 66.0f), 10, 10, 30, 140);
 
   for (int i = 0; i < PLAYER_HP; i++) draw_heart(gfx, 14.0f + (float)i * 30.0f, 10.0f, 3.5f, i < p->hp);
 
   char text[96];
   snprintf(text, sizeof(text), "SCORE %06d", w->score);
-  shadow_text(gfx, 14.0f, 40.0f, text, 3.0f, 255, 240, 120);
+  shadow_text(gfx, font, 14.0f, 40.0f, text, 3.0f, 255, 240, 120);
 
   float x = 250.0f;
-  draw_t none = {false, 1.0f, 0.0f, 0, 0, 0};
+  draw_options_t none = {false, 1.0f, 0.0f, false, 0, 0, 0};
   const sprite_t* coin = look_sprite(f->look, (pose_t){STRIP_COIN, 0});
-  gfx_draw(gfx, coin->texture, NULL, rect(x, 8.0f, 22.0f, 26.0f), &none);
+  render_sprite(gfx, &coin->texture, NULL, rect(x, 8.0f, 22.0f, 26.0f), &none);
   snprintf(text, sizeof(text), "X%02d", w->coins);
-  shadow_text(gfx, x + 28.0f, 12.0f, text, 3.0f, 255, 255, 255);
+  shadow_text(gfx, font, x + 28.0f, 12.0f, text, 3.0f, 255, 255, 255);
 
   x += 120.0f;
   const sprite_t* bottle = look_sprite(f->look, (pose_t){STRIP_BOTTLE, 0});
-  gfx_draw(gfx, bottle->texture, NULL, rect(x, 6.0f, 20.0f, 40.0f), &none);
+  render_sprite(gfx, &bottle->texture, NULL, rect(x, 6.0f, 20.0f, 40.0f), &none);
   snprintf(text, sizeof(text), "X%d", p->potions);
-  shadow_text(gfx, x + 26.0f, 12.0f, text, 3.0f, 140, 255, 140);
-  shadow_text(gfx, x - 2.0f, 46.0f, "E TO DRINK", 1.6f, 200, 255, 200);
+  shadow_text(gfx, font, x + 26.0f, 12.0f, text, 3.0f, 140, 255, 140);
+  shadow_text(gfx, font, x - 2.0f, 46.0f, "E TO DRINK", 1.6f, 200, 255, 200);
 
   x += 120.0f;
   if (p->ammo > 0) {
     const sprite_t* gun = look_sprite(f->look, (pose_t){STRIP_PISTOL, 0});
-    gfx_draw(gfx, gun->texture, NULL, rect(x, 10.0f, 42.0f, 32.0f), &none);
+    render_sprite(gfx, &gun->texture, NULL, rect(x, 10.0f, 42.0f, 32.0f), &none);
     snprintf(text, sizeof(text), "X%02d", p->ammo);
     bool low = p->ammo <= 3;
-    shadow_text(gfx, x + 50.0f, 12.0f, text, 3.0f, 255, low ? 110 : 255, low ? 110 : 255);
-    shadow_text(gfx, x - 2.0f, 46.0f, "J TO SHOOT", 1.6f, 220, 220, 220);
+    shadow_text(gfx, font, x + 50.0f, 12.0f, text, 3.0f, 255, low ? 110 : 255, low ? 110 : 255);
+    shadow_text(gfx, font, x - 2.0f, 46.0f, "J TO SHOOT", 1.6f, 220, 220, 220);
   } else {
-    shadow_text(gfx, x, 14.0f, "NO GUN", 2.4f, 150, 150, 170);
+    shadow_text(gfx, font, x, 14.0f, "NO GUN", 2.4f, 150, 150, 170);
   }
 
   if (p->spell_time > 0.0f) {
     float bar_w = 220.0f, bar_x = f->view_w - bar_w - 18.0f;
     bool blink = p->spell_time < 3.0f && fmodf(w->time, 0.3f) < 0.15f;
-    shadow_text(gfx, bar_x, 8.0f, "TDD SPELL", 2.4f, 130, 220, 255);
-    gfx_rect(gfx, rect(bar_x - 2.0f, 30.0f, bar_w + 4.0f, 20.0f), 20, 20, 50, 255);
+    shadow_text(gfx, font, bar_x, 8.0f, "TDD SPELL", 2.4f, 130, 220, 255);
+    fill_rect(gfx, rect(bar_x - 2.0f, 30.0f, bar_w + 4.0f, 20.0f), 20, 20, 50, 255);
     if (!blink)
-      gfx_rect(gfx, rect(bar_x, 32.0f, bar_w * (p->spell_time / POTION_SECONDS), 16.0f),
+      fill_rect(gfx, rect(bar_x, 32.0f, bar_w * (p->spell_time / POTION_SECONDS), 16.0f),
                90, 200, 255, 255);
   }
 
@@ -387,31 +394,32 @@ static void draw_hud(const frame_t* f) {
   float track_w = fminf(360.0f, f->view_w * 0.3f);
   float track_x = (f->view_w - track_w) * 0.5f - 60.0f;
   if (track_x > 780.0f) {
-    gfx_rect(gfx, rect(track_x, 56.0f, track_w, 4.0f), 255, 255, 255, 160);
+    fill_rect(gfx, rect(track_x, 56.0f, track_w, 4.0f), 255, 255, 255, 160);
     float at = track_x + track_w * world_progress(w);
-    gfx_rect(gfx, rect(at - 4.0f, 48.0f, 8.0f, 16.0f), 255, 60, 60, 255);
-    gfx_rect(gfx, rect(track_x + track_w, 44.0f, 6.0f, 20.0f), 250, 210, 60, 255);
+    fill_rect(gfx, rect(at - 4.0f, 48.0f, 8.0f, 16.0f), 255, 60, 60, 255);
+    fill_rect(gfx, rect(track_x + track_w, 44.0f, 6.0f, 20.0f), 250, 210, 60, 255);
   }
 }
 
 static void draw_banner(const frame_t* f, const char* title, const char* subtitle,
                         uint8_t r, uint8_t g, uint8_t b) {
-  gfx_t* gfx = f->gfx;
-  gfx_rect(gfx, rect(0, 0, f->view_w, GFX_VIEW_HEIGHT), 10, 0, 20, 150);
+  graphics_context_ptr gfx = f->gfx;
+  const pixel_font_t* font = &f->look->font;
+  fill_rect(gfx, rect(0, 0, f->view_w, VIEW_HEIGHT), 10, 0, 20, 150);
   float cx = f->view_w * 0.5f;
-  centred_text(gfx, cx, 170.0f, title, 9.0f, r, g, b);
+  centred_text(gfx, font, cx, 170.0f, title, 9.0f, r, g, b);
   char text[96];
   snprintf(text, sizeof(text), "SCORE %06d   ZOMBIES %d   BUGS %d", f->world->score,
            f->world->zombies_killed, f->world->bugs_killed);
-  centred_text(gfx, cx, 270.0f, text, 3.0f, 255, 255, 255);
+  centred_text(gfx, font, cx, 270.0f, text, 3.0f, 255, 255, 255);
   if (fmodf(f->world->state_time, 1.0f) < 0.65f)
-    centred_text(gfx, cx, 350.0f, subtitle, 4.0f, 255, 240, 120);
+    centred_text(gfx, font, cx, 350.0f, subtitle, 4.0f, 255, 240, 120);
 }
 
-void render_world(gfx_t* gfx, const look_t* look, const world_t* world) {
-  frame_t f = {gfx, look, world, 0.0f, gfx_view_width(gfx)};
+void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* world) {
+  frame_t f = {gfx, look, world, 0.0f, gfx->view_width};
   /* Snap the camera to whole screen pixels so tiles never shimmer. */
-  float scale = gfx_scale(gfx);
+  float scale = gfx->view_scale;
   f.cam_x = floorf(world->camera_x * scale) / scale;
   draw_backdrop(&f);
   draw_decor(&f);
@@ -427,63 +435,67 @@ void render_world(gfx_t* gfx, const look_t* look, const world_t* world) {
     draw_banner(&f, "YOU DID IT!", "PRESS SPACE TO PLAY AGAIN", 120, 255, 140);
 }
 
-void render_pause(gfx_t* gfx) {
-  float w = gfx_view_width(gfx);
-  gfx_rect(gfx, rect(0, 0, w, GFX_VIEW_HEIGHT), 10, 0, 20, 140);
-  centred_text(gfx, w * 0.5f, 220.0f, "PAUSED", 8.0f, 255, 255, 255);
+void render_pause(graphics_context_ptr gfx, const look_t* look) {
+  const pixel_font_t* font = &look->font;
+  float w = gfx->view_width;
+  fill_rect(gfx, rect(0, 0, w, VIEW_HEIGHT), 10, 0, 20, 140);
+  centred_text(gfx, font, w * 0.5f, 220.0f, "PAUSED", 8.0f, 255, 255, 255);
 }
 
-void render_title(gfx_t* gfx, const look_t* look, float time) {
-  float w = gfx_view_width(gfx);
+void render_title(graphics_context_ptr gfx, const look_t* look, float time) {
+  const pixel_font_t* font = &look->font;
+  float w = gfx->view_width;
   /* A scrolling red and green check, like the border of the box. */
   float cell = 64.0f, shift = fmodf(time * 20.0f, cell * 2.0f);
-  gfx_rect(gfx, rect(0, 0, w, GFX_VIEW_HEIGHT), 120, 24, 30, 255);
-  for (float y = -cell * 2.0f; y < GFX_VIEW_HEIGHT; y += cell)
+  fill_rect(gfx, rect(0, 0, w, VIEW_HEIGHT), 120, 24, 30, 255);
+  for (float y = -cell * 2.0f; y < VIEW_HEIGHT; y += cell)
     for (float x = -cell * 2.0f; x < w + cell; x += cell) {
       int cx = (int)floorf((x + shift) / cell), cy = (int)floorf((y + shift) / cell);
       if (((cx + cy) & 1) == 0)
-        gfx_rect(gfx, rect(x + fmodf(shift, cell), y + fmodf(shift, cell), cell, cell), 26,
+        fill_rect(gfx, rect(x + fmodf(shift, cell), y + fmodf(shift, cell), cell, cell), 26,
                  110, 52, 255);
     }
-  gfx_rect(gfx, rect(0, 0, w, GFX_VIEW_HEIGHT), 0, 0, 20, 90);
+  fill_rect(gfx, rect(0, 0, w, VIEW_HEIGHT), 0, 0, 20, 90);
 
   float size = 430.0f;
   float bob = sinf(time * 2.0f) * 4.0f;
-  if (look->cover.handle) {
-    gfx_rect(gfx, rect(w * 0.5f - size * 0.5f - 6.0f, 10.0f + bob - 6.0f, size + 12.0f, size + 12.0f),
+  if (look->cover.texture) {
+    fill_rect(gfx, rect(w * 0.5f - size * 0.5f - 6.0f, 10.0f + bob - 6.0f, size + 12.0f, size + 12.0f),
              250, 220, 90, 255);
-    gfx_draw(gfx, look->cover, NULL, rect(w * 0.5f - size * 0.5f, 10.0f + bob, size, size), NULL);
+    render_sprite(gfx, &look->cover, NULL, rect(w * 0.5f - size * 0.5f, 10.0f + bob, size, size), NULL);
   }
   float cx = w * 0.5f;
-  centred_text(gfx, cx, 456.0f, "SUPER FABIO BROS", 4.0f, 255, 220, 90);
+  centred_text(gfx, font, cx, 456.0f, "SUPER FABIO BROS", 4.0f, 255, 220, 90);
   if (fmodf(time, 1.0f) < 0.65f)
-    centred_text(gfx, cx, 494.0f, "PRESS SPACE TO START", 3.2f, 255, 255, 255);
-  centred_text(gfx, cx, 528.0f, "DEDICATED TO MY FRIEND FABIO", 1.8f, 190, 230, 255);
+    centred_text(gfx, font, cx, 494.0f, "PRESS SPACE TO START", 3.2f, 255, 255, 255);
+  centred_text(gfx, font, cx, 528.0f, "DEDICATED TO MY FRIEND FABIO", 1.8f, 190, 230, 255);
 
   if (w > 1150.0f) {
     float x = w * 0.5f + size * 0.5f + 40.0f;
     static const char* kLines[] = {"ARROWS OR WASD  MOVE", "SPACE  JUMP", "SHIFT  RUN",
                                    "J  SHOOT OR CAST", "K  PICKAXE", "E  DRINK TDD POTION",
                                    "P  PAUSE", "M  MUSIC", "F11  FULL SCREEN"};
-    shadow_text(gfx, x, 90.0f, "CONTROLS", 3.0f, 255, 220, 90);
-    for (int i = 0; i < 9; i++) shadow_text(gfx, x, 130.0f + (float)i * 26.0f, kLines[i], 2.0f, 255, 255, 255);
+    shadow_text(gfx, font, x, 90.0f, "CONTROLS", 3.0f, 255, 220, 90);
+    for (int i = 0; i < 9; i++) shadow_text(gfx, font, x, 130.0f + (float)i * 26.0f, kLines[i], 2.0f, 255, 255, 255);
     float lx = w * 0.5f - size * 0.5f - 40.0f;
     static const char* kTips[] = {"FIND THE PISTOL", "BREAK QUESTION BLOCKS", "DRINK THE TDD POTION",
                                   "ZOMBIES DON'T TEST", "REACH THE CASTLE"};
     float widest = 0.0f;
-    for (int i = 0; i < 5; i++) widest = fmaxf(widest, gfx_text_width(kTips[i], 2.0f));
-    shadow_text(gfx, lx - widest, 90.0f, "MISSION", 3.0f, 255, 220, 90);
+    for (int i = 0; i < 5; i++) widest = fmaxf(widest, pixel_text_width(kTips[i], 2.0f));
+    shadow_text(gfx, font, lx - widest, 90.0f, "MISSION", 3.0f, 255, 220, 90);
     for (int i = 0; i < 5; i++)
-      shadow_text(gfx, lx - widest, 130.0f + (float)i * 26.0f, kTips[i], 2.0f, 255, 255, 255);
+      shadow_text(gfx, font, lx - widest, 130.0f + (float)i * 26.0f, kTips[i], 2.0f, 255, 255, 255);
   }
 }
 
-void render_countdown(gfx_t* gfx, float seconds_left) {
-  float w = gfx_view_width(gfx);
-  gfx_rect(gfx, rect(0, 0, w, GFX_VIEW_HEIGHT), 16, 10, 40, 255);
+void render_countdown(graphics_context_ptr gfx, const look_t* look,
+                      float seconds_left) {
+  const pixel_font_t* font = &look->font;
+  float w = gfx->view_width;
+  fill_rect(gfx, rect(0, 0, w, VIEW_HEIGHT), 16, 10, 40, 255);
   char text[16];
   snprintf(text, sizeof(text), "%d", (int)ceilf(seconds_left));
-  centred_text(gfx, w * 0.5f, 140.0f, text, 24.0f, 255, 220, 90);
-  centred_text(gfx, w * 0.5f, 340.0f, "STARTING SOON", 4.0f, 255, 255, 255);
-  centred_text(gfx, w * 0.5f, 390.0f, "START YOUR SCREEN RECORDING", 2.4f, 190, 230, 255);
+  centred_text(gfx, font, w * 0.5f, 140.0f, text, 24.0f, 255, 220, 90);
+  centred_text(gfx, font, w * 0.5f, 340.0f, "STARTING SOON", 4.0f, 255, 255, 255);
+  centred_text(gfx, font, w * 0.5f, 390.0f, "START YOUR SCREEN RECORDING", 2.4f, 190, 230, 255);
 }

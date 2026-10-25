@@ -7,11 +7,12 @@
 
 #include "bot.h"
 #include "buttons.h"
+#include "command_line.h"
 #include "controls.h"
+#include "graphics.h"
 #include "mixer.h"
 #include "render.h"
 #include "sdl_audio.h"
-#include "sdl_gfx.h"
 #include "sdl_keys.h"
 #include "sfx.h"
 #include "stepper.h"
@@ -36,7 +37,7 @@ typedef struct {
   bool title;
   bool showcase;
   float delay;
-  uint32_t seed;
+  int seed;
   int width, height;
 } options_t;
 
@@ -62,39 +63,19 @@ static void play_events(audio_state_t* audio, world_t* world) {
   world_clear_events(world);
 }
 
-static options_t parse(int argc, char** argv) {
-  options_t o = {NULL, 4.0f, false, false, 0.0f, (uint32_t)time(NULL), 0, 0};
-  for (int i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "--snapshot") && i + 1 < argc) o.snapshot = argv[++i];
-    else if (!strcmp(argv[i], "--seconds") && i + 1 < argc) o.seconds = (float)atof(argv[++i]);
-    else if (!strcmp(argv[i], "--seed") && i + 1 < argc) o.seed = (uint32_t)atol(argv[++i]);
-    else if (!strcmp(argv[i], "--width") && i + 1 < argc) o.width = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "--height") && i + 1 < argc) o.height = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "--title")) o.title = true;
-    else if (!strcmp(argv[i], "--showcase")) o.showcase = true;
-    else if (!strcmp(argv[i], "--delay") && i + 1 < argc) o.delay = (float)atof(argv[++i]);
-    else {
-      printf("usage: super-fabio-bros [--seed N] [--snapshot out.bmp [--seconds S] [--title|--showcase]"
-             " [--width W --height H]] [--delay SECONDS]\n");
-      exit(!strcmp(argv[i], "--help") ? 0 : 2);
-    }
-  }
-  return o;
-}
-
 /* Lets a bot play for a while, then saves what the screen shows. */
-static int take_snapshot(gfx_t* gfx, const look_t* look, const options_t* o) {
+static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const options_t* o) {
   if (o->title) {
-    gfx_begin(gfx, 0, 0, 0);
+    begin_frame(gfx, 0, 0, 0);
     render_title(gfx, look, 1.2f);
-    bool ok = gfx_save_bmp(gfx, o->snapshot);
-    gfx_end(gfx);
+    bool ok = save_frame_bmp(gfx, o->snapshot);
+    present_frame(gfx);
     return ok ? 0 : 1;
   }
   world_t* world = malloc(sizeof(*world));
-  world_init(world, o->seed);
-  gfx_begin(gfx, 0, 0, 0);
-  world->view_w = gfx_view_width(gfx);
+  world_init(world, (uint32_t)o->seed);
+  begin_frame(gfx, 0, 0, 0);
+  world->view_w = gfx->view_width;
   bot_t bot;
   memset(&bot, 0, sizeof(bot));
   controls_t controls;
@@ -119,8 +100,8 @@ static int take_snapshot(gfx_t* gfx, const look_t* look, const options_t* o) {
     world_kill_enemy(world, &world->enemies[6], false);
     for (int i = 0; i < 6; i++) world_update(world, &controls, 1.0f / 120.0f);
     render_world(gfx, look, world);
-    bool ok = gfx_save_bmp(gfx, o->snapshot);
-    gfx_end(gfx);
+    bool ok = save_frame_bmp(gfx, o->snapshot);
+    present_frame(gfx);
     free(world);
     return ok ? 0 : 1;
   }
@@ -130,21 +111,58 @@ static int take_snapshot(gfx_t* gfx, const look_t* look, const options_t* o) {
     world_update(world, &controls, 1.0f / 120.0f);
   }
   render_world(gfx, look, world);
-  bool ok = gfx_save_bmp(gfx, o->snapshot);
-  gfx_end(gfx);
+  bool ok = save_frame_bmp(gfx, o->snapshot);
+  present_frame(gfx);
   free(world);
   return ok ? 0 : 1;
 }
 
 int main(int argc, char** argv) {
-  options_t options = parse(argc, argv);
+  options_t options = {NULL, 4.0f, false, false, 0.0f,
+                       (int)((uint32_t)time(NULL) & 0x7fffffffu), 0, 0};
+  const custom_option_t custom[] = {
+      {"snapshot", OPTION_STRING, &options.snapshot,
+       "save a frame to this BMP file and quit"},
+      {"seconds", OPTION_FLOAT, &options.seconds,
+       "with --snapshot, how long a bot plays first (default 4)"},
+      {"title", OPTION_FLAG, &options.title, "with --snapshot, the title screen"},
+      {"showcase", OPTION_FLAG, &options.showcase,
+       "with --snapshot, a staged fight"},
+      {"seed", OPTION_INT, &options.seed, "the level's random seed"},
+      {"width", OPTION_INT, &options.width, "window width (default: the screen)"},
+      {"height", OPTION_INT, &options.height,
+       "window height (default: the screen)"},
+      {"delay", OPTION_FLOAT, &options.delay,
+       "wait this many seconds behind a countdown, to start a screen recording"},
+  };
+  const size_t custom_count = sizeof(custom) / sizeof(custom[0]);
+  command_line_options_t engine = default_command_line_options();
+  engine.window_mode = WINDOWED;
+  engine.vsync = true;
+  engine.volume = 128;
+  parse_command_line_options(argc, argv, &engine, custom, custom_count);
+  if (engine.help) {
+    printf("usage: super-fabio-bros [options]\n");
+    print_help(&engine, custom, custom_count);
+    return 0;
+  }
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
     fprintf(stderr, "SDL: %s\n", SDL_GetError());
     return 1;
   }
   IMG_Init(IMG_INIT_PNG);
-  gfx_t* gfx = gfx_open("Super Fabio Bros", options.width, options.height);
-  if (!gfx) {
+  SDL_LogSetAllPriority(SDL_LOG_PRIORITY_WARN); /* the engine logs each texture */
+  graphics_config_t config = default_graphics_config("Super Fabio Bros");
+  config.width = options.width;
+  config.height = options.height;
+  config.display = engine.display;
+  config.display_mode = engine.display_mode;
+  config.window_mode = engine.window_mode;
+  config.vsync = engine.vsync;
+  config.view_height = VIEW_HEIGHT;
+  graphics_context_t graphics = initialize_graphics_context(&config);
+  graphics_context_ptr gfx = &graphics;
+  if (!graphics.window || !graphics.renderer) {
     fprintf(stderr, "cannot open a window: %s\n", SDL_GetError());
     return 1;
   }
@@ -154,7 +172,7 @@ int main(int argc, char** argv) {
   if (options.snapshot) {
     int status = take_snapshot(gfx, &look, &options);
     look_free(&look);
-    gfx_close(gfx);
+    terminate_graphics_context(&graphics);
     SDL_Quit();
     return status;
   }
@@ -166,7 +184,7 @@ int main(int argc, char** argv) {
   if (!sound) fprintf(stderr, "no sound: %s\n", SDL_GetError());
 
   world_t* world = malloc(sizeof(*world));
-  world_init(world, options.seed);
+  world_init(world, (uint32_t)options.seed);
   float delay_left = options.delay; /* time to start a screen recording */
   bool on_title = true, voiced = false, paused = false, running = true;
   float title_time = 0.0f;
@@ -184,19 +202,19 @@ int main(int argc, char** argv) {
 
     buttons_t buttons = read_buttons();
     controls_update(&controls, buttons);
-    if (controls_pressed(&controls, BTN_FULLSCREEN)) gfx_toggle_fullscreen(gfx);
+    if (controls_pressed(&controls, BTN_FULLSCREEN)) toggle_fullscreen(gfx);
     if (controls_pressed(&controls, BTN_MUTE)) audio.music_muted = !audio.music_muted;
     if (controls_pressed(&controls, BTN_SOUND)) audio.sound_muted = !audio.sound_muted;
     bool start = controls_pressed(&controls, BTN_JUMP) || controls_pressed(&controls, BTN_CONFIRM);
 
-    gfx_begin(gfx, 0, 0, 0);
-    world->view_w = gfx_view_width(gfx);
+    begin_frame(gfx, 0, 0, 0);
+    world->view_w = gfx->view_width;
 
     if (delay_left > 0.0f) {
       delay_left -= (float)frame;
       audio.music_gain = 0.0f;
-      render_countdown(gfx, delay_left);
-      gfx_end(gfx);
+      render_countdown(gfx, &look, delay_left);
+      present_frame(gfx);
       continue;
     }
     if (on_title) {
@@ -210,8 +228,8 @@ int main(int argc, char** argv) {
       if (start && title_time > 0.3f) {
         on_title = false;
         audio.music_gain = 0.5f;
-        world_init(world, options.seed);
-        world->view_w = gfx_view_width(gfx);
+        world_init(world, (uint32_t)options.seed);
+        world->view_w = gfx->view_width;
         play(&audio, SFX_PICKUP, 0.6f);
       }
       render_title(gfx, &look, title_time);
@@ -219,9 +237,9 @@ int main(int argc, char** argv) {
       bool over = world->state == STATE_GAME_OVER || world->state == STATE_WON;
       if (controls_pressed(&controls, BTN_PAUSE) && !over) paused = !paused;
       if (over && start && world->state_time > 1.0f) {
-        options.seed = (uint32_t)time(NULL) + (uint32_t)SDL_GetTicks();
-        world_init(world, options.seed);
-        world->view_w = gfx_view_width(gfx);
+        options.seed = (int)(((uint32_t)time(NULL) + (uint32_t)SDL_GetTicks()) & 0x7fffffffu);
+        world_init(world, (uint32_t)options.seed);
+        world->view_w = gfx->view_width;
       } else if (!paused) {
         double step;
         int steps = stepper_plan(frame, FIXED_STEP, 0.1, &step);
@@ -235,15 +253,15 @@ int main(int argc, char** argv) {
         else world_clear_events(world);
       }
       render_world(gfx, &look, world);
-      if (paused) render_pause(gfx);
+      if (paused) render_pause(gfx, &look);
     }
-    gfx_end(gfx);
+    present_frame(gfx);
   }
 
   audio_close();
   if (sound) sfx_free(audio.clips);
   look_free(&look);
-  gfx_close(gfx);
+  terminate_graphics_context(&graphics);
   free(world);
   IMG_Quit();
   SDL_Quit();

@@ -9,10 +9,15 @@
 #include "look.h"
 #include "world.h"
 
-void render_world(gfx_t* gfx, const look_t* look, const world_t* world);
-void render_title(gfx_t* gfx, const look_t* look, float time);
-void render_pause(gfx_t* gfx);
+/* Drawing is in world units: the view is always this tall, and as wide as
+ * the window's shape allows. */
+#define VIEW_HEIGHT 544.0f
+
+void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* world);
+void render_title(graphics_context_ptr gfx, const look_t* look, float time);
+void render_pause(graphics_context_ptr gfx, const look_t* look);
 /* A big countdown, for setting up a screen recording. */
-void render_countdown(gfx_t* gfx, float seconds_left);
+void render_countdown(graphics_context_ptr gfx, const look_t* look,
+                      float seconds_left);
 
 #endif  // GAME_RENDER_RENDER_H_
