@@ -4,16 +4,9 @@
 #include <string.h>
 
 void world_emit(world_t* world, event_kind_t kind, float x) {
-  if (world->event_count >= MAX_EVENTS) return;
-  world->events[world->event_count++] = (sim_event_t){kind, x};
-}
-
-void world_clear_events(world_t* world) { world->event_count = 0; }
-
-bool world_has_event(const world_t* world, event_kind_t kind) {
-  for (int i = 0; i < world->event_count; i++)
-    if (world->events[i].kind == kind) return true;
-  return false;
+  if (!world->events) return;
+  game_event_t event = {(int)kind, &x, sizeof(x)};
+  publish(world->events, &event);
 }
 
 int world_count_enemies(const world_t* world, enemy_kind_t kind) {
@@ -28,8 +21,9 @@ float world_progress(const world_t* world) {
   return clampf((world->player.x - world->level.spawn_x) / span, 0.0f, 1.0f);
 }
 
-void world_init(world_t* world, uint32_t seed) {
+void world_init(world_t* world, uint32_t seed, event_system_ptr events) {
   memset(world, 0, sizeof(*world));
+  world->events = events;
   level_generate(&world->level, seed);
   rng_seed(&world->rng, seed ^ 0x5bd1e995u);
   player_reset(&world->player, &world->level);

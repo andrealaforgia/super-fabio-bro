@@ -14,6 +14,7 @@
 #include <stdint.h>
 
 #include "buttons.h"
+#include "event_system.h"
 #include "geometry.h"
 #include "level.h"
 #include "rng.h"
@@ -25,7 +26,6 @@
 #define MAX_EFFECTS 48
 #define MAX_PARTICLES 384
 #define MAX_BUMPS 8
-#define MAX_EVENTS 64
 
 /* Tuning, in pixels and seconds. */
 #define GRAVITY 2000.0f
@@ -65,13 +65,9 @@ typedef enum {
   EVENT_GROAN,
   EVENT_DEATH,
   EVENT_WIN,
-  EVENT_HEAL
+  EVENT_HEAL,
+  EVENT_KIND_COUNT
 } event_kind_t;
-
-typedef struct {
-  event_kind_t kind;
-  float x;
-} sim_event_t;
 
 typedef struct {
   float x, y, vx, vy;
@@ -184,8 +180,7 @@ typedef struct {
   effect_t effects[MAX_EFFECTS];
   particle_t particles[MAX_PARTICLES];
   bump_t bumps[MAX_BUMPS];
-  sim_event_t events[MAX_EVENTS];
-  int event_count;
+  event_system_ptr events; /* where the world announces what happens; may be NULL */
 
   rng_t rng;
   game_state_t state;
@@ -202,12 +197,12 @@ typedef struct {
   int bugs_killed;
 } world_t;
 
-void world_init(world_t* world, uint32_t seed);
+/* `events` is where the world publishes what happens (event_kind_t as the
+ * type, the x position as a float payload); the caller owns it. */
+void world_init(world_t* world, uint32_t seed, event_system_ptr events);
 void world_update(world_t* world, const controls_t* controls, float dt);
 /* 0 at the start of the level, 1 at the castle. */
 float world_progress(const world_t* world);
-void world_clear_events(world_t* world);
-bool world_has_event(const world_t* world, event_kind_t kind);
 int world_count_enemies(const world_t* world, enemy_kind_t kind);
 frect_t player_rect(const player_t* player);
 frect_t enemy_rect(const enemy_t* enemy);

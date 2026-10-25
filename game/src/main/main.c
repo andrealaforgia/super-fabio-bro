@@ -46,13 +46,11 @@ static bool install_sounds(audio_context_ptr audio) {
   return ok;
 }
 
-static void play_events(audio_context_ptr audio, world_t* world) {
-  for (int i = 0; i < world->event_count; i++) {
-    float volume;
-    sfx_id_t id = sfx_for_event(world->events[i].kind, &volume);
-    play_sound_at_volume(audio, (int)id, volume);
-  }
-  world_clear_events(world);
+/* The audio listens to the world: each event kind has its sound. */
+static void play_event_sound(const game_event_t* event, void* user) {
+  float volume;
+  sfx_id_t id = sfx_for_event((event_kind_t)event->type, &volume);
+  play_sound_at_volume(user, (int)id, volume);
 }
 
 /* Lets a bot play for a while, then saves what the screen shows. */
@@ -65,7 +63,7 @@ static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const opt
     return ok ? 0 : 1;
   }
   world_t* world = malloc(sizeof(*world));
-  world_init(world, (uint32_t)o->seed);
+  world_init(world, (uint32_t)o->seed, NULL);
   begin_frame(gfx, 0, 0, 0);
   world->view_w = gfx->view_width;
   bot_t bot;
@@ -179,8 +177,13 @@ int main(int argc, char** argv) {
     set_music_gain(audio, 0.5f);
   }
 
+  static event_system_t events;
+  events = create_event_system();
+  if (sound)
+    for (int kind = 0; kind < EVENT_KIND_COUNT; kind++)
+      subscribe(&events, kind, play_event_sound, audio);
   world_t* world = malloc(sizeof(*world));
-  world_init(world, (uint32_t)options.seed);
+  world_init(world, (uint32_t)options.seed, &events);
   float delay_left = options.delay; /* time to start a screen recording */
   bool on_title = true, voiced = false, paused = false, running = true;
   float title_time = 0.0f;
@@ -230,7 +233,7 @@ int main(int argc, char** argv) {
       if (start && title_time > 0.3f) {
         on_title = false;
         if (audio) set_music_gain(audio, 0.5f);
-        world_init(world, (uint32_t)options.seed);
+        world_init(world, (uint32_t)options.seed, &events);
         world->view_w = gfx->view_width;
         play_sound_at_volume(audio, SFX_PICKUP, 0.6f);
       }
@@ -240,7 +243,7 @@ int main(int argc, char** argv) {
       if (controls_pressed(&controls, BTN_PAUSE) && !over) paused = !paused;
       if (over && start && world->state_time > 1.0f) {
         options.seed = (int)(((uint32_t)time(NULL) + (uint32_t)SDL_GetTicks()) & 0x7fffffffu);
-        world_init(world, (uint32_t)options.seed);
+        world_init(world, (uint32_t)options.seed, &events);
         world->view_w = gfx->view_width;
       } else if (!paused) {
         double step;
@@ -251,8 +254,6 @@ int main(int argc, char** argv) {
           /* A press counts for the first step only. */
           controls_consume_presses(&substep);
         }
-        if (sound) play_events(audio, world);
-        else world_clear_events(world);
       }
       render_world(gfx, &look, world);
       if (paused) render_pause(gfx, &look);

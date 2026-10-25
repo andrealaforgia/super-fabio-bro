@@ -133,7 +133,7 @@ static void hitting_a_question_block_from_below_releases_its_item(void) {
   buttons_t jump = held(false, false, true, false);
   step(world, &jump, 0.6f);
   CHECK(world->level.tiles[GROUND_ROW - 4][10] == TILE_USED);
-  CHECK(world_has_event(world, EVENT_BLOCK_OPENS) || world->event_count > 0);
+  CHECK(world_has_event(world, EVENT_BLOCK_OPENS) || world_event_count(world) > 0);
   int pickups = 0;
   for (int i = 0; i < MAX_PICKUPS; i++) pickups += world->pickups[i].alive;
   CHECK(pickups == 1 || world->player.potions == 1);

@@ -324,6 +324,7 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_DEATH: return SFX_DEATH;
     case EVENT_WIN: return SFX_WIN;
     case EVENT_HEAL: return SFX_HEAL;
+    case EVENT_KIND_COUNT: break;
   }
   return SFX_BUMP;
 }

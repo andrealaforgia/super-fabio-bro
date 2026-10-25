@@ -25,6 +25,7 @@ ENGINE_PURE_SOURCES = (
     "core/time/stepper.c",
     "core/input/controls.c",
     "core/audio/mixer.c",
+    "core/events/event_system.c",
 )
 
 

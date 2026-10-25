@@ -7,8 +7,44 @@
 
 /* An empty world with a flat floor and nothing generated: room to stage a
  * scene. The player stands at column 10; nothing spawns by itself. */
+/* What the world announced: tests subscribe to every event and remember. */
+static event_system_t test_events;
+static bool test_event_seen[EVENT_KIND_COUNT];
+static int test_event_total;
+
+static inline void remember_event(const game_event_t* event, void* user) {
+  (void)user;
+  test_event_seen[event->type] = true;
+  test_event_total++;
+}
+
+static inline event_system_ptr recording_events(void) {
+  test_events = create_event_system();
+  memset(test_event_seen, 0, sizeof(test_event_seen));
+  test_event_total = 0;
+  for (int kind = 0; kind < EVENT_KIND_COUNT; kind++)
+    subscribe(&test_events, kind, remember_event, NULL);
+  return &test_events;
+}
+
+static inline bool world_has_event(const world_t* world, event_kind_t kind) {
+  (void)world;
+  return test_event_seen[kind];
+}
+
+static inline int world_event_count(const world_t* world) {
+  (void)world;
+  return test_event_total;
+}
+
+static inline void world_clear_events(world_t* world) {
+  (void)world;
+  memset(test_event_seen, 0, sizeof(test_event_seen));
+  test_event_total = 0;
+}
+
 static inline void empty_world(world_t* world) {
-  world_init(world, 1);
+  world_init(world, 1, recording_events());
   memset(world->level.tiles, 0, sizeof(world->level.tiles));
   memset(world->level.content, 0, sizeof(world->level.content));
   world->level.item_count = 0;

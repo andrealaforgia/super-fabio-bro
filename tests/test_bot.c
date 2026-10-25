@@ -14,14 +14,13 @@ static void play(world_t* world, bot_t* bot, float seconds) {
     buttons_t now = bot_decide(world, bot, dt);
     controls_update(&controls, now);
     world_update(world, &controls, dt);
-    world_clear_events(world);
   }
 }
 
 static void every_level_can_be_walked_from_start_to_castle(void) {
   world_t* world = malloc(sizeof(*world));
   for (uint32_t seed = 1; seed <= 12; seed++) {
-    world_init(world, seed);
+    world_init(world, seed, NULL);
     world->spawning = false;
     bot_t bot;
     memset(&bot, 0, sizeof(bot));
@@ -37,7 +36,7 @@ static void every_level_can_be_walked_from_start_to_castle(void) {
 
 static void the_bot_picks_up_the_pistol_and_a_potion_on_the_way(void) {
   world_t* world = malloc(sizeof(*world));
-  world_init(world, 1);
+  world_init(world, 1, NULL);
   world->spawning = false;
   bot_t bot;
   memset(&bot, 0, sizeof(bot));
@@ -50,7 +49,7 @@ static void the_bot_picks_up_the_pistol_and_a_potion_on_the_way(void) {
 static void a_long_fight_keeps_the_world_consistent(void) {
   world_t* world = malloc(sizeof(*world));
   for (uint32_t seed = 1; seed <= 4; seed++) {
-    world_init(world, seed);
+    world_init(world, seed, NULL);
     bot_t bot;
     memset(&bot, 0, sizeof(bot));
     controls_t controls;
@@ -59,7 +58,6 @@ static void a_long_fight_keeps_the_world_consistent(void) {
       buttons_t now = bot_decide(world, &bot, 1.0f / 60.0f);
       controls_update(&controls, now);
       world_update(world, &controls, 1.0f / 60.0f);
-      world_clear_events(world);
       /* Nobody ever leaves the map or turns to NaN. */
       CHECK(isfinite(world->player.x) && isfinite(world->player.y));
       CHECK(world->player.hp >= 0 && world->player.hp <= PLAYER_HP);
