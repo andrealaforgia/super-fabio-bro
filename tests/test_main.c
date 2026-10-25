@@ -9,7 +9,7 @@ typedef struct {
 } test_group_t;
 
 static const test_group_t groups[] = {
-    {"core", run_core_tests},       {"level", run_level_tests},
+          {"level", run_level_tests},
     {"physics", run_physics_tests}, {"player", run_player_tests},
     {"enemy", run_enemy_tests},     {"combat", run_combat_tests},
     {"bot", run_bot_tests},         {"scenery", run_scenery_tests},

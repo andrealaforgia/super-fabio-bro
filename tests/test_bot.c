@@ -12,7 +12,7 @@ static void play(world_t* world, bot_t* bot, float seconds) {
   const float dt = 1.0f / 60.0f;
   for (float t = 0.0f; t < seconds && world->state == STATE_PLAYING; t += dt) {
     buttons_t now = bot_decide(world, bot, dt);
-    controls_update(&controls, &now);
+    controls_update(&controls, now);
     world_update(world, &controls, dt);
     world_clear_events(world);
   }
@@ -57,7 +57,7 @@ static void a_long_fight_keeps_the_world_consistent(void) {
     memset(&controls, 0, sizeof(controls));
     for (int i = 0; i < 60 * 150; i++) {
       buttons_t now = bot_decide(world, &bot, 1.0f / 60.0f);
-      controls_update(&controls, &now);
+      controls_update(&controls, now);
       world_update(world, &controls, 1.0f / 60.0f);
       world_clear_events(world);
       /* Nobody ever leaves the map or turns to NaN. */

@@ -13,7 +13,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#include "controls.h"
+#include "buttons.h"
 #include "geometry.h"
 #include "level.h"
 #include "rng.h"

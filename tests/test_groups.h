@@ -1,7 +1,6 @@
 #ifndef TESTS_TEST_GROUPS_H_
 #define TESTS_TEST_GROUPS_H_
 
-void run_core_tests(void);
 void run_level_tests(void);
 void run_physics_tests(void);
 void run_player_tests(void);

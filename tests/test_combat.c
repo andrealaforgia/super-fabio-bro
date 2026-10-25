@@ -12,12 +12,7 @@ static world_t* fresh(void) {
   return world;
 }
 
-static buttons_t shoot_button(void) {
-  buttons_t b;
-  memset(&b, 0, sizeof(b));
-  b.shoot = true;
-  return b;
-}
+static buttons_t shoot_button(void) { return BTN_SHOOT; }
 
 static int live_bullets(const world_t* world) {
   int n = 0;
@@ -168,17 +163,16 @@ static void the_gun_fires_a_few_times_a_second_not_every_frame(void) {
 static void shooting_goes_the_way_he_faces(void) {
   world_t* world = fresh();
   world->player.ammo = PISTOL_AMMO;
-  buttons_t left;
-  memset(&left, 0, sizeof(left));
-  left.left = true;
+  buttons_t left = 0;
+  left |= BTN_LEFT;
   step(world, &left, 0.05f);
   CHECK(world->player.facing == -1);
   spawn_zombie(world, world->player.x - 220.0f, world->player.y);
   world->enemies[0].speed = 0.0f;
   buttons_t fire = shoot_button();
-  fire.left = true;
+  fire |= BTN_LEFT;
   step(world, &fire, 0.02f);
-  fire.left = false;
+  fire &= ~BTN_LEFT;
   step(world, NULL, 0.6f);
   CHECK(world->zombies_killed == 1);
   free(world);
@@ -188,9 +182,8 @@ static void the_pickaxe_kills_what_is_in_front_without_a_gun(void) {
   world_t* world = fresh();
   spawn_zombie(world, world->player.x + 40.0f, world->player.y);
   world->enemies[0].speed = 0.0f;
-  buttons_t swing;
-  memset(&swing, 0, sizeof(swing));
-  swing.melee = true;
+  buttons_t swing = 0;
+  swing |= BTN_MELEE;
   step(world, &swing, 0.02f);
   step(world, NULL, 0.4f);
   CHECK(world->zombies_killed == 1);
@@ -202,9 +195,8 @@ static void the_pickaxe_does_not_reach_behind_him(void) {
   world_t* world = fresh();
   spawn_zombie(world, world->player.x - 60.0f, world->player.y);
   world->enemies[0].speed = 0.0f;
-  buttons_t swing;
-  memset(&swing, 0, sizeof(swing));
-  swing.melee = true;
+  buttons_t swing = 0;
+  swing |= BTN_MELEE;
   step(world, &swing, 0.02f);
   step(world, NULL, 0.4f);
   CHECK(world->zombies_killed == 0);
@@ -228,9 +220,8 @@ static void jumping_on_a_zombie_squashes_it_and_bounces(void) {
 static void drinking_the_potion_starts_a_spell_that_fades_away(void) {
   world_t* world = fresh();
   world->player.potions = 1;
-  buttons_t drink;
-  memset(&drink, 0, sizeof(drink));
-  drink.drink = true;
+  buttons_t drink = 0;
+  drink |= BTN_DRINK;
   step(world, &drink, 0.02f);
   CHECK(world->player.potions == 0);
   CHECK(world->player.spell_time > POTION_SECONDS - 0.1f);
@@ -244,9 +235,8 @@ static void drinking_the_potion_starts_a_spell_that_fades_away(void) {
 
 static void you_cannot_drink_what_you_do_not_have(void) {
   world_t* world = fresh();
-  buttons_t drink;
-  memset(&drink, 0, sizeof(drink));
-  drink.drink = true;
+  buttons_t drink = 0;
+  drink |= BTN_DRINK;
   step(world, &drink, 0.1f);
   CHECK(world->player.spell_time == 0.0f);
 }
@@ -254,9 +244,8 @@ static void you_cannot_drink_what_you_do_not_have(void) {
 static void a_second_potion_waits_until_the_first_has_faded(void) {
   world_t* world = fresh();
   world->player.potions = 2;
-  buttons_t drink;
-  memset(&drink, 0, sizeof(drink));
-  drink.drink = true;
+  buttons_t drink = 0;
+  drink |= BTN_DRINK;
   step(world, &drink, 0.02f);
   step(world, NULL, 0.1f);
   step(world, &drink, 0.02f);

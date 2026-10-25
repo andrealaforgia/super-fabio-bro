@@ -12,20 +12,34 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 GROUPS = (
-    "core", "level", "physics", "player", "enemy", "combat", "bot",
+    "level", "physics", "player", "enemy", "combat", "bot",
     "scenery", "sprites", "audio",
 )
 
 
+# The engine pieces with no SDL in them; the rest is exercised by the engine's
+# own tests and by the snapshots.
+ENGINE_PURE_SOURCES = (
+    "core/math/rng.c",
+    "core/math/geometry.c",
+    "core/time/stepper.c",
+    "core/input/controls.c",
+    "core/audio/mixer.c",
+)
+
+
 def source_directories():
-    directories = [p for p in (ROOT / "engine").iterdir() if p.is_dir()]
-    directories += [p for p in (ROOT / "game/src").iterdir() if p.is_dir()]
-    return sorted(directories)
+    directories = sorted((ROOT / "engine/core").iterdir())
+    directories += sorted((ROOT / "engine_old").iterdir())
+    directories += sorted((ROOT / "game/src").iterdir())
+    return [p for p in directories if p.is_dir()]
 
 
 def sources():
-    found = []
-    for directory in source_directories():
+    found = [ROOT / "engine" / name for name in ENGINE_PURE_SOURCES]
+    for directory in sorted((ROOT / "game/src").iterdir()):
+        found += sorted(directory.glob("*.c"))
+    for directory in sorted((ROOT / "engine_old").iterdir()):
         found += sorted(directory.glob("*.c"))
     return [p for p in found if p.name != "main.c" and not p.name.startswith("sdl_")]
 

@@ -86,7 +86,7 @@ void items_update(world_t* world, float dt) {
     const placement_t* item = &level->items[i];
     frect_t box = {item->x - ITEM_REACH, item->y - ITEM_REACH, ITEM_REACH * 2.0f,
                   ITEM_REACH * 2.0f};
-    if (rect_overlaps(body, box)) {
+    if (frect_overlaps(body, box)) {
       world->item_taken[i] = true;
       collect(world, item->kind, item->x);
     }
@@ -107,7 +107,7 @@ void items_update(world_t* world, float dt) {
     }
     frect_t box = {pickup->x - ITEM_REACH, pickup->y - ITEM_REACH,
                   ITEM_REACH * 2.0f, ITEM_REACH * 2.0f};
-    if (pickup->age > 0.25f && rect_overlaps(body, box)) {
+    if (pickup->age > 0.25f && frect_overlaps(body, box)) {
       pickup->alive = false;
       collect(world, pickup->kind, pickup->x);
     }

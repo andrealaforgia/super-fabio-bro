@@ -17,12 +17,16 @@ endif
 SDL2_CFLAGS := $(shell $(SDL2_CONFIG) --cflags)
 SDL2_LFLAGS := $(shell $(SDL2_CONFIG) --libs) -lSDL2_image
 
-ENGINE_DIRS = engine/core engine/math engine/platform engine/renderer engine/audio
+ENGINE_CORE = graphics math input audio time utils memory events
+ENGINE_DIRS = $(foreach d,$(ENGINE_CORE),engine/core/$(d)) engine_old/renderer engine_old/audio
 GAME_DIRS = $(wildcard game/src/*)
 
 ENGINE_SRC = $(foreach dir,$(ENGINE_DIRS),$(wildcard $(dir)/*.c))
+# TrueType text is optional in the engine, and this game does not use it.
+ENGINE_SRC := $(filter-out engine/core/graphics/ttf_text.c,$(ENGINE_SRC))
 GAME_SRC = $(foreach dir,$(GAME_DIRS),$(wildcard $(dir)/*.c))
 HEADERS = $(foreach dir,$(ENGINE_DIRS) $(GAME_DIRS),$(wildcard $(dir)/*.h))
+HEADERS := $(filter-out engine/core/graphics/ttf_text.h,$(HEADERS))
 TEST_SRC = $(wildcard tests/*.c)
 
 OBJ = $(ENGINE_SRC:.c=.o) $(GAME_SRC:.c=.o)

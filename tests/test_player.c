@@ -12,13 +12,8 @@ static world_t* fresh(void) {
 }
 
 static buttons_t held(bool right, bool left, bool jump, bool run) {
-  buttons_t b;
-  memset(&b, 0, sizeof(b));
-  b.right = right;
-  b.left = left;
-  b.jump = jump;
-  b.run = run;
-  return b;
+  return (right ? BTN_RIGHT : 0u) | (left ? BTN_LEFT : 0u) |
+         (jump ? BTN_JUMP : 0u) | (run ? BTN_RUN : 0u);
 }
 
 static void fabio_stands_on_the_ground_when_nothing_is_pressed(void) {
@@ -69,7 +64,7 @@ static float jump_apex(world_t* world, bool hold) {
   memset(&controls, 0, sizeof(controls));
   for (int i = 0; i < 120; i++) {
     buttons_t now = (hold || i < 3) ? jump : held(false, false, false, false);
-    controls_update(&controls, &now);
+    controls_update(&controls, now);
     world_update(world, &controls, 1.0f / 120.0f);
     if (floor_y - world->player.y > apex) apex = floor_y - world->player.y;
   }

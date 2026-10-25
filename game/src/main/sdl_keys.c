@@ -1,0 +1,27 @@
+#include "sdl_keys.h"
+
+#include <SDL.h>
+
+#include "keyboard.h"
+
+static const key_binding_t kBindings[] = {
+    {BTN_LEFT, {SDL_SCANCODE_LEFT, SDL_SCANCODE_A, 0, 0}},
+    {BTN_RIGHT, {SDL_SCANCODE_RIGHT, SDL_SCANCODE_D, 0, 0}},
+    {BTN_UP, {SDL_SCANCODE_UP, SDL_SCANCODE_W, 0, 0}},
+    {BTN_DOWN, {SDL_SCANCODE_DOWN, 0, 0, 0}},
+    {BTN_JUMP, {SDL_SCANCODE_SPACE, SDL_SCANCODE_Z, SDL_SCANCODE_UP, SDL_SCANCODE_W}},
+    {BTN_RUN, {SDL_SCANCODE_LSHIFT, SDL_SCANCODE_RSHIFT, 0, 0}},
+    {BTN_SHOOT, {SDL_SCANCODE_J, SDL_SCANCODE_F, SDL_SCANCODE_LCTRL, SDL_SCANCODE_RCTRL}},
+    {BTN_MELEE, {SDL_SCANCODE_K, SDL_SCANCODE_X, 0, 0}},
+    {BTN_DRINK, {SDL_SCANCODE_E, SDL_SCANCODE_Q, 0, 0}},
+    {BTN_PAUSE, {SDL_SCANCODE_P, SDL_SCANCODE_ESCAPE, 0, 0}},
+    {BTN_CONFIRM, {SDL_SCANCODE_RETURN, SDL_SCANCODE_KP_ENTER, 0, 0}},
+    {BTN_RESTART, {SDL_SCANCODE_R, 0, 0, 0}},
+    {BTN_FULLSCREEN, {SDL_SCANCODE_F11, 0, 0, 0}},
+    {BTN_MUTE, {SDL_SCANCODE_M, 0, 0, 0}},
+    {BTN_SOUND, {SDL_SCANCODE_S, 0, 0, 0}},
+};
+
+buttons_t read_buttons(void) {
+  return keyboard_read(kBindings, sizeof(kBindings) / sizeof(kBindings[0]));
+}

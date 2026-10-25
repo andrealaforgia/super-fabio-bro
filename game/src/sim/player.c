@@ -96,12 +96,12 @@ static void drink(world_t* world) {
 static void actions(world_t* world, const controls_t* controls, float dt) {
   player_t* p = &world->player;
   (void)dt;
-  if (controls->pressed.drink && p->potions > 0 && p->spell_time <= 0.0f &&
+  if (controls_pressed(controls, BTN_DRINK) && p->potions > 0 && p->spell_time <= 0.0f &&
       p->drink_timer <= 0.0f)
     drink(world);
 
   bool spell = p->spell_time > 0.0f;
-  if (controls->held.shoot && p->gun_cooldown <= 0.0f && p->drink_timer <= 0.0f) {
+  if (controls_held(controls, BTN_SHOOT) && p->gun_cooldown <= 0.0f && p->drink_timer <= 0.0f) {
     if (spell) {
       world_cast_spell(world);
       p->gun_cooldown = SPELL_COOLDOWN;
@@ -112,7 +112,7 @@ static void actions(world_t* world, const controls_t* controls, float dt) {
     }
   }
 
-  if (controls->pressed.melee && p->melee_timer <= 0.0f &&
+  if (controls_pressed(controls, BTN_MELEE) && p->melee_timer <= 0.0f &&
       p->melee_cooldown <= 0.0f) {
     p->melee_timer = MELEE_TIME;
     p->melee_struck = false;
@@ -145,9 +145,9 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
   }
   if (p->spell_time > 0.0f) p->spell_time = fmaxf(0.0f, p->spell_time - dt);
 
-  float direction = (controls->held.right ? 1.0f : 0.0f) -
-                    (controls->held.left ? 1.0f : 0.0f);
-  float top_speed = controls->held.run ? RUN_SPEED : WALK_SPEED;
+  float direction = (controls_held(controls, BTN_RIGHT) ? 1.0f : 0.0f) -
+                    (controls_held(controls, BTN_LEFT) ? 1.0f : 0.0f);
+  float top_speed = controls_held(controls, BTN_RUN) ? RUN_SPEED : WALK_SPEED;
   if (p->hurt_timer <= 0.0f) {
     if (direction != 0.0f) {
       float accel = p->grounded ? 2400.0f : 1500.0f;
@@ -162,7 +162,7 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
   }
 
   p->coyote = p->grounded ? COYOTE_TIME : p->coyote - dt;
-  p->jump_buffer = controls->pressed.jump ? JUMP_BUFFER_TIME : p->jump_buffer - dt;
+  p->jump_buffer = controls_pressed(controls, BTN_JUMP) ? JUMP_BUFFER_TIME : p->jump_buffer - dt;
   if (p->jump_buffer > 0.0f && p->coyote > 0.0f && p->hurt_timer <= 0.0f) {
     p->vy = -JUMP_SPEED;
     p->coyote = 0.0f;
@@ -172,7 +172,7 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
   }
   p->vy = fminf(p->vy + GRAVITY * dt, MAX_FALL);
   /* Letting go of jump early makes a short hop. */
-  if (!controls->held.jump && p->vy < -CUT_JUMP_SPEED && p->hurt_timer <= 0.0f)
+  if (!controls_held(controls, BTN_JUMP) && p->vy < -CUT_JUMP_SPEED && p->hurt_timer <= 0.0f)
     p->vy += GRAVITY * 2.0f * dt;
 
   actions(world, controls, dt);

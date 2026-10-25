@@ -7,7 +7,7 @@
 #ifndef GAME_SIM_BOT_H_
 #define GAME_SIM_BOT_H_
 
-#include "controls.h"
+#include "buttons.h"
 #include "world.h"
 
 typedef struct {

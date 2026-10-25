@@ -28,11 +28,10 @@ static inline void empty_world(world_t* world) {
 static inline void step(world_t* world, const buttons_t* held, float seconds) {
   static controls_t controls;
   const float dt = 1.0f / 120.0f;
-  buttons_t none;
-  memset(&none, 0, sizeof(none));
+  const buttons_t none = 0;
   if (!held) held = &none;
   for (float t = 0.0f; t < seconds - 1e-6f; t += dt) {
-    controls_update(&controls, held);
+    controls_update(&controls, *held);
     world_update(world, &controls, dt);
   }
 }

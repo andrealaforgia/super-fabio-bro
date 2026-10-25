@@ -6,12 +6,13 @@
 #include <time.h>
 
 #include "bot.h"
+#include "buttons.h"
 #include "controls.h"
 #include "mixer.h"
 #include "render.h"
 #include "sdl_audio.h"
 #include "sdl_gfx.h"
-#include "sdl_keyboard.h"
+#include "sdl_keys.h"
 #include "sfx.h"
 #include "stepper.h"
 #include "world.h"
@@ -112,10 +113,7 @@ static int take_snapshot(gfx_t* gfx, const look_t* look, const options_t* o) {
     spawn_bug(world, BUG_BEETLE, p->x - 90.0f, p->y);
     spawn_zombie(world, p->x + 170.0f, p->y);
     spawn_bug(world, BUG_BEE, p->x + 120.0f, p->y - 90.0f);
-    buttons_t fire;
-    memset(&fire, 0, sizeof(fire));
-    fire.shoot = true;
-    controls_update(&controls, &fire);
+    controls_update(&controls, BTN_SHOOT);
     for (int i = 0; i < 100; i++) world_update(world, &controls, 1.0f / 120.0f);
     spawn_zombie(world, p->x + 250.0f, p->y);
     world_kill_enemy(world, &world->enemies[6], false);
@@ -128,7 +126,7 @@ static int take_snapshot(gfx_t* gfx, const look_t* look, const options_t* o) {
   }
   for (float t = 0.0f; t < o->seconds; t += 1.0f / 120.0f) {
     buttons_t now = bot_decide(world, &bot, 1.0f / 120.0f);
-    controls_update(&controls, &now);
+    controls_update(&controls, now);
     world_update(world, &controls, 1.0f / 120.0f);
   }
   render_world(gfx, look, world);
@@ -184,12 +182,12 @@ int main(int argc, char** argv) {
     double frame = (double)(now - last) / (double)SDL_GetPerformanceFrequency();
     last = now;
 
-    buttons_t buttons = keyboard_read();
-    controls_update(&controls, &buttons);
-    if (controls.pressed.fullscreen) gfx_toggle_fullscreen(gfx);
-    if (controls.pressed.mute) audio.music_muted = !audio.music_muted;
-    if (controls.pressed.sound) audio.sound_muted = !audio.sound_muted;
-    bool start = controls.pressed.jump || controls.pressed.confirm;
+    buttons_t buttons = read_buttons();
+    controls_update(&controls, buttons);
+    if (controls_pressed(&controls, BTN_FULLSCREEN)) gfx_toggle_fullscreen(gfx);
+    if (controls_pressed(&controls, BTN_MUTE)) audio.music_muted = !audio.music_muted;
+    if (controls_pressed(&controls, BTN_SOUND)) audio.sound_muted = !audio.sound_muted;
+    bool start = controls_pressed(&controls, BTN_JUMP) || controls_pressed(&controls, BTN_CONFIRM);
 
     gfx_begin(gfx, 0, 0, 0);
     world->view_w = gfx_view_width(gfx);
@@ -219,7 +217,7 @@ int main(int argc, char** argv) {
       render_title(gfx, &look, title_time);
     } else {
       bool over = world->state == STATE_GAME_OVER || world->state == STATE_WON;
-      if (controls.pressed.pause && !over) paused = !paused;
+      if (controls_pressed(&controls, BTN_PAUSE) && !over) paused = !paused;
       if (over && start && world->state_time > 1.0f) {
         options.seed = (uint32_t)time(NULL) + (uint32_t)SDL_GetTicks();
         world_init(world, options.seed);
@@ -231,7 +229,7 @@ int main(int argc, char** argv) {
         for (int i = 0; i < steps; i++) {
           world_update(world, &substep, (float)step);
           /* A press counts for the first step only. */
-          memset(&substep.pressed, 0, sizeof(substep.pressed));
+          controls_consume_presses(&substep);
         }
         if (sound) play_events(&audio, world);
         else world_clear_events(world);

@@ -32,8 +32,8 @@ static void bot_travel(const world_t* world, bot_t* bot, float dt, buttons_t* b,
                 bool run_always) {
   const player_t* p = &world->player;
   const level_t* level = &world->level;
-  b->right = true;
-  b->run = run_always;
+  *b |= BTN_RIGHT;
+  if (run_always) *b |= BTN_RUN;
 
   float ahead = p->x + 22.0f;
   bool wall = level_solid_at(level, ahead, p->y - 6.0f) ||
@@ -43,34 +43,34 @@ static void bot_travel(const world_t* world, bot_t* bot, float dt, buttons_t* b,
              !level_solid_at(level, edge, p->y + 36.0f) &&
              !level_solid_at(level, edge, p->y + 68.0f);
   int width = pit ? pit_width(level, p->x, p->y) : 0;
-  if (width >= 4) b->run = true;
+  if (width >= 4) *b |= BTN_RUN;
   if (p->grounded && (wall || pit)) {
     /* A fresh press needs the button released first. A narrow pit wants a
      * short hop so he lands before the next one. */
-    bot->jump_hold = bot->jump_hold > 0.0f ? 0.0f : (pit && width <= 3 && b->run ? 0.14f : 0.75f);
+    bot->jump_hold = bot->jump_hold > 0.0f ? 0.0f : (pit && width <= 3 && (*b & BTN_RUN) ? 0.14f : 0.75f);
   } else if (p->grounded) {
     bot->jump_hold = 0.0f;
   }
   if (bot->jump_hold > 0.0f) {
-    b->jump = true;
+    *b |= BTN_JUMP;
     bot->jump_hold -= dt;
   }
-  if (!p->grounded && bot->jump_hold > 0.0f && width >= 4) b->run = true;
+  if (!p->grounded && bot->jump_hold > 0.0f && width >= 4) *b |= BTN_RUN;
 }
 
 buttons_t bot_decide(const world_t* world, bot_t* bot, float dt) {
   const player_t* p = &world->player;
-  buttons_t b = {0};
+  buttons_t b = 0;
   bot_travel(world, bot, dt, &b, true);
 
   bool armed = p->ammo > 0 || p->spell_time > 0.0f;
-  if (armed && enemy_ahead(world, 460.0f, 70.0f)) b.shoot = true;
-  if (enemy_ahead(world, 44.0f, 70.0f)) b.melee = true;
+  if (armed && enemy_ahead(world, 460.0f, 70.0f)) b |= BTN_SHOOT;
+  if (enemy_ahead(world, 44.0f, 70.0f)) b |= BTN_MELEE;
 
   bot->drink_wait -= dt;
   if (p->potions > 0 && p->spell_time <= 0.0f && bot->drink_wait <= 0.0f &&
       enemy_ahead(world, 360.0f, 120.0f)) {
-    b.drink = true;
+    b |= BTN_DRINK;
     bot->drink_wait = 0.5f;
   }
   return b;

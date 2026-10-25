@@ -101,7 +101,7 @@ void world_cast_spell(world_t* world) {
   frect_t beam = {left, y - 16.0f, right - left, 32.0f};
   for (int i = 0; i < MAX_ENEMIES; i++) {
     enemy_t* e = &world->enemies[i];
-    if (e->alive && rect_overlaps(beam, enemy_rect(e)))
+    if (e->alive && frect_overlaps(beam, enemy_rect(e)))
       world_kill_enemy(world, e, true);
   }
   for (int i = 0; i < MAX_RAYS; i++) {
@@ -128,7 +128,7 @@ static void update_bullets(world_t* world, float dt) {
     frect_t box = {b->x - 6.0f, b->y - 12.0f, 12.0f, 24.0f};
     for (int e = 0; e < MAX_ENEMIES; e++) {
       enemy_t* enemy = &world->enemies[e];
-      if (enemy->alive && rect_overlaps(box, enemy_rect(enemy))) {
+      if (enemy->alive && frect_overlaps(box, enemy_rect(enemy))) {
         world_kill_enemy(world, enemy, false);
         b->alive = false;
         break;
@@ -147,7 +147,7 @@ static void update_melee(world_t* world) {
                   PLAYER_H + 6.0f};
   for (int i = 0; i < MAX_ENEMIES; i++) {
     enemy_t* e = &world->enemies[i];
-    if (e->alive && rect_overlaps(reach, enemy_rect(e))) {
+    if (e->alive && frect_overlaps(reach, enemy_rect(e))) {
       world_kill_enemy(world, e, false);
       p->melee_struck = true;
     }
@@ -165,7 +165,7 @@ static void touch_enemies(world_t* world) {
   for (int i = 0; i < MAX_ENEMIES; i++) {
     enemy_t* e = &world->enemies[i];
     if (!e->alive) continue;
-    if (!rect_overlaps(inset(player_rect(p), 3.0f), inset(enemy_rect(e), 3.0f)))
+    if (!frect_overlaps(inset(player_rect(p), 3.0f), inset(enemy_rect(e), 3.0f)))
       continue;
     /* Landing on the top part counts; low bugs get a little extra leeway. */
     float stomp_line = fmaxf(e->y - e->h * 0.45f, e->y - e->h + 16.0f);
