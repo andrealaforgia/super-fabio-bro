@@ -89,6 +89,17 @@ static double bug_boom_voice(double t, double d, rng_t* r, void* s) {
   return (1.1 * lp[0] + 0.3 * square(300.0 * t * (1.0 - t), 0.3)) * decay(t, 12.0);
 }
 
+/* A big, rumbling pop with a rain of paper after it. */
+static double book_reader_boom_voice(double t, double d, rng_t* r, void* s) {
+  (void)d;
+  double* lp = (double*)s;
+  lp[0] += 0.12 * (noise(r) - lp[0]);
+  double thump = sin(TAU * (70.0 - 40.0 * t) * t) * decay(t, 4.0);
+  double rumble = 2.2 * lp[0] * decay(t, 3.2);
+  double paper = t > 0.35 ? 0.25 * noise(r) * decay(t - 0.35, 9.0) : 0.0;
+  return thump + rumble + paper;
+}
+
 static double coin_voice(double t, double d, rng_t* r, void* s) {
   (void)d; (void)r; (void)s;
   double f = t < 0.07 ? 988.0 : 1319.0;
@@ -289,6 +300,7 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_WIN], 1.5, win_voice, 16);
   ok = ok && render(&clips[SFX_HEAL], 0.35, heal_voice, 17);
   ok = ok && render(&clips[SFX_VOICE_FABIO], 1.5, speech_voice, 18);
+  ok = ok && render(&clips[SFX_BOOK_READER_BOOM], 1.1, book_reader_boom_voice, 19);
   if (ok) {
     normalise(&clips[SFX_VOICE_FABIO], 31000.0);
     normalise(&clips[SFX_GROAN], 28000.0);
@@ -324,6 +336,7 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_DEATH: return SFX_DEATH;
     case EVENT_WIN: return SFX_WIN;
     case EVENT_HEAL: return SFX_HEAL;
+    case EVENT_BOOK_READER_DIES: *volume = 0.9f; return SFX_BOOK_READER_BOOM;
     case EVENT_KIND_COUNT: break;
   }
   return SFX_BUMP;

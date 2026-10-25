@@ -48,6 +48,12 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_PIPE_CAP] = {"pipe_cap", 0},
     [STRIP_PIPE_BODY] = {"pipe_body", 0},
     [STRIP_BUBBLE] = {"bubble_a", 0},
+    [STRIP_READER_READ] = {"reader_read", 3},
+    [STRIP_READER_LAUGH] = {"reader_laugh", 8},
+    [STRIP_READER_POP] = {"reader_pop", 7},
+    [STRIP_READER_FLASH] = {"reader_flash", 0},
+    [STRIP_READER_BOOM] = {"reader_boom", 0},
+    [STRIP_READER_REMAINS] = {"reader_remains", 0},
 };
 
 static pose_t make(strip_id_t strip, int frame) {
@@ -102,6 +108,22 @@ pose_t pose_bug(const enemy_t* b) {
   return make(strips[b->variant], 0);
 }
 
+pose_t pose_book_reader(const enemy_t* m) {
+  if (book_reader_mood(m) == BOOK_READER_READING) {
+    static const int turning[4] = {0, 1, 2, 1};
+    return make(STRIP_READER_READ, turning[(int)(m->anim_time * 2.2f) % 4]);
+  }
+  static const int roaring[10] = {2, 3, 4, 5, 6, 7, 6, 5, 4, 3};
+  return make(STRIP_READER_LAUGH, roaring[(int)(m->anim_time * 10.0f) % 10]);
+}
+
+pose_t pose_book_reader_boom(float age) {
+  if (age < 0.56f) return make(STRIP_READER_POP, (int)(age / 0.08f));
+  if (age < 0.66f) return make(STRIP_READER_FLASH, 0);
+  if (age < 1.05f) return make(STRIP_READER_BOOM, 0);
+  return make(STRIP_READER_REMAINS, 0);
+}
+
 pose_t pose_effect(fx_kind_t kind) {
   switch (kind) {
     case FX_ZOMBIE_BOOM: return make(STRIP_FX_ZOMBIE_BOOM, 0);
@@ -112,6 +134,7 @@ pose_t pose_effect(fx_kind_t kind) {
     case FX_REMAINS: return make(STRIP_FX_REMAINS, 0);
     case FX_MUZZLE: return make(STRIP_FX_MUZZLE, 0);
     case FX_BUG_SPLAT: return make(STRIP_FX_BUG_SPLAT, 0);
+    case FX_BOOK_READER_BOOM: return make(STRIP_READER_BOOM, 0);
   }
   return make(STRIP_FX_SMOKE, 0);
 }

@@ -61,6 +61,7 @@ void world_restart(world_t* world, uint32_t seed) {
   world->spawning = true;
   world->zombie_timer = 5.0f;
   world->bug_timer = 9.0f;
+  world->book_reader_timer = 12.0f;
   world->camera_x = 0.0f;
 }
 

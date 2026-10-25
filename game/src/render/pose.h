@@ -55,6 +55,12 @@ typedef enum {
   STRIP_PIPE_CAP,
   STRIP_PIPE_BODY,
   STRIP_BUBBLE,
+  STRIP_READER_READ,
+  STRIP_READER_LAUGH,
+  STRIP_READER_POP,
+  STRIP_READER_FLASH,
+  STRIP_READER_BOOM,
+  STRIP_READER_REMAINS,
   STRIP_COUNT
 } strip_id_t;
 
@@ -74,5 +80,9 @@ pose_t pose_player(const player_t* player);
 pose_t pose_zombie(const enemy_t* zombie, const player_t* player);
 pose_t pose_bug(const enemy_t* bug);
 pose_t pose_effect(fx_kind_t kind);
+pose_t pose_book_reader(const enemy_t* book_reader);
+/* The book reader bursting: he swells, flashes, booms and leaves smoking
+ * remains. `age` is seconds since the shot. */
+pose_t pose_book_reader_boom(float age);
 
 #endif  // GAME_RENDER_POSE_H_

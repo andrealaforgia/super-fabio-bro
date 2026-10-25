@@ -67,6 +67,7 @@ typedef enum {
   EVENT_DEATH,
   EVENT_WIN,
   EVENT_HEAL,
+  EVENT_BOOK_READER_DIES,
   EVENT_KIND_COUNT
 } event_kind_t;
 
@@ -96,7 +97,9 @@ typedef struct {
   float dead_time;
 } player_t;
 
-typedef enum { ENEMY_ZOMBIE, ENEMY_BUG } enemy_kind_t;
+/* The book reader is no enemy: he reads Fabio's book, laughs and does no harm.
+ * Only a shot (a bullet or the ray) sets him off. */
+typedef enum { ENEMY_ZOMBIE, ENEMY_BUG, ENEMY_BOOK_READER } enemy_kind_t;
 
 typedef enum {
   BUG_BEETLE,
@@ -145,7 +148,8 @@ typedef enum {
   FX_SMOKE,
   FX_REMAINS,
   FX_MUZZLE,
-  FX_BUG_SPLAT
+  FX_BUG_SPLAT,
+  FX_BOOK_READER_BOOM
 } fx_kind_t;
 
 typedef struct {
@@ -184,13 +188,14 @@ typedef struct {
   float state_time;
   float camera_x;
   float view_w; /* the window's width in world units; set by the caller */
-  float zombie_timer, bug_timer;
+  float zombie_timer, bug_timer, book_reader_timer;
   bool spawning;
 
   int score;
   int coins;
   int zombies_killed;
   int bugs_killed;
+  int book_readers_killed;
 } world_t;
 
 /* A new world with its object pools, or NULL when memory runs out.
@@ -231,6 +236,13 @@ void enemies_update(world_t* world, float dt);
 void spawner_update(world_t* world, float dt);
 void spawn_zombie(world_t* world, float x, float y);
 void spawn_bug(world_t* world, int variant, float x, float y);
+void spawn_book_reader(world_t* world, float x, float y);
+/* He reads, laughs, reads again, laughs again, whatever Fabio does: a loop
+ * of BOOK_READER_READ_SECONDS then BOOK_READER_LAUGH_SECONDS, from his anim_time. */
+#define BOOK_READER_READ_SECONDS 3.0f
+#define BOOK_READER_LAUGH_SECONDS 2.4f
+typedef enum { BOOK_READER_READING, BOOK_READER_LAUGHING } book_reader_mood_t;
+book_reader_mood_t book_reader_mood(const enemy_t* book_reader);
 
 /* combat.c */
 void combat_update(world_t* world, float dt);

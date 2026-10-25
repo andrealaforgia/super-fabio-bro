@@ -38,7 +38,15 @@ void world_kill_enemy(world_t* world, enemy_t* e, bool by_spell) {
     return;
   pool_release_object(&world->enemies, e);
   float cx = e->x, cy = e->y - e->h * 0.5f;
-  if (e->kind == ENEMY_ZOMBIE) {
+  if (e->kind == ENEMY_BOOK_READER) {
+    /* He laughs until he bursts, in a shower of pages. */
+    world_add_effect(world, FX_BOOK_READER_BOOM, cx, e->y, 1.7f, e->facing);
+    world_burst(world, cx, cy, 16, 235, 225, 190, 300.0f);
+    world_burst(world, cx, cy, 10, 120, 70, 30, 260.0f);
+    world->score += 500;
+    world->book_readers_killed++;
+    world_emit(world, EVENT_BOOK_READER_DIES, cx);
+  } else if (e->kind == ENEMY_ZOMBIE) {
     world_add_effect(world, by_spell ? FX_ZOMBIE_GREEN : FX_ZOMBIE_BOOM, cx,
                      e->y, 0.55f, e->facing);
     world_burst(world, cx, cy, 14, 150, 30, 30, 260.0f);
@@ -133,6 +141,7 @@ static void update_melee(world_t* world) {
                   PLAYER_H + 6.0f};
   size_t cursor = 0;
   for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
+    if (e->kind == ENEMY_BOOK_READER) continue;
     if (frect_overlaps(reach, enemy_rect(e))) {
       world_kill_enemy(world, e, false);
       p->melee_struck = true;
@@ -150,6 +159,7 @@ static void touch_enemies(world_t* world) {
   if (!p->alive) return;
   size_t cursor = 0;
   for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
+    if (e->kind == ENEMY_BOOK_READER) continue;
     if (!frect_overlaps(inset(player_rect(p), 3.0f), inset(enemy_rect(e), 3.0f)))
       continue;
     /* Landing on the top part counts; low bugs get a little extra leeway. */

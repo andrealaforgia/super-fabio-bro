@@ -26,6 +26,7 @@ GUN = "fabio_pistol.jpeg"
 SPELL = "fabio_spell_zombies.jpeg"
 ZOMBIE = "fabio_zombie_attack.jpeg"
 WORLD = "world_elements.jpeg"
+BOOK_READER = "book_reader.jpeg"
 
 # kind "band": every blob in the rectangle, left to right, named in order.
 # kind "one": the rectangle is one sprite.
@@ -76,6 +77,17 @@ SPEC = [
     ("one", SPELL, "fx_zombie_boom", (632, 852, 785, 982), "white"),
     ("one", SPELL, "fx_smoke", (792, 886, 886, 982), "white"),
     ("one", SPELL, "fx_remains", (892, 898, 1018, 982), "white"),
+    # The book reader, reading Fabio's book. "notext" erases the
+    # "HAHAHA!" lettering the generator drew beside the laughing frames.
+    ("band", BOOK_READER, (0, 322, 1024, 445),
+     ["reader_read_0", "reader_read_1", "reader_read_2", "reader_snort_0", "reader_snort_1"], "white"),
+    ("band", BOOK_READER, (0, 462, 1024, 585), ["reader_snigger_%d" % i for i in range(7)], "white"),
+    ("band", BOOK_READER, (0, 596, 1024, 720), ["reader_laugh_%d" % i for i in range(8)], "white", "notext"),
+    ("band", BOOK_READER, (0, 735, 500, 850), ["reader_pop_%d" % i for i in range(4)], "white"),
+    ("band", BOOK_READER, (30, 862, 380, 985), ["reader_pop_%d" % i for i in range(4, 7)], "white"),
+    ("one", BOOK_READER, "reader_flash", (388, 858, 522, 980), "white"),
+    ("one", BOOK_READER, "reader_boom", (534, 740, 874, 982), "white"),
+    ("one", BOOK_READER, "reader_remains", (898, 745, 1014, 852), "white"),
     # The world
     ("one", WORLD, "tile_solid", (0, 212, 42, 255), "none"),
     ("one", WORLD, "tile_q", (43, 212, 85, 255), "none"),
@@ -202,6 +214,37 @@ def tight(rgba, members=None, cell=2):
     return out.crop(box) if box else None
 
 
+def erase_lettering(sprite, tallest=24, smallest_area=400):
+    """Removes the small separate bits of ink (letters, exclamation marks)
+    from a sprite, keeping the figure and anything big, like a dropped book."""
+    width, height = sprite.size
+    pixels = sprite.load()
+    seen = bytearray(width * height)
+    for y0 in range(height):
+        for x0 in range(width):
+            if seen[y0 * width + x0] or not pixels[x0, y0][3]:
+                continue
+            seen[y0 * width + x0] = 1
+            stack, members = [(x0, y0)], []
+            while stack:
+                x, y = stack.pop()
+                members.append((x, y))
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        nx, ny = x + dx, y + dy
+                        if (0 <= nx < width and 0 <= ny < height and not seen[ny * width + nx]
+                                and pixels[nx, ny][3]):
+                            seen[ny * width + nx] = 1
+                            stack.append((nx, ny))
+            top = min(y for _, y in members)
+            bottom = max(y for _, y in members)
+            if bottom - top + 1 < tallest and len(members) < smallest_area:
+                for x, y in members:
+                    pixels[x, y] = (0, 0, 0, 0)
+    box = sprite.getbbox()
+    return sprite.crop(box) if box else sprite
+
+
 def feet_anchor(sprite):
     """Anchor at the bottom, x at the centre of the lowest third of the ink."""
     width, height = sprite.size
@@ -260,7 +303,10 @@ def cook(output):
                          for b in found]
                 sys.exit("%s %s: expected %d frames, found %d: %s" % (sheet, rect, len(names), len(found), boxes))
             for name, members in zip(names, found):
-                emit(name, tight(keyed, members))
+                sprite = tight(keyed, members)
+                if "notext" in entry[5:]:
+                    sprite = erase_lettering(sprite)
+                emit(name, sprite)
         else:
             name, rect, bg = entry[2], entry[3], entry[4]
             keyed = key_background(sheets[sheet].crop(rect), bg)
@@ -289,12 +335,41 @@ def contact_sheet(output, path):
     sheet.save(path)
 
 
+BOOK_READER_SHEET = [
+    ["reader_read_0", "reader_read_1", "reader_read_2", "reader_snort_0", "reader_snort_1"],
+    ["reader_snigger_%d" % i for i in range(7)],
+    ["reader_laugh_%d" % i for i in range(8)],
+    ["reader_pop_%d" % i for i in range(7)] + ["reader_flash", "reader_boom", "reader_remains"],
+]
+
+
+def book_reader_sheet(output, path, pad=10):
+    """One transparent PNG with every book reader frame, a row per animation
+    (reading, sniggering, laughing, bursting) and no lettering at all."""
+    rows = [[Image.open(output / (name + ".png")) for name in row] for row in BOOK_READER_SHEET]
+    width = max(sum(im.width + pad for im in row) + pad for row in rows)
+    height = sum(max(im.height for im in row) + pad for row in rows) + pad
+    sheet = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    y = pad
+    for row in rows:
+        tallest = max(im.height for im in row)
+        x = pad
+        for im in row:
+            sheet.paste(im, (x, y + tallest - im.height), im)
+            x += im.width + pad
+        y += tallest + pad
+    sheet.save(path)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", type=Path, default=OUT)
+    parser.add_argument("--book-reader-sheet", type=Path, help="also write the book reader sprite sheet PNG")
     parser.add_argument("--contact", type=Path, help="also write a contact sheet PNG")
     args = parser.parse_args()
     count = cook(args.output)
     if args.contact:
         contact_sheet(args.output, args.contact)
+    if args.book_reader_sheet:
+        book_reader_sheet(args.output, args.book_reader_sheet)
     print("cooked %d sprites into %s" % (count, args.output))

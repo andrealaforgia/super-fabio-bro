@@ -6,6 +6,7 @@
 #define PI 3.14159265f
 #define FABIO_SCALE 0.5f
 #define ZOMBIE_SCALE 0.46f
+#define BOOK_READER_SCALE 0.5f
 
 typedef struct {
   graphics_context_ptr gfx;
@@ -47,6 +48,14 @@ static void draw_centred(const frame_t* f, pose_t pose, float cx, float cy,
   draw_options_t options = {flip, alpha, angle, false, 0, 0, 0};
   render_sprite(f->gfx, &sprite->texture, NULL,
            rect(cx - w * 0.5f - f->cam_x, cy - h * 0.5f, w, h), &options);
+}
+
+/* Centred sideways, with the bottom edge of the sprite on `y`. */
+static void draw_grounded(const frame_t* f, pose_t pose, float cx, float y,
+                          float scale, float alpha) {
+  const sprite_t* sprite = look_sprite(f->look, pose);
+  draw_centred(f, pose, cx, y - (float)sprite->h * scale * 0.5f, scale, scale,
+               0.0f, false, alpha);
 }
 
 static void draw_texture_centred(const frame_t* f, texture_t texture, float cx,
@@ -212,7 +221,10 @@ static void draw_enemies(const frame_t* f) {
   for (const enemy_t* e;
        (e = pool_next_active(&f->world->enemies, &enemy_cursor));) {
     if (e->x < f->cam_x - 120.0f || e->x > f->cam_x + f->view_w + 120.0f) continue;
-    if (e->kind == ENEMY_ZOMBIE) {
+    if (e->kind == ENEMY_BOOK_READER) {
+      draw_sprite(f, pose_book_reader(e), e->x, e->y,
+                  BOOK_READER_SCALE, e->facing < 0, 1.0f);
+    } else if (e->kind == ENEMY_ZOMBIE) {
       draw_sprite(f, pose_zombie(e, &f->world->player), e->x, e->y, ZOMBIE_SCALE,
                   e->facing < 0, 1.0f);
       /* "I DON'T TEST!" floats and sways above the head. */
@@ -269,6 +281,29 @@ static void draw_effects(const frame_t* f) {
   for (const effect_t* fx;
        (fx = pool_next_active(&f->world->effects, &effect_cursor));) {
     float life = fx->age / fx->duration;
+    if (fx->kind == FX_BOOK_READER_BOOM) {
+      pose_t pose = pose_book_reader_boom(fx->age);
+      float shake = fx->age < 0.56f ? sinf(fx->age * 90.0f) * 2.0f : 0.0f;
+      switch (pose.strip) {
+        case STRIP_READER_POP:
+          draw_sprite(f, pose, fx->x + shake, fx->y, BOOK_READER_SCALE, fx->facing < 0, 1.0f);
+          break;
+        case STRIP_READER_FLASH:
+          draw_grounded(f, pose, fx->x, fx->y, 0.75f, 1.0f);
+          break;
+        case STRIP_READER_BOOM: {
+          float grow = 0.5f + (fx->age - 0.66f) * 0.5f;
+          draw_grounded(f, pose, fx->x, fx->y, grow,
+                        1.0f - (fx->age - 0.66f) * 0.8f);
+          break;
+        }
+        default:
+          draw_grounded(f, pose, fx->x, fx->y, 0.6f,
+                        1.0f - (fx->age - 1.05f) / (fx->duration - 1.05f));
+          break;
+      }
+      continue;
+    }
     float scale, lift;
     switch (fx->kind) {
       case FX_ZOMBIE_BOOM: scale = 0.7f + life * 0.5f; lift = 40.0f; break;
@@ -373,7 +408,7 @@ static void draw_hud(const frame_t* f) {
     snprintf(text, sizeof(text), "X%02d", p->ammo);
     bool low = p->ammo <= 3;
     shadow_text(gfx, font, x + 50.0f, 12.0f, text, 3.0f, 255, low ? 110 : 255, low ? 110 : 255);
-    shadow_text(gfx, font, x - 2.0f, 46.0f, "J TO SHOOT", 1.6f, 220, 220, 220);
+    shadow_text(gfx, font, x - 2.0f, 46.0f, "ENTER TO SHOOT", 1.6f, 220, 220, 220);
   } else {
     shadow_text(gfx, font, x, 14.0f, "NO GUN", 2.4f, 150, 150, 170);
   }

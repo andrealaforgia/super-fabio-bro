@@ -6,6 +6,9 @@
 #define ZOMBIE_W 24.0f
 #define ZOMBIE_H 54.0f
 #define SPAWN_MARGIN 40.0f
+#define BOOK_READER_W 26.0f
+#define BOOK_READER_H 54.0f
+#define BOOK_READER_SPEED 24.0f
 
 static const struct {
   float w, h, speed;
@@ -57,6 +60,39 @@ void spawn_bug(world_t* world, int variant, float x, float y) {
   e->hop_cooldown = 1.0f;
 }
 
+void spawn_book_reader(world_t* world, float x, float y) {
+  enemy_t* e = pool_acquire(&world->enemies, NULL);
+  if (!e) return;
+  e->kind = ENEMY_BOOK_READER;
+  e->x = x;
+  e->y = y;
+  e->w = BOOK_READER_W;
+  e->h = BOOK_READER_H;
+  e->speed = BOOK_READER_SPEED * (0.8f + rng_float(&world->rng) * 0.4f);
+  e->facing = rng_chance(&world->rng, 0.5f) ? 1 : -1;
+  e->anim_time = 0.0f; /* he starts out reading */
+}
+
+book_reader_mood_t book_reader_mood(const enemy_t* m) {
+  float in_cycle = fmodf(m->anim_time, BOOK_READER_READ_SECONDS + BOOK_READER_LAUGH_SECONDS);
+  return in_cycle < BOOK_READER_READ_SECONDS ? BOOK_READER_READING : BOOK_READER_LAUGHING;
+}
+
+/* He ambles along with his nose in the book, turns back at a wall or a drop,
+ * and stands still while he laughs. */
+static void amble_reading(world_t* world, enemy_t* e, float dt) {
+  bool amble = book_reader_mood(e) == BOOK_READER_READING;
+  float ahead = e->x + (float)e->facing * (BOOK_READER_W * 0.5f + 6.0f);
+  bool drop = e->grounded && !level_solid_at(&world->level, ahead, e->y + 8.0f);
+  if (amble && drop) e->facing = -e->facing;
+  e->vx = amble ? (float)e->facing * e->speed : 0.0f;
+  e->vy = fminf(e->vy + GRAVITY * dt, MAX_FALL);
+  move_result_t moved = physics_move(&world->level, &e->x, &e->y, &e->vx,
+                                     &e->vy, e->w, e->h, dt);
+  e->grounded = moved.grounded;
+  if (amble && (moved.hit_left || moved.hit_right)) e->facing = -e->facing;
+}
+
 static bool is_flier(const enemy_t* e) {
   return e->kind == ENEMY_BUG && kBugs[e->variant].flies;
 }
@@ -97,7 +133,9 @@ void enemies_update(world_t* world, float dt) {
   size_t cursor = 0;
   for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
     e->anim_time += dt;
-    if (is_flier(e))
+    if (e->kind == ENEMY_BOOK_READER)
+      amble_reading(world, e, dt);
+    else if (is_flier(e))
       fly_towards_player(world, e, dt);
     else
       walk_towards_player(world, e, dt);
@@ -161,6 +199,18 @@ void spawner_update(world_t* world, float dt) {
                             rng_float(&world->rng) * 1.2f;
     } else {
       world->zombie_timer = 0.4f;
+    }
+  }
+
+  world->book_reader_timer -= dt;
+  if (world->book_reader_timer <= 0.0f) {
+    float x, y;
+    if (world_count_enemies(world, ENEMY_BOOK_READER) < 1 &&
+        pick_spawn_point(world, true, &x, &y)) {
+      spawn_book_reader(world, x, y);
+      world->book_reader_timer = 32.0f + rng_float(&world->rng) * 28.0f;
+    } else {
+      world->book_reader_timer = 1.0f;
     }
   }
 

@@ -19,6 +19,7 @@ static bool enemy_ahead(const world_t* world, float reach, float height) {
   const player_t* p = &world->player;
   size_t cursor = 0;
   for (const enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
+    if (e->kind == ENEMY_BOOK_READER) continue; /* harmless: keep the ammo */
     float dx = (e->x - p->x) * (float)p->facing;
     if (dx > 0.0f && dx < reach && fabsf((e->y - e->h * 0.5f) - (p->y - 30.0f)) < height)
       return true;

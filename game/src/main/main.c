@@ -88,6 +88,7 @@ static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const opt
     for (int i = 0; i < 100; i++) world_update(world, &controls, 1.0f / 120.0f);
     spawn_zombie(world, p->x + 250.0f, p->y);
     world_kill_enemy(world, pool_get_at(&world->enemies, 6), false);
+    spawn_book_reader(world, p->x + 330.0f, p->y);
     for (int i = 0; i < 6; i++) world_update(world, &controls, 1.0f / 120.0f);
     render_world(gfx, look, world);
     bool ok = save_frame_bmp(gfx, o->snapshot);

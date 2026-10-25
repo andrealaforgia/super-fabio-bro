@@ -19,6 +19,7 @@ static void zombies_appear_at_regular_intervals_off_screen(void) {
   world->spawning = true;
   world->zombie_timer = 2.0f;
   world->bug_timer = 1000.0f;
+  world->book_reader_timer = 1e9f;
   world->player.invulnerable = 1000.0f;
   int spawned = 0;
   float last_spawn = -1.0f, shortest = 100.0f, longest = 0.0f;
@@ -100,6 +101,7 @@ static void there_is_a_cap_on_how_many_zombies_chase_him(void) {
   world_t* world = fresh();
   world->spawning = true;
   world->bug_timer = 1e9f;
+  world->book_reader_timer = 1e9f;
   world->player.invulnerable = 1e9f;
   world->player.x = 40 * TILE;
   world->camera_x = world->player.x - 400.0f;
@@ -145,6 +147,7 @@ static void bugs_come_with_the_zombies(void) {
   world->spawning = true;
   world->zombie_timer = 1e9f;
   world->bug_timer = 1.0f;
+  world->book_reader_timer = 1e9f;
   world->player.invulnerable = 1e9f;
   int seen = 0;
   for (int i = 0; i < 60; i++) {

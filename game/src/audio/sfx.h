@@ -29,6 +29,7 @@ typedef enum {
   SFX_WIN,
   SFX_HEAL,
   SFX_VOICE_FABIO, /* "It's me! Fabio!" */
+  SFX_BOOK_READER_BOOM,
   SFX_COUNT
 } sfx_id_t;
 
