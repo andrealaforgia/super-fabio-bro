@@ -36,7 +36,7 @@ start.
 | arrows, or A and D | move |
 | space, Z, up | jump (hold for height; land on enemies to squash them) |
 | shift | run |
-| J, F, control | shoot the pistol; under the spell, cast the ray |
+| enter, control | shoot the pistol; under the spell, cast the ray |
 | K, X | swing the pickaxe |
 | E, Q | drink a TDD potion |
 | P, escape | pause |

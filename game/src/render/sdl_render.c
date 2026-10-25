@@ -471,7 +471,7 @@ void render_title(graphics_context_ptr gfx, const look_t* look, float time) {
   if (w > 1150.0f) {
     float x = w * 0.5f + size * 0.5f + 40.0f;
     static const char* kLines[] = {"ARROWS OR WASD  MOVE", "SPACE  JUMP", "SHIFT  RUN",
-                                   "J  SHOOT OR CAST", "K  PICKAXE", "E  DRINK TDD POTION",
+                                   "ENTER OR CTRL  SHOOT OR CAST", "K  PICKAXE", "E  DRINK TDD POTION",
                                    "P  PAUSE", "M  MUSIC", "F11  FULL SCREEN"};
     shadow_text(gfx, font, x, 90.0f, "CONTROLS", 3.0f, 255, 220, 90);
     for (int i = 0; i < 9; i++) shadow_text(gfx, font, x, 130.0f + (float)i * 26.0f, kLines[i], 2.0f, 255, 255, 255);
