@@ -31,23 +31,24 @@ static bool make_pools(world_t* world) {
   world->effects = create_object_pool(sizeof(effect_t), MAX_EFFECTS);
   world->particles = create_object_pool(sizeof(particle_t), MAX_PARTICLES);
   world->bumps = create_object_pool(sizeof(bump_t), MAX_BUMPS);
+  world->popups = create_object_pool(sizeof(popup_t), MAX_POPUPS);
   return world->enemies.objects && world->pickups.objects &&
          world->bullets.objects && world->rays.objects &&
          world->effects.objects && world->particles.objects &&
-         world->bumps.objects;
+         world->bumps.objects && world->popups.objects;
 }
 
 static object_pool_t* pools_of(world_t* world, int index) {
   object_pool_t* all[] = {&world->enemies, &world->pickups, &world->bullets,
                           &world->rays,    &world->effects, &world->particles,
-                          &world->bumps};
+                          &world->bumps,    &world->popups};
   return all[index];
 }
 
 void world_restart(world_t* world, uint32_t seed) {
   world_t fresh;  /* everything but the pools and the events starts from zero */
   memset(&fresh, 0, sizeof(fresh));
-  for (int i = 0; i < 7; i++) {
+  for (int i = 0; i < 8; i++) {
     *pools_of(&fresh, i) = *pools_of(world, i);
     pool_reset(pools_of(&fresh, i));
   }
@@ -79,7 +80,7 @@ world_t* world_new(uint32_t seed, event_system_ptr events) {
 
 void world_free(world_t* world) {
   if (!world) return;
-  for (int i = 0; i < 7; i++) pool_destroy(pools_of(world, i));
+  for (int i = 0; i < 8; i++) pool_destroy(pools_of(world, i));
   free(world);
 }
 

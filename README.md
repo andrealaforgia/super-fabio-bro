@@ -61,6 +61,8 @@ start.
   he swells, flashes and bursts in a shower of pages (500 points). His frames
   are in
   `assets/book_reader_spritesheet.png`.
+- Whenever points are scored (a kill, a coin, a pickup) the amount appears
+  where it was earned, floats upwards and fades away.
 
 ## Build, test, tools
 

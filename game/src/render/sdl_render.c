@@ -276,6 +276,23 @@ static void draw_player(const frame_t* f) {
            rect(left - f->cam_x, p->y - h + bounce, w, h), &options);
 }
 
+/* The points just scored: gold, with a dark shadow, solid then fading as they
+ * climb. */
+static void draw_popups(const frame_t* f) {
+  const pixel_font_t* font = &f->look->font;
+  size_t cursor = 0;
+  for (const popup_t* popup; (popup = pool_next_active(&f->world->popups, &cursor));) {
+    char text[16];
+    snprintf(text, sizeof(text), "+%d", popup->points);
+    float scale = 2.4f;
+    float age = popup->age / POPUP_SECONDS;
+    float alpha = age < 0.4f ? 1.0f : 1.0f - (age - 0.4f) / 0.6f;
+    float x = popup->x - f->cam_x - pixel_text_width(text, scale) * 0.5f;
+    render_pixel_text_alpha(font, f->gfx, x + scale, popup->y + scale, text, scale, 20, 10, 40, alpha);
+    render_pixel_text_alpha(font, f->gfx, x, popup->y, text, scale, 255, 220, 80, alpha);
+  }
+}
+
 static void draw_effects(const frame_t* f) {
   size_t effect_cursor = 0;
   for (const effect_t* fx;
@@ -461,6 +478,7 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
   draw_enemies(&f);
   draw_player(&f);
   draw_effects(&f);
+  draw_popups(&f);
   draw_hud(&f);
   if (world->state == STATE_GAME_OVER)
     draw_banner(&f, "GAME OVER", "PRESS SPACE TO TRY AGAIN", 255, 70, 70);

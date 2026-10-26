@@ -27,6 +27,9 @@
 #define MAX_EFFECTS 48
 #define MAX_PARTICLES 384
 #define MAX_BUMPS 8
+#define MAX_POPUPS 24
+#define POPUP_SECONDS 1.1f
+#define POPUP_RISE 70.0f /* how far the points climb before they are gone */
 
 /* Tuning, in pixels and seconds. */
 #define GRAVITY 2000.0f
@@ -168,6 +171,12 @@ typedef struct {
   float age;
 } bump_t;
 
+/* The points just scored, drifting up from where they were earned. */
+typedef struct {
+  float x, y, age;
+  int points;
+} popup_t;
+
 typedef struct {
   level_t level;
   player_t player;
@@ -180,6 +189,7 @@ typedef struct {
   object_pool_t effects;   /* effect_t */
   object_pool_t particles; /* particle_t */
   object_pool_t bumps;     /* bump_t */
+  object_pool_t popups;    /* popup_t */
   event_system_ptr events; /* where the world announces what happens; may be NULL */
 
   rng_t rng;
@@ -254,6 +264,8 @@ void world_cast_spell(world_t* world);
 void world_kill_enemy(world_t* world, enemy_t* enemy, bool by_spell);
 void world_add_effect(world_t* world, fx_kind_t kind, float x, float y,
                       float duration, int facing);
+/* Adds `points` to the score and floats them up from (x, y). */
+void world_award(world_t* world, int points, float x, float y);
 void world_burst(world_t* world, float x, float y, int count, uint8_t r,
                  uint8_t g, uint8_t b, float speed);
 

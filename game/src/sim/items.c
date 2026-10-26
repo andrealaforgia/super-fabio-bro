@@ -6,28 +6,28 @@
 #define MAX_POTIONS 5
 #define BUMP_TIME 0.18f
 
-static void collect(world_t* world, item_kind_t kind, float x) {
+static void collect(world_t* world, item_kind_t kind, float x, float y) {
   player_t* p = &world->player;
   switch (kind) {
     case ITEM_COIN:
       world->coins++;
-      world->score += 100;
+      world_award(world, 100, x, y);
       world_emit(world, EVENT_COIN, x);
       return;
     case ITEM_POTION:
       if (p->potions < MAX_POTIONS) p->potions++;
-      world->score += 250;
+      world_award(world, 250, x, y);
       break;
     case ITEM_PISTOL:
       p->ammo += PISTOL_AMMO;
-      world->score += 250;
+      world_award(world, 250, x, y);
       break;
     case ITEM_MUSHROOM:
       if (p->hp < PLAYER_HP) {
         p->hp++;
         world_emit(world, EVENT_HEAL, x);
       }
-      world->score += 500;
+      world_award(world, 500, x, y);
       break;
     default:
       return;
@@ -54,7 +54,7 @@ void world_bump_block(world_t* world, int col, int row) {
   world_emit(world, EVENT_BLOCK_OPENS, cx);
   float top = (float)(row * TILE);
   if (what == ITEM_COIN || what == ITEM_NONE) {
-    collect(world, ITEM_COIN, cx);
+    collect(world, ITEM_COIN, cx, top - 8.0f);
     world_burst(world, cx, top - 8.0f, 8, 255, 210, 40, 220.0f);
   } else {
     world_spawn_pickup(world, what, cx, top - 14.0f);
@@ -79,7 +79,7 @@ void items_update(world_t* world, float dt) {
                   ITEM_REACH * 2.0f};
     if (frect_overlaps(body, box)) {
       world->item_taken[i] = true;
-      collect(world, item->kind, item->x);
+      collect(world, item->kind, item->x, item->y);
     }
   }
 
@@ -100,7 +100,7 @@ void items_update(world_t* world, float dt) {
                   ITEM_REACH * 2.0f, ITEM_REACH * 2.0f};
     if (pickup->age > 0.25f && frect_overlaps(body, box)) {
       pool_release_object(&world->pickups, pickup);
-      collect(world, pickup->kind, pickup->x);
+      collect(world, pickup->kind, pickup->x, pickup->y);
     }
   }
 }

@@ -13,6 +13,12 @@ void world_add_effect(world_t* world, fx_kind_t kind, float x, float y,
   if (fx) *fx = (effect_t){kind, x, y, 0.0f, duration, facing};
 }
 
+void world_award(world_t* world, int points, float x, float y) {
+  world->score += points;
+  popup_t* popup = pool_acquire(&world->popups, NULL);
+  if (popup) *popup = (popup_t){x, y, 0.0f, points};
+}
+
 void world_burst(world_t* world, float x, float y, int count, uint8_t r,
                  uint8_t g, uint8_t b, float speed) {
   for (int n = 0; n < count; n++) {
@@ -43,7 +49,7 @@ void world_kill_enemy(world_t* world, enemy_t* e, bool by_spell) {
     world_add_effect(world, FX_BOOK_READER_BOOM, cx, e->y, 1.7f, e->facing);
     world_burst(world, cx, cy, 16, 235, 225, 190, 300.0f);
     world_burst(world, cx, cy, 10, 120, 70, 30, 260.0f);
-    world->score += 500;
+    world_award(world, 500, cx, e->y - e->h);
     world->book_readers_killed++;
     world_emit(world, EVENT_BOOK_READER_DIES, cx);
   } else if (e->kind == ENEMY_ZOMBIE) {
@@ -52,7 +58,7 @@ void world_kill_enemy(world_t* world, enemy_t* e, bool by_spell) {
     world_burst(world, cx, cy, 14, 150, 30, 30, 260.0f);
     world_burst(world, cx, cy, 8, by_spell ? 140 : 90, by_spell ? 230 : 120,
                 by_spell ? 80 : 70, 220.0f);
-    world->score += 200;
+    world_award(world, 200, cx, e->y - e->h);
     world->zombies_killed++;
     world_emit(world, EVENT_ZOMBIE_DIES, cx);
   } else {
@@ -61,7 +67,7 @@ void world_kill_enemy(world_t* world, enemy_t* e, bool by_spell) {
     world_burst(world, cx, cy, 10, 90, 60, 30, 240.0f);
     world_burst(world, cx, cy, 6, by_spell ? 80 : 255, by_spell ? 170 : 160,
                 by_spell ? 255 : 40, 200.0f);
-    world->score += 100;
+    world_award(world, 100, cx, e->y - e->h);
     world->bugs_killed++;
     world_emit(world, EVENT_BUG_DIES, cx);
   }
@@ -190,6 +196,12 @@ void combat_update(world_t* world, float dt) {
   for (effect_t* fx; (fx = pool_next_active(&world->effects, &cursor));) {
     fx->age += dt;
     if (fx->age >= fx->duration) pool_release_object(&world->effects, fx);
+  }
+  cursor = 0;
+  for (popup_t* popup; (popup = pool_next_active(&world->popups, &cursor));) {
+    popup->age += dt;
+    popup->y -= POPUP_RISE / POPUP_SECONDS * dt;
+    if (popup->age >= POPUP_SECONDS) pool_release_object(&world->popups, popup);
   }
   cursor = 0;
   for (particle_t* particle;
