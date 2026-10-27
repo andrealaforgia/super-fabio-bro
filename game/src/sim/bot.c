@@ -27,6 +27,18 @@ static bool enemy_ahead(const world_t* world, float reach, float height) {
   return false;
 }
 
+static bool monk_ahead(const world_t* world, float reach) {
+  const player_t* p = &world->player;
+  size_t cursor = 0;
+  for (const enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
+    float dx = (e->x - p->x) * (float)p->facing;
+    if (e->kind == ENEMY_MONK && dx > 0.0f && dx < reach &&
+        fabsf(e->y - p->y) < 60.0f)
+      return true;
+  }
+  return false;
+}
+
 /* Just the movement: heads right, jumping walls and pits. */
 static void bot_travel(const world_t* world, bot_t* bot, float dt, buttons_t* b,
                 bool run_always) {
@@ -66,6 +78,8 @@ buttons_t bot_decide(const world_t* world, bot_t* bot, float dt) {
   bool armed = p->ammo > 0 || p->spell_time > 0.0f;
   if (armed && enemy_ahead(world, 460.0f, 70.0f)) b |= BTN_SHOOT;
   if (enemy_ahead(world, 44.0f, 70.0f)) b |= BTN_MELEE;
+  /* A monk or skeleton hurts to touch, and the swing takes a moment to land. */
+  if (monk_ahead(world, 110.0f)) b |= BTN_MELEE;
 
   bot->drink_wait -= dt;
   if (p->potions > 0 && p->spell_time <= 0.0f && bot->drink_wait <= 0.0f &&

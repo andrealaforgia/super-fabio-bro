@@ -25,6 +25,7 @@ static void the_book_reader_turns_up_by_himself_ahead_of_fabio(void) {
   world->spawning = true;
   world->zombie_timer = 1e9f;
   world->bug_timer = 1e9f;
+  world->monk_timer = 1e9f;
   world->book_reader_timer = 2.0f;
   world->player.invulnerable = 1e9f;
   step(world, NULL, 1.5f);
@@ -44,6 +45,7 @@ static void they_come_often_but_never_more_than_a_few_at_once(void) {
   world->spawning = true;
   world->zombie_timer = 1e9f;
   world->bug_timer = 1e9f;
+  world->monk_timer = 1e9f;
   world->book_reader_timer = 0.1f;
   world->player.invulnerable = 1e9f;
   step(world, NULL, 0.2f);

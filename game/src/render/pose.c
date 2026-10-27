@@ -54,6 +54,12 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_READER_FLASH] = {"reader_flash", 0},
     [STRIP_READER_BOOM] = {"reader_boom", 0},
     [STRIP_READER_REMAINS] = {"reader_remains", 0},
+    [STRIP_MONK] = {"monk_idle", 0},
+    [STRIP_MONK_BOOM] = {"monk_boom", 15},
+    [STRIP_SKELETON] = {"skeleton_idle", 0},
+    [STRIP_SKELETON_VANISH] = {"skeleton_vanish", 11},
+    [STRIP_BUBBLE_MONK] = {"bubble_monk", 0},
+    [STRIP_BUBBLE_SKELETON] = {"bubble_skeleton", 0},
 };
 
 static pose_t make(strip_id_t strip, int frame) {
@@ -124,6 +130,19 @@ pose_t pose_book_reader_boom(float age) {
   return make(STRIP_READER_REMAINS, 0);
 }
 
+pose_t pose_monk_boom(float age) {
+  /* Fast through the blast, slower as it thins to smoke, then the debris. */
+  if (age < 0.54f) return make(STRIP_MONK_BOOM, (int)(age / 0.09f));
+  if (age < 1.14f) return make(STRIP_MONK_BOOM, 6 + (int)((age - 0.54f) / 0.12f));
+  int frame = 11 + (int)((age - 1.14f) / 0.15f);
+  return make(STRIP_MONK_BOOM, frame > 14 ? 14 : frame);
+}
+
+pose_t pose_skeleton_vanish(float age) {
+  int frame = (int)(age / 0.045f);
+  return make(STRIP_SKELETON_VANISH, frame > 10 ? 10 : frame);
+}
+
 pose_t pose_effect(fx_kind_t kind) {
   switch (kind) {
     case FX_ZOMBIE_BOOM: return make(STRIP_FX_ZOMBIE_BOOM, 0);
@@ -135,6 +154,8 @@ pose_t pose_effect(fx_kind_t kind) {
     case FX_MUZZLE: return make(STRIP_FX_MUZZLE, 0);
     case FX_BUG_SPLAT: return make(STRIP_FX_BUG_SPLAT, 0);
     case FX_BOOK_READER_BOOM: return make(STRIP_READER_BOOM, 0);
+    case FX_MONK_BOOM: return make(STRIP_MONK_BOOM, 0);
+    case FX_SKELETON_VANISH: return make(STRIP_SKELETON_VANISH, 0);
   }
   return make(STRIP_FX_SMOKE, 0);
 }

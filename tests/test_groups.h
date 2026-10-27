@@ -8,6 +8,7 @@ void run_enemy_tests(void);
 void run_combat_tests(void);
 void run_book_reader_tests(void);
 void run_score_popup_tests(void);
+void run_monk_tests(void);
 void run_bot_tests(void);
 void run_scenery_tests(void);
 void run_sprites_tests(void);

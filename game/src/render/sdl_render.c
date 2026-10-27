@@ -7,6 +7,8 @@
 #define FABIO_SCALE 0.5f
 #define ZOMBIE_SCALE 0.46f
 #define BOOK_READER_SCALE 0.5f
+#define MONK_SCALE 0.26f
+#define SKELETON_SCALE 0.30f
 
 typedef struct {
   graphics_context_ptr gfx;
@@ -66,28 +68,34 @@ static void draw_texture_centred(const frame_t* f, texture_t texture, float cx,
 }
 
 static void draw_backdrop(const frame_t* f) {
-  render_sprite(f->gfx, &f->look->sky, NULL, rect(0, 0, f->view_w, VIEW_HEIGHT), NULL);
+  /* Every run has its own time of day and its own stretch of mountains. */
+  scenery_theme_t theme = scenery_theme(f->world->seed);
+  draw_options_t sky = {false, 1.0f, 0.0f, true, theme.sky[0], theme.sky[1], theme.sky[2]};
+  render_sprite(f->gfx, &f->look->sky, NULL, rect(0, 0, f->view_w, VIEW_HEIGHT), &sky);
 
   /* Clouds drift slowly with the camera. */
   float period = 3200.0f;
   for (int i = 0; i < 9; i++) {
     float base = (float)i * 420.0f + (float)((i * 97) % 130);
-    float x = fmodf(base - f->cam_x * 0.12f - f->world->time * 6.0f, period);
+    float x = fmodf(base + theme.scroll * period - f->cam_x * 0.12f - f->world->time * 6.0f, period);
     if (x < -300.0f) x += period;
     texture_t cloud = f->look->clouds[i % CLOUD_VARIANTS];
     float scale = 4.0f + (float)(i % 3);
     float y = 36.0f + (float)((i * 61) % 150);
+    draw_options_t tint = {false, 1.0f, 0.0f, true, theme.cloud[0], theme.cloud[1], theme.cloud[2]};
     render_sprite(f->gfx, &cloud, NULL,
-             rect(x, y, (float)cloud.width * scale, (float)cloud.height * scale), NULL);
+             rect(x, y, (float)cloud.width * scale, (float)cloud.height * scale), &tint);
   }
 
   static const float factor[MOUNTAIN_LAYERS] = {0.08f, 0.2f, 0.38f};
   float span = (float)(LAYER_W * SCENERY_PIXEL);
   for (int layer = 0; layer < MOUNTAIN_LAYERS; layer++) {
-    float offset = fmodf(f->cam_x * factor[layer], span);
+    float offset = fmodf(f->cam_x * factor[layer] + theme.scroll * span, span);
+    draw_options_t tint = {false, 1.0f, 0.0f, true, theme.layer[layer][0],
+                           theme.layer[layer][1], theme.layer[layer][2]};
     for (float x = -offset; x < f->view_w; x += span)
       render_sprite(f->gfx, &f->look->layers[layer], NULL,
-               rect(x, 0, span, (float)(LAYER_H * SCENERY_PIXEL)), NULL);
+               rect(x, 0, span, (float)(LAYER_H * SCENERY_PIXEL)), &tint);
   }
 }
 
@@ -216,12 +224,28 @@ static void draw_items(const frame_t* f) {
   }
 }
 
+/* The same floating bubble as the zombies', in step with the zombies' bob and
+ * sway, with their own words in it. */
+static void draw_bubble(const frame_t* f, strip_id_t strip, const enemy_t* e, float height) {
+  float t = f->world->time * 2.6f + e->phase_seed;
+  float sway = sinf(t * 0.7f) * 5.0f, bob = sinf(t) * 4.0f;
+  float pulse = 1.0f + sinf(t * 2.3f) * 0.05f;
+  draw_centred(f, (pose_t){strip, 0}, e->x + sway, e->y - height - 38.0f + bob,
+               0.78f * pulse, 0.78f * pulse, sinf(t * 0.9f) * 4.0f, false, 1.0f);
+}
+
 static void draw_enemies(const frame_t* f) {
   size_t enemy_cursor = 0;
   for (const enemy_t* e;
        (e = pool_next_active(&f->world->enemies, &enemy_cursor));) {
     if (e->x < f->cam_x - 120.0f || e->x > f->cam_x + f->view_w + 120.0f) continue;
-    if (e->kind == ENEMY_BOOK_READER) {
+    if (e->kind == ENEMY_MONK) {
+      /* Both are drawn facing right: turn them to face Fabio. */
+      bool skeleton = e->variant == MONK_SKELETON;
+      draw_sprite(f, (pose_t){skeleton ? STRIP_SKELETON : STRIP_MONK, 0}, e->x, e->y,
+                  skeleton ? SKELETON_SCALE : MONK_SCALE, e->facing < 0, 1.0f);
+      draw_bubble(f, skeleton ? STRIP_BUBBLE_SKELETON : STRIP_BUBBLE_MONK, e, e->h + 2.0f);
+    } else if (e->kind == ENEMY_BOOK_READER) {
       draw_sprite(f, pose_book_reader(e), e->x, e->y,
                   BOOK_READER_SCALE, e->facing < 0, 1.0f);
     } else if (e->kind == ENEMY_ZOMBIE) {
@@ -284,7 +308,7 @@ static void draw_popups(const frame_t* f) {
   for (const popup_t* popup; (popup = pool_next_active(&f->world->popups, &cursor));) {
     char text[16];
     snprintf(text, sizeof(text), "+%d", popup->points);
-    float scale = 2.4f;
+    float scale = 1.2f;
     float age = popup->age / POPUP_SECONDS;
     float alpha = age < 0.4f ? 1.0f : 1.0f - (age - 0.4f) / 0.6f;
     float x = popup->x - f->cam_x - pixel_text_width(text, scale) * 0.5f;
@@ -298,6 +322,24 @@ static void draw_effects(const frame_t* f) {
   for (const effect_t* fx;
        (fx = pool_next_active(&f->world->effects, &effect_cursor));) {
     float life = fx->age / fx->duration;
+    if (fx->kind == FX_SKELETON_VANISH) {
+      float left = fx->duration - fx->age;
+      pose_t pose = pose_skeleton_vanish(fx->age);
+      float lift = (float)look_sprite(f->look, pose)->h * SKELETON_SCALE * 0.5f;
+      draw_centred(f, pose, fx->x, fx->y - lift, SKELETON_SCALE, SKELETON_SCALE,
+                   0.0f, fx->facing < 0, left < 0.12f ? left / 0.12f : 1.0f);
+      continue;
+    }
+    if (fx->kind == FX_MONK_BOOM) {
+      /* The monk is still there for the flash, then the blast swells past him. */
+      float scale = fx->age < 0.18f ? MONK_SCALE : MONK_SCALE * 1.6f;
+      float left = fx->duration - fx->age;
+      pose_t pose = pose_monk_boom(fx->age);
+      float lift = (float)look_sprite(f->look, pose)->h * scale * 0.5f;
+      draw_centred(f, pose, fx->x, fx->y - lift, scale, scale, 0.0f, fx->facing < 0,
+                   left < 0.25f ? left / 0.25f : 1.0f);
+      continue;
+    }
     if (fx->kind == FX_BOOK_READER_BOOM) {
       pose_t pose = pose_book_reader_boom(fx->age);
       float shake = fx->age < 0.56f ? sinf(fx->age * 90.0f) * 2.0f : 0.0f;

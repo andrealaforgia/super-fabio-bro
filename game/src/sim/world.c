@@ -54,6 +54,7 @@ void world_restart(world_t* world, uint32_t seed) {
   }
   fresh.events = world->events;
   memcpy(world, &fresh, sizeof(*world));
+  world->seed = seed;
   level_generate(&world->level, seed);
   rng_seed(&world->rng, seed ^ 0x5bd1e995u);
   player_reset(&world->player, &world->level);
@@ -63,6 +64,7 @@ void world_restart(world_t* world, uint32_t seed) {
   world->zombie_timer = 5.0f;
   world->bug_timer = 9.0f;
   world->book_reader_timer = 8.0f;
+  world->monk_timer = 14.0f;
   world->camera_x = 0.0f;
 }
 

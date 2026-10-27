@@ -55,6 +55,30 @@ bool scenery_sky(image_t* image, int h) {
   return true;
 }
 
+scenery_theme_t scenery_theme(uint32_t seed) {
+  /* Seeds taken a second apart must not look alike: scramble them first. */
+  uint32_t h = seed * 2654435761u;
+  h ^= h >> 15;
+  h *= 2246822519u;
+  h ^= h >> 13;
+  static const uint8_t tint[SCENERY_THEMES][5][3] = {
+      /* sky, far, middle, near, clouds */
+      {{255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}, {255, 255, 255}},
+      {{255, 170, 130}, {255, 190, 170}, {240, 175, 140}, {215, 150, 120}, {255, 190, 150}},
+      {{120, 120, 200}, {150, 150, 215}, {130, 135, 190}, {115, 120, 170}, {170, 165, 215}},
+      {{255, 205, 225}, {255, 220, 235}, {235, 205, 215}, {200, 195, 190}, {255, 225, 235}},
+      {{190, 200, 215}, {200, 210, 225}, {185, 200, 205}, {170, 190, 175}, {205, 210, 220}}};
+  scenery_theme_t theme;
+  memset(&theme, 0, sizeof(theme));
+  theme.kind = (int)((h >> 4) % SCENERY_THEMES);
+  memcpy(theme.sky, tint[theme.kind][0], 3);
+  for (int layer = 0; layer < MOUNTAIN_LAYERS; layer++)
+    memcpy(theme.layer[layer], tint[theme.kind][1 + layer], 3);
+  memcpy(theme.cloud, tint[theme.kind][4], 3);
+  theme.scroll = (float)((h >> 12) & 0xffffu) / 65536.0f;
+  return theme;
+}
+
 /* Ridge shape: a sum of whole-number cosines, so it is periodic by
  * construction, folded to make peaks. */
 static double ridge_value(int layer, int x) {

@@ -36,6 +36,19 @@ uint32_t image_at(const image_t* image, int x, int y);
 
 /* A 1 x h strip, deep blue at the top to pale at the horizon. */
 bool scenery_sky(image_t* image, int h);
+
+/* How one run looks: a time of day tinting the sky, the mountains and the
+ * clouds (multiplied into their colours), and where along the backdrop the
+ * run starts. The same seed always gives the same look. */
+#define SCENERY_THEMES 5
+typedef struct {
+  int kind; /* 0 day, 1 sunset, 2 dusk, 3 dawn, 4 overcast */
+  uint8_t sky[3];
+  uint8_t layer[MOUNTAIN_LAYERS][3];
+  uint8_t cloud[3];
+  float scroll; /* 0..1 of the way along the mountain tile */
+} scenery_theme_t;
+scenery_theme_t scenery_theme(uint32_t seed);
 /* The ridge line of a layer at column x (periodic in LAYER_W): the row of
  * the first mountain pixel. Layer 0 is far and snowy, 2 is the near forest. */
 int scenery_ridge(int layer, int x);

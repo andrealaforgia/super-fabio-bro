@@ -234,7 +234,15 @@ static void reaching_the_castle_wins(void) {
   world_free(world);
 }
 
+static void a_restart_remembers_the_seed_of_the_level(void) {
+  world_t* world = new_empty_world();
+  world_restart(world, 424242u);
+  CHECK(world->seed == 424242u);
+  world_free(world);
+}
+
 void run_player_tests(void) {
+  RUN(a_restart_remembers_the_seed_of_the_level);
   RUN(fabio_stands_on_the_ground_when_nothing_is_pressed);
   RUN(he_walks_and_faces_the_way_he_goes);
   RUN(running_is_faster_than_walking);

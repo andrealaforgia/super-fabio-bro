@@ -27,10 +27,14 @@ SPELL = "fabio_spell_zombies.jpeg"
 ZOMBIE = "fabio_zombie_attack.jpeg"
 WORLD = "world_elements.jpeg"
 BOOK_READER = "book_reader.jpeg"
+MONK = "monk.png"
+RETRO = "retro_characters.png"
+BUBBLES = "bubbles.png"
 
 # kind "band": every blob in the rectangle, left to right, named in order.
 # kind "one": the rectangle is one sprite.
-# bg "white" and "sky" are keyed out, "none" keeps the rectangle opaque.
+# bg "white", "paper", "cutout" and "sky" are keyed out ("cutout" also clears paper
+# seen through gaps in the pose, which "paper" keeps for bright blast cores), "none" keeps the rectangle opaque.
 SPEC = [
     # Fabio, base sheet
     ("band", BASE, (30, 36, 520, 160), ["fab_idle_%d" % i for i in range(5)], "white"),
@@ -88,6 +92,41 @@ SPEC = [
     ("one", BOOK_READER, "reader_flash", (388, 858, 522, 980), "white"),
     ("one", BOOK_READER, "reader_boom", (534, 740, 874, 982), "white"),
     ("one", BOOK_READER, "reader_remains", (898, 745, 1014, 852), "white"),
+    # The monk who will not pair, and the sixteen frames of his explosion.
+    ("one", MONK, "monk_boom_0", (204, 30, 434, 345), "paper"),
+    ("one", MONK, "monk_boom_1", (434, 30, 672, 345), "paper"),
+    ("one", MONK, "monk_boom_2", (672, 30, 944, 345), "paper"),
+    ("one", MONK, "monk_boom_3", (944, 30, 1229, 345), "paper"),
+    ("one", MONK, "monk_boom_4", (1229, 30, 1505, 345), "paper"),
+    ("one", MONK, "monk_boom_5", (1505, 30, 1765, 345), "paper"),
+    ("one", MONK, "monk_boom_6", (1765, 30, 2043, 345), "paper"),
+    ("one", MONK, "monk_boom_7", (0, 415, 230, 690), "paper"),
+    ("one", MONK, "monk_boom_8", (230, 415, 454, 690), "paper"),
+    ("one", MONK, "monk_boom_9", (454, 415, 688, 690), "paper"),
+    ("one", MONK, "monk_boom_10", (688, 415, 944, 690), "paper"),
+    ("one", MONK, "monk_boom_11", (944, 415, 1224, 690), "paper"),
+    ("one", MONK, "monk_boom_12", (1224, 415, 1540, 690), "paper"),
+    ("one", MONK, "monk_boom_13", (1540, 415, 1800, 690), "paper"),
+    ("one", MONK, "monk_boom_14", (1800, 415, 2043, 690), "paper"),
+    # The hooded monk standing (his walk cycle, facing right) and the skeleton who
+    # loves PRs. The skeleton's vanishing frames keep their whole cell ("fixed") so
+    # the dust stays where it fell.
+    ("one", RETRO, "monk_idle", (10, 85, 127, 300), "cutout"),
+    ("one", RETRO, "skeleton_idle", (966, 455, 1064, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_vanish_0", (1064, 455, 1161, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_vanish_1", (1161, 455, 1254, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_vanish_2", (1254, 455, 1350, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_vanish_3", (1350, 455, 1439, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_vanish_4", (1439, 455, 1523, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_vanish_5", (1523, 455, 1605, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_vanish_6", (1605, 455, 1685, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_vanish_7", (1685, 455, 1766, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_vanish_8", (1766, 455, 1853, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_vanish_9", (1853, 455, 1916, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_vanish_10", (1916, 455, 1983, 692), "cutout", "fixed"),
+    # Their speech bubbles, made by scripts/make_bubbles.py in the zombies' style.
+    ("one", BUBBLES, "bubble_monk", (0, 0, 130, 100), "white"),
+    ("one", BUBBLES, "bubble_skeleton", (130, 0, 260, 100), "white"),
     # The world
     ("one", WORLD, "tile_solid", (0, 212, 42, 255), "none"),
     ("one", WORLD, "tile_q", (43, 212, 85, 255), "none"),
@@ -106,12 +145,15 @@ SPEC = [
 ]
 
 WHITE_MIN = 205
+PAPER_MIN = 247
 
 
 def is_background(pixel, bg):
     r, g, b = pixel
     if bg == "white":
         return min(r, g, b) >= WHITE_MIN
+    if bg in ("paper", "cutout"):  # a clean sheet: only near-white goes, so pale smoke stays
+        return min(r, g, b) >= PAPER_MIN
     if bg == "sky":
         return (min(r, g, b) >= WHITE_MIN) or (b > r + 28 and b >= g - 6)
     return False
@@ -144,6 +186,8 @@ def key_background(image, bg):
         for x in range(width):
             if seen[y * width + x]:
                 pixels[x, y] = (0, 0, 0, 0)
+            elif bg == "cutout" and min(pixels[x, y][:3]) >= PAPER_MIN:
+                pixels[x, y] = (0, 0, 0, 0)  # paper showing through a gap in the pose
     # Light fringe left by JPEG blur next to the keyed area.
     fringe = []
     for y in range(height):
@@ -151,7 +195,7 @@ def key_background(image, bg):
             if seen[y * width + x]:
                 continue
             r, g, b, _ = pixels[x, y]
-            if min(r, g, b) < 150 and not (bg == "sky" and b > r + 40):
+            if min(r, g, b) < (225 if bg in ("paper", "cutout") else 150) and not (bg == "sky" and b > r + 40):
                 continue
             for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
                 if 0 <= nx < width and 0 <= ny < height and seen[ny * width + nx]:
@@ -310,7 +354,7 @@ def cook(output):
         else:
             name, rect, bg = entry[2], entry[3], entry[4]
             keyed = key_background(sheets[sheet].crop(rect), bg)
-            sprite = tight(keyed)
+            sprite = keyed if "fixed" in entry[5:] else tight(keyed)
             if sprite is None:
                 sys.exit("%s is empty" % name)
             emit(name, sprite)

@@ -61,6 +61,12 @@ typedef enum {
   STRIP_READER_FLASH,
   STRIP_READER_BOOM,
   STRIP_READER_REMAINS,
+  STRIP_MONK,
+  STRIP_MONK_BOOM,
+  STRIP_SKELETON,
+  STRIP_SKELETON_VANISH,
+  STRIP_BUBBLE_MONK,
+  STRIP_BUBBLE_SKELETON,
   STRIP_COUNT
 } strip_id_t;
 
@@ -84,5 +90,10 @@ pose_t pose_book_reader(const enemy_t* book_reader);
 /* The book reader bursting: he swells, flashes, booms and leaves smoking
  * remains. `age` is seconds since the shot. */
 pose_t pose_book_reader_boom(float age);
+/* The monk goes up in an explosion that thins to smoke and then a little
+ * debris. `age` is seconds since the hit. */
+pose_t pose_monk_boom(float age);
+/* The skeleton dissolves into dust fast: a frame every 45 milliseconds. */
+pose_t pose_skeleton_vanish(float age);
 
 #endif  // GAME_RENDER_POSE_H_

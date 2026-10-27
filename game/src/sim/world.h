@@ -71,6 +71,7 @@ typedef enum {
   EVENT_WIN,
   EVENT_HEAL,
   EVENT_BOOK_READER_DIES,
+  EVENT_MONK_DIES,
   EVENT_KIND_COUNT
 } event_kind_t;
 
@@ -102,7 +103,7 @@ typedef struct {
 
 /* The book reader is no enemy: he reads Fabio's book, laughs and does no harm.
  * Only a shot (a bullet or the ray) sets him off. */
-typedef enum { ENEMY_ZOMBIE, ENEMY_BUG, ENEMY_BOOK_READER } enemy_kind_t;
+typedef enum { ENEMY_ZOMBIE, ENEMY_BUG, ENEMY_BOOK_READER, ENEMY_MONK } enemy_kind_t;
 
 typedef enum {
   BUG_BEETLE,
@@ -152,7 +153,9 @@ typedef enum {
   FX_REMAINS,
   FX_MUZZLE,
   FX_BUG_SPLAT,
-  FX_BOOK_READER_BOOM
+  FX_BOOK_READER_BOOM,
+  FX_MONK_BOOM,
+  FX_SKELETON_VANISH
 } fx_kind_t;
 
 typedef struct {
@@ -192,13 +195,14 @@ typedef struct {
   object_pool_t popups;    /* popup_t */
   event_system_ptr events; /* where the world announces what happens; may be NULL */
 
+  uint32_t seed; /* the level was generated from this */
   rng_t rng;
   game_state_t state;
   float time;
   float state_time;
   float camera_x;
   float view_w; /* the window's width in world units; set by the caller */
-  float zombie_timer, bug_timer, book_reader_timer;
+  float zombie_timer, bug_timer, book_reader_timer, monk_timer;
   bool spawning;
 
   int score;
@@ -206,6 +210,7 @@ typedef struct {
   int zombies_killed;
   int bugs_killed;
   int book_readers_killed;
+  int monks_killed;
 } world_t;
 
 /* A new world with its object pools, or NULL when memory runs out.
@@ -247,6 +252,13 @@ void spawner_update(world_t* world, float dt);
 void spawn_zombie(world_t* world, float x, float y);
 void spawn_bug(world_t* world, int variant, float x, float y);
 void spawn_book_reader(world_t* world, float x, float y);
+/* The ones who will not pair, and the one who loves PRs: they stand where they
+ * appear and hurt Fabio when he walks into them, like a zombie, and he can
+ * stomp, shoot or swing at them in return: the monk explodes, the skeleton
+ * vanishes. */
+typedef enum { MONK_HOODED, MONK_SKELETON, MONK_VARIANTS } monk_variant_t;
+void spawn_monk(world_t* world, monk_variant_t variant, float x, float y);
+#define MONK_MAX 2
 /* They come every 12 to 24 seconds, ahead of Fabio, and stay where they
  * appear: never more than this many at once. */
 #define BOOK_READER_MAX 3

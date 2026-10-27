@@ -89,7 +89,14 @@ static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const opt
     spawn_zombie(world, p->x + 250.0f, p->y);
     world_kill_enemy(world, pool_get_at(&world->enemies, 6), false);
     spawn_book_reader(world, p->x + 330.0f, p->y);
-    for (int i = 0; i < 6; i++) world_update(world, &controls, 1.0f / 120.0f);
+    spawn_monk(world, MONK_HOODED, p->x - 415.0f, p->y);
+    spawn_monk(world, MONK_SKELETON, p->x - 340.0f, p->y);
+    spawn_monk(world, MONK_HOODED, p->x + 470.0f, p->y);
+    spawn_monk(world, MONK_SKELETON, p->x + 520.0f, p->y);
+    size_t cursor = 0; /* the farther monk goes up in smoke */
+    for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));)
+      if (e->kind == ENEMY_MONK && e->x > p->x + 450.0f) world_kill_enemy(world, e, false);
+    for (int i = 0; i < 40; i++) world_update(world, &controls, 1.0f / 120.0f);
     render_world(gfx, look, world);
     bool ok = save_frame_bmp(gfx, o->snapshot);
     present_frame(gfx);

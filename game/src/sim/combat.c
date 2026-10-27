@@ -52,6 +52,20 @@ void world_kill_enemy(world_t* world, enemy_t* e, bool by_spell) {
     world_award(world, 500, cx, e->y - e->h);
     world->book_readers_killed++;
     world_emit(world, EVENT_BOOK_READER_DIES, cx);
+  } else if (e->kind == ENEMY_MONK) {
+    if (e->variant == MONK_SKELETON) {
+      /* He loves PRs, and fades away into dust. */
+      world_add_effect(world, FX_SKELETON_VANISH, cx, e->y, 0.55f, e->facing);
+      world_burst(world, cx, cy, 14, 150, 130, 190, 200.0f);
+    } else {
+      /* He still will not pair, and goes up in a cloud of smoke. */
+      world_add_effect(world, FX_MONK_BOOM, cx, e->y, 1.75f, e->facing);
+      world_burst(world, cx, cy, 18, 255, 170, 40, 320.0f);
+      world_burst(world, cx, cy, 10, 60, 50, 50, 260.0f);
+    }
+    world_award(world, 300, cx, e->y - e->h);
+    world->monks_killed++;
+    world_emit(world, EVENT_MONK_DIES, cx);
   } else if (e->kind == ENEMY_ZOMBIE) {
     world_add_effect(world, by_spell ? FX_ZOMBIE_GREEN : FX_ZOMBIE_BOOM, cx,
                      e->y, 0.55f, e->facing);

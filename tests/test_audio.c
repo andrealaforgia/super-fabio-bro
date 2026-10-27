@@ -29,7 +29,7 @@ static void every_sound_effect_is_built_audible_and_short(void) {
 }
 
 static void every_game_event_has_a_sound(void) {
-  for (int kind = EVENT_JUMP; kind <= EVENT_BOOK_READER_DIES; kind++) {
+  for (int kind = EVENT_JUMP; kind <= EVENT_MONK_DIES; kind++) {
     float volume = 0.0f;
     sfx_id_t id = sfx_for_event((event_kind_t)kind, &volume);
     CHECK(id >= 0 && id < SFX_COUNT);

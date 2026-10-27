@@ -61,6 +61,18 @@ start.
   he swells, flashes and bursts in a shower of pages (500 points). His frames
   are in
   `assets/book_reader_spritesheet.png`.
+- Every run has its own level layout and its own look: the seed picks the
+  time of day (day, sunset, dusk, dawn or overcast) and where the mountains
+  and clouds start. The first few screens are always the same by design.
+- Every 18 to 32 seconds a monk or a skeleton turns up ahead of you, up to two
+  at a time. The monk keeps saying "I WON'T PAIR!", the skeleton "I LOVE
+  PRS!". They never move. Walking into one hurts Fabio and throws him back, like a
+  zombie, and jumping on one squashes it. A bullet, the TDD ray or the pickaxe
+  also sets them off: the monk goes up in an explosion, the skeleton fades into
+  dust in half a second (300 points). Their frames are cut from
+  `assets/source/monk.png` and `assets/source/retro_characters.png`. They
+  always turn to face Fabio, and speak in the zombies' bubble style (made by
+  `scripts/make_bubbles.py`, kept in `assets/source/bubbles.png`).
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

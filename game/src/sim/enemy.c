@@ -8,6 +8,10 @@
 #define SPAWN_MARGIN 40.0f
 #define BOOK_READER_W 26.0f
 #define BOOK_READER_H 54.0f
+#define MONK_W 24.0f
+#define MONK_H 54.0f
+#define SKELETON_W 30.0f
+#define SKELETON_H 68.0f
 
 static const struct {
   float w, h, speed;
@@ -71,13 +75,26 @@ void spawn_book_reader(world_t* world, float x, float y) {
   e->anim_time = 0.0f; /* he starts out reading */
 }
 
+void spawn_monk(world_t* world, monk_variant_t variant, float x, float y) {
+  enemy_t* e = pool_acquire(&world->enemies, NULL);
+  if (!e) return;
+  e->kind = ENEMY_MONK;
+  e->variant = variant;
+  e->x = x;
+  e->y = y;
+  e->w = variant == MONK_SKELETON ? SKELETON_W : MONK_W;
+  e->h = variant == MONK_SKELETON ? SKELETON_H : MONK_H;
+  e->facing = world->player.x < x ? -1 : 1;
+  e->phase_seed = rng_float(&world->rng) * 6.28f; /* his speech bobs out of step */
+}
+
 book_reader_mood_t book_reader_mood(const enemy_t* m) {
   float in_cycle = fmodf(m->anim_time, BOOK_READER_READ_SECONDS + BOOK_READER_LAUGH_SECONDS);
   return in_cycle < BOOK_READER_READ_SECONDS ? BOOK_READER_READING : BOOK_READER_LAUGHING;
 }
 
-/* He never walks: he stands where he appeared, reading and laughing, and only
- * falls until there is ground under him. */
+/* The book reader and the monk never walk: they stand where they appeared and
+ * only fall until there is ground under them. */
 static void stand_in_place(world_t* world, enemy_t* e, float dt) {
   e->vx = 0.0f;
   e->vy = fminf(e->vy + GRAVITY * dt, MAX_FALL);
@@ -126,7 +143,8 @@ void enemies_update(world_t* world, float dt) {
   size_t cursor = 0;
   for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
     e->anim_time += dt;
-    if (e->kind == ENEMY_BOOK_READER)
+    if (e->kind == ENEMY_MONK) e->facing = p->x < e->x ? -1 : 1; /* turns to Fabio */
+    if (e->kind == ENEMY_BOOK_READER || e->kind == ENEMY_MONK)
       stand_in_place(world, e, dt);
     else if (is_flier(e))
       fly_towards_player(world, e, dt);
@@ -194,6 +212,18 @@ void spawner_update(world_t* world, float dt) {
                             rng_float(&world->rng) * 1.2f;
     } else {
       world->zombie_timer = 0.4f;
+    }
+  }
+
+  world->monk_timer -= dt;
+  if (world->monk_timer <= 0.0f) {
+    float x, y;
+    if (world_count_enemies(world, ENEMY_MONK) < MONK_MAX &&
+        pick_spawn_point(world, true, 1.0f, &x, &y)) {
+      spawn_monk(world, (monk_variant_t)rng_range(&world->rng, 0, MONK_VARIANTS - 1), x, y);
+      world->monk_timer = 18.0f + rng_float(&world->rng) * 14.0f;
+    } else {
+      world->monk_timer = 1.0f;
     }
   }
 

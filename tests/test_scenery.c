@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "scenery.h"
 #include "test_groups.h"
@@ -112,6 +113,48 @@ static void tree_kinds_differ_in_shape(void) {
   image_free(&bush);
 }
 
+static void the_same_seed_always_gives_the_same_backdrop(void) {
+  scenery_theme_t a = scenery_theme(12345u), b = scenery_theme(12345u);
+  CHECK(memcmp(&a, &b, sizeof(a)) == 0);
+}
+
+static void different_runs_get_different_skies_and_starting_scrolls(void) {
+  int distinct_skies = 0;
+  bool seen[SCENERY_THEMES] = {false};
+  float lowest = 1.0f, highest = 0.0f;
+  for (uint32_t seed = 1700000000u; seed < 1700000200u; seed += 3u) {
+    scenery_theme_t t = scenery_theme(seed);
+    CHECK(t.kind >= 0 && t.kind < SCENERY_THEMES);
+    if (!seen[t.kind]) distinct_skies++;
+    seen[t.kind] = true;
+    CHECK(t.scroll >= 0.0f && t.scroll < 1.0f);
+    if (t.scroll < lowest) lowest = t.scroll;
+    if (t.scroll > highest) highest = t.scroll;
+  }
+  CHECK(distinct_skies == SCENERY_THEMES);
+  CHECK(highest - lowest > 0.6f);
+}
+
+static void a_theme_only_ever_tints_it_never_makes_the_backdrop_black(void) {
+  for (uint32_t seed = 1; seed < 400u; seed++) {
+    scenery_theme_t t = scenery_theme(seed);
+    for (int c = 0; c < 3; c++) {
+      CHECK(t.sky[c] >= 110 && t.cloud[c] >= 110);
+      for (int layer = 0; layer < MOUNTAIN_LAYERS; layer++)
+        CHECK(t.layer[layer][c] >= 110);
+    }
+  }
+}
+
+static void one_theme_is_plain_daylight(void) {
+  bool found = false;
+  for (uint32_t seed = 1; seed < 100u && !found; seed++) {
+    scenery_theme_t t = scenery_theme(seed);
+    found = t.sky[0] == 255 && t.sky[1] == 255 && t.sky[2] == 255;
+  }
+  CHECK(found);
+}
+
 void run_scenery_tests(void) {
   RUN(the_sky_gets_paler_towards_the_horizon);
   RUN(every_layer_tiles_without_a_seam);
@@ -122,4 +165,8 @@ void run_scenery_tests(void) {
   RUN(the_castle_has_a_dark_gate_at_its_foot);
   RUN(the_glow_is_brightest_in_the_middle);
   RUN(tree_kinds_differ_in_shape);
+  RUN(the_same_seed_always_gives_the_same_backdrop);
+  RUN(different_runs_get_different_skies_and_starting_scrolls);
+  RUN(a_theme_only_ever_tints_it_never_makes_the_backdrop_black);
+  RUN(one_theme_is_plain_daylight);
 }
