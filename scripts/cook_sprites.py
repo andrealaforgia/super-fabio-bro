@@ -109,10 +109,9 @@ SPEC = [
     ("one", MONK, "monk_boom_13", (1540, 415, 1800, 690), "paper"),
     ("one", MONK, "monk_boom_14", (1800, 415, 2043, 690), "paper"),
     # The hooded monk standing (his walk cycle, facing right) and the skeleton who
-    # loves PRs. The skeleton's vanishing frames keep their whole cell ("fixed") so
+    # loves PRs, walking and vanishing. The skeleton's vanishing frames keep their whole cell ("fixed") so
     # the dust stays where it fell.
     ("one", RETRO, "monk_idle", (10, 85, 127, 300), "cutout"),
-    ("one", RETRO, "skeleton_idle", (966, 455, 1064, 692), "cutout", "fixed"),
     ("one", RETRO, "skeleton_vanish_0", (1064, 455, 1161, 692), "cutout", "fixed"),
     ("one", RETRO, "skeleton_vanish_1", (1161, 455, 1254, 692), "cutout", "fixed"),
     ("one", RETRO, "skeleton_vanish_2", (1254, 455, 1350, 692), "cutout", "fixed"),
@@ -124,6 +123,15 @@ SPEC = [
     ("one", RETRO, "skeleton_vanish_8", (1766, 455, 1853, 692), "cutout", "fixed"),
     ("one", RETRO, "skeleton_vanish_9", (1853, 455, 1916, 692), "cutout", "fixed"),
     ("one", RETRO, "skeleton_vanish_10", (1916, 455, 1983, 692), "cutout", "fixed"),
+    # The skeleton's walk cycle, cells kept whole so the stride stays put.
+    ("one", RETRO, "skeleton_walk_0", (12, 455, 124, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_walk_1", (124, 455, 239, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_walk_2", (239, 455, 356, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_walk_3", (356, 455, 471, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_walk_4", (471, 455, 591, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_walk_5", (591, 455, 703, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_walk_6", (703, 455, 816, 692), "cutout", "fixed"),
+    ("one", RETRO, "skeleton_walk_7", (816, 455, 945, 692), "cutout", "fixed"),
     # Their speech bubbles, made by scripts/make_bubbles.py in the zombies' style.
     ("one", BUBBLES, "bubble_monk", (0, 0, 130, 100), "white"),
     ("one", BUBBLES, "bubble_skeleton", (130, 0, 260, 100), "white"),

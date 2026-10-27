@@ -66,8 +66,9 @@ start.
   and clouds start. The first few screens are always the same by design.
 - Every 18 to 32 seconds a monk or a skeleton turns up ahead of you, up to two
   at a time. The monk keeps saying "I WON'T PAIR!", the skeleton "I LOVE
-  PRS!". They never move. Walking into one hurts Fabio and throws him back, like a
-  zombie, and jumping on one squashes it. A bullet, the TDD ray or the pickaxe
+  PRS!". The monk never moves; the skeleton walks slowly towards Fabio, hopping
+  blocks and falling into pits like a zombie. Walking into either hurts Fabio
+  and throws him back, like a zombie, and jumping on one squashes it. A bullet, the TDD ray or the pickaxe
   also sets them off: the monk goes up in an explosion, the skeleton fades into
   dust in half a second (300 points). Their frames are cut from
   `assets/source/monk.png` and `assets/source/retro_characters.png`. They

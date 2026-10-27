@@ -252,10 +252,10 @@ void spawner_update(world_t* world, float dt);
 void spawn_zombie(world_t* world, float x, float y);
 void spawn_bug(world_t* world, int variant, float x, float y);
 void spawn_book_reader(world_t* world, float x, float y);
-/* The ones who will not pair, and the one who loves PRs: they stand where they
- * appear and hurt Fabio when he walks into them, like a zombie, and he can
- * stomp, shoot or swing at them in return: the monk explodes, the skeleton
- * vanishes. */
+/* The ones who will not pair, and the one who loves PRs. The monk stands where
+ * he appears; the skeleton walks slowly towards Fabio. Either hurts Fabio when
+ * he walks into them, like a zombie, and he can stomp, shoot or swing at them
+ * in return: the monk explodes, the skeleton vanishes. */
 typedef enum { MONK_HOODED, MONK_SKELETON, MONK_VARIANTS } monk_variant_t;
 void spawn_monk(world_t* world, monk_variant_t variant, float x, float y);
 #define MONK_MAX 2

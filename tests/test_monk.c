@@ -1,3 +1,4 @@
+#include <math.h>
 #include <string.h>
 
 #include "bot.h"
@@ -241,6 +242,69 @@ static void both_kinds_turn_up_over_time(void) {
   world_free(world);
 }
 
+static void the_skeleton_walks_towards_fabio_from_either_side(void) {
+  world_t* world = fresh();
+  world->player.invulnerable = 1e9f;
+  spawn_monk(world, MONK_SKELETON, world->player.x + 300.0f, world->player.y);
+  spawn_monk(world, MONK_SKELETON, world->player.x - 300.0f, world->player.y);
+  step(world, NULL, 2.0f);
+  for (size_t i = 0; i < 2; i++)
+    CHECK(fabsf(enemy_at(world, i)->x - world->player.x) < 285.0f);
+  world_free(world);
+}
+
+static void the_skeleton_is_slower_than_a_running_fabio(void) {
+  world_t* world = fresh();
+  world->player.invulnerable = 1e9f;
+  spawn_monk(world, MONK_SKELETON, world->player.x + 400.0f, world->player.y);
+  float start = enemy_at(world, 0)->x;
+  step(world, NULL, 3.0f);
+  float walked = start - enemy_at(world, 0)->x;
+  CHECK(walked > 60.0f && walked < 300.0f);
+  world_free(world);
+}
+
+static void the_hooded_monk_never_walks_even_with_fabio_in_reach(void) {
+  world_t* world = fresh();
+  world->player.invulnerable = 1e9f;
+  spawn_monk(world, MONK_HOODED, world->player.x + 200.0f, world->player.y);
+  float x = enemy_at(world, 0)->x;
+  step(world, NULL, 3.0f);
+  CHECK(enemy_at(world, 0)->x == x);
+  world_free(world);
+}
+
+static void a_walking_skeleton_cycles_through_his_walk_frames(void) {
+  world_t* world = fresh();
+  world->player.invulnerable = 1e9f;
+  spawn_monk(world, MONK_SKELETON, world->player.x + 600.0f, world->player.y);
+  bool seen[8] = {false};
+  for (int i = 0; i < 120 * 4; i++) {
+    step(world, NULL, 1.0f / 120.0f);
+    pose_t pose = pose_skeleton(enemy_at(world, 0));
+    CHECK(pose.strip == STRIP_SKELETON_WALK);
+    seen[pose.frame] = true;
+  }
+  int distinct = 0;
+  for (int f = 0; f < 8; f++) distinct += seen[f];
+  CHECK(distinct >= 6);
+  world_free(world);
+}
+
+static void a_skeleton_that_walks_into_a_pit_is_gone(void) {
+  world_t* world = fresh();
+  world->player.invulnerable = 1e9f;
+  for (int col = 20; col < 24; col++)
+    for (int row = GROUND_ROW; row < LEVEL_ROWS; row++)
+      world->level.tiles[row][col] = TILE_EMPTY;
+  spawn_monk(world, MONK_SKELETON, 26 * TILE, world->player.y);
+  enemy_at(world, 0)->speed = 90.0f;
+  world->player.x = 10 * TILE;
+  step(world, NULL, 6.0f);
+  CHECK(world_count_enemies(world, ENEMY_MONK) == 0);
+  world_free(world);
+}
+
 static void the_skeleton_stands_taller_than_the_monk(void) {
   world_t* world = fresh();
   spawn_monk(world, MONK_HOODED, world->player.x + 200.0f, world->player.y);
@@ -281,6 +345,11 @@ void run_monk_tests(void) {
   RUN(a_bullet_makes_the_skeleton_vanish_not_explode);
   RUN(the_vanishing_runs_through_every_frame_and_ends);
   RUN(both_kinds_turn_up_over_time);
+  RUN(the_skeleton_walks_towards_fabio_from_either_side);
+  RUN(the_skeleton_is_slower_than_a_running_fabio);
+  RUN(the_hooded_monk_never_walks_even_with_fabio_in_reach);
+  RUN(a_walking_skeleton_cycles_through_his_walk_frames);
+  RUN(a_skeleton_that_walks_into_a_pit_is_gone);
   RUN(the_skeleton_stands_taller_than_the_monk);
   RUN(the_demo_bot_deals_with_a_monk_in_its_way);
 }

@@ -63,7 +63,7 @@ typedef enum {
   STRIP_READER_REMAINS,
   STRIP_MONK,
   STRIP_MONK_BOOM,
-  STRIP_SKELETON,
+  STRIP_SKELETON_WALK,
   STRIP_SKELETON_VANISH,
   STRIP_BUBBLE_MONK,
   STRIP_BUBBLE_SKELETON,
@@ -93,6 +93,8 @@ pose_t pose_book_reader_boom(float age);
 /* The monk goes up in an explosion that thins to smoke and then a little
  * debris. `age` is seconds since the hit. */
 pose_t pose_monk_boom(float age);
+/* The skeleton's walk cycle; he stands on the first frame when held up. */
+pose_t pose_skeleton(const enemy_t* skeleton);
 /* The skeleton dissolves into dust fast: a frame every 45 milliseconds. */
 pose_t pose_skeleton_vanish(float age);
 

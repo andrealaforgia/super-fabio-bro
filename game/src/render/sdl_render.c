@@ -242,7 +242,7 @@ static void draw_enemies(const frame_t* f) {
     if (e->kind == ENEMY_MONK) {
       /* Both are drawn facing right: turn them to face Fabio. */
       bool skeleton = e->variant == MONK_SKELETON;
-      draw_sprite(f, (pose_t){skeleton ? STRIP_SKELETON : STRIP_MONK, 0}, e->x, e->y,
+      draw_sprite(f, skeleton ? pose_skeleton(e) : (pose_t){STRIP_MONK, 0}, e->x, e->y,
                   skeleton ? SKELETON_SCALE : MONK_SCALE, e->facing < 0, 1.0f);
       draw_bubble(f, skeleton ? STRIP_BUBBLE_SKELETON : STRIP_BUBBLE_MONK, e, e->h + 2.0f);
     } else if (e->kind == ENEMY_BOOK_READER) {

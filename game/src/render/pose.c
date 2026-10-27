@@ -56,7 +56,7 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_READER_REMAINS] = {"reader_remains", 0},
     [STRIP_MONK] = {"monk_idle", 0},
     [STRIP_MONK_BOOM] = {"monk_boom", 15},
-    [STRIP_SKELETON] = {"skeleton_idle", 0},
+    [STRIP_SKELETON_WALK] = {"skeleton_walk", 8},
     [STRIP_SKELETON_VANISH] = {"skeleton_vanish", 11},
     [STRIP_BUBBLE_MONK] = {"bubble_monk", 0},
     [STRIP_BUBBLE_SKELETON] = {"bubble_skeleton", 0},
@@ -136,6 +136,11 @@ pose_t pose_monk_boom(float age) {
   if (age < 1.14f) return make(STRIP_MONK_BOOM, 6 + (int)((age - 0.54f) / 0.12f));
   int frame = 11 + (int)((age - 1.14f) / 0.15f);
   return make(STRIP_MONK_BOOM, frame > 14 ? 14 : frame);
+}
+
+pose_t pose_skeleton(const enemy_t* s) {
+  if (fabsf(s->vx) < 1.0f) return make(STRIP_SKELETON_WALK, 0);
+  return make(STRIP_SKELETON_WALK, (int)(s->anim_time * 7.0f));
 }
 
 pose_t pose_skeleton_vanish(float age) {

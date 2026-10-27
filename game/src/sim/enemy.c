@@ -86,6 +86,10 @@ void spawn_monk(world_t* world, monk_variant_t variant, float x, float y) {
   e->h = variant == MONK_SKELETON ? SKELETON_H : MONK_H;
   e->facing = world->player.x < x ? -1 : 1;
   e->phase_seed = rng_float(&world->rng) * 6.28f; /* his speech bobs out of step */
+  if (variant == MONK_SKELETON) { /* he walks, slowly, towards Fabio */
+    e->speed = 34.0f + rng_float(&world->rng) * 14.0f + world_progress(world) * 14.0f;
+    e->hop_cooldown = 0.5f;
+  }
 }
 
 book_reader_mood_t book_reader_mood(const enemy_t* m) {
@@ -144,7 +148,8 @@ void enemies_update(world_t* world, float dt) {
   for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
     e->anim_time += dt;
     if (e->kind == ENEMY_MONK) e->facing = p->x < e->x ? -1 : 1; /* turns to Fabio */
-    if (e->kind == ENEMY_BOOK_READER || e->kind == ENEMY_MONK)
+    if (e->kind == ENEMY_BOOK_READER ||
+        (e->kind == ENEMY_MONK && e->variant == MONK_HOODED))
       stand_in_place(world, e, dt);
     else if (is_flier(e))
       fly_towards_player(world, e, dt);
