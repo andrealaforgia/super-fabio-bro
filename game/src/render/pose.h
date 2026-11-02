@@ -71,6 +71,16 @@ typedef enum {
   STRIP_CHEF_ATTACK,
   STRIP_CHEF_BOOM,
   STRIP_BUBBLE_CHEF,
+  STRIP_GORILLA_IDLE,
+  STRIP_GORILLA_ROAR,
+  STRIP_GORILLA_BEAT,
+  STRIP_GORILLA_THROW,
+  STRIP_BANANA,
+  STRIP_DEMON_STAND,
+  STRIP_DEMON_CAST,
+  STRIP_DEMON_DEATH,
+  STRIP_FIREBALL,
+  STRIP_VEGETABLE,
   STRIP_COUNT
 } strip_id_t;
 
@@ -110,5 +120,16 @@ pose_t pose_chef(const enemy_t* chef);
 /* The chef reels from the hit, then explodes into pieces and smoke. `age` is
  * seconds since the hit. */
 pose_t pose_chef_death(float age);
+/* The gorilla standing, roaring, beating his chest (two frames, quickly back
+ * and forth) and throwing, by gorilla_act. */
+pose_t pose_gorilla(const enemy_t* gorilla);
+/* The demon shifting where he stands, then casting through his four frames. */
+pose_t pose_demon(const enemy_t* demon);
+/* The demon clutching himself and dissolving: eight frames over DEMON_DEATH_SECONDS. */
+pose_t pose_demon_death(float age);
+/* The "?" blocks all turn round together, then rest facing out, by world time. */
+#define QBLOCK_SPIN_SECONDS 1.0f
+#define QBLOCK_REST_SECONDS 0.8f
+pose_t pose_question_block(float time);
 
 #endif  // GAME_RENDER_POSE_H_

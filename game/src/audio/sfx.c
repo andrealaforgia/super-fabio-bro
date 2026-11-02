@@ -149,10 +149,26 @@ static double stomp_voice(double t, double d, rng_t* r, void* s) {
   return 0.5 * square((420.0 - 800.0 * t) * t, 0.5) * decay(t, 14.0);
 }
 
+/* Something coming up out of a block: three quick climbs on a thin pulse, each
+ * starting higher and rising an octave with a wobble, then a twinkle on top. */
 static double block_voice(double t, double d, rng_t* r, void* s) {
-  (void)d; (void)r; (void)s;
-  double f = 330.0 + 520.0 * (t > 0.08 ? 1.0 : 0.0);
-  return 0.3 * triangle(f * t) * decay(fmod(t, 0.08), 6.0);
+  (void)d; (void)r;
+  double* phase = (double*)s;
+  static const double starts[] = {392.0, 523.25, 659.25}; /* G4, C5, E5 */
+  const double climb = 0.13;
+  double f, amp;
+  if (t < 3.0 * climb) {
+    int k = (int)(t / climb);
+    double u = (t - k * climb) / climb;
+    f = starts[k] * pow(2.0, u) * (1.0 + 0.025 * sin(TAU * 28.0 * t));
+    amp = 0.55 + 0.45 * decay(u, 3.0);
+  } else {
+    double since = t - 3.0 * climb;
+    f = fmod(since, 0.08) < 0.04 ? 1567.98 : 2093.0; /* G6 and C7 in turn */
+    amp = decay(since, 7.0);
+  }
+  phase[0] += f / MIXER_RATE; /* glides stay smooth when the pitch moves */
+  return 0.3 * amp * square(phase[0], 0.25);
 }
 
 static double death_voice(double t, double d, rng_t* r, void* s) {
@@ -294,7 +310,7 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_HURT], 0.4, hurt_voice, 10);
   ok = ok && render(&clips[SFX_BUMP], 0.15, bump_voice, 11);
   ok = ok && render(&clips[SFX_STOMP], 0.2, stomp_voice, 12);
-  ok = ok && render(&clips[SFX_BLOCK], 0.3, block_voice, 13);
+  ok = ok && render(&clips[SFX_BLOCK], 0.68, block_voice, 13);
   ok = ok && render(&clips[SFX_GROAN], 1.7, zombie_voice, 14);
   ok = ok && render(&clips[SFX_DEATH], 1.2, death_voice, 15);
   ok = ok && render(&clips[SFX_WIN], 1.5, win_voice, 16);
@@ -331,7 +347,7 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_HURT: *volume = 0.9f; return SFX_HURT;
     case EVENT_BUMP: return SFX_BUMP;
     case EVENT_STOMP: return SFX_STOMP;
-    case EVENT_BLOCK_OPENS: *volume = 0.5f; return SFX_BLOCK;
+    case EVENT_BLOCK_OPENS: *volume = 0.6f; return SFX_BLOCK;
     case EVENT_GROAN: *volume = 0.6f; return SFX_GROAN;
     case EVENT_DEATH: return SFX_DEATH;
     case EVENT_WIN: return SFX_WIN;
@@ -339,6 +355,10 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_BOOK_READER_DIES: *volume = 0.9f; return SFX_BOOK_READER_BOOM;
     case EVENT_MONK_DIES: *volume = 1.0f; return SFX_BOOK_READER_BOOM;
     case EVENT_CHEF_DIES: *volume = 1.0f; return SFX_BOOK_READER_BOOM;
+    case EVENT_GORILLA_DIES: *volume = 1.0f; return SFX_ZOMBIE_BOOM;
+    case EVENT_BANANA_THROWN: *volume = 0.5f; return SFX_MELEE;
+    case EVENT_DEMON_DIES: *volume = 0.9f; return SFX_BOOK_READER_BOOM;
+    case EVENT_DEMON_CASTS: *volume = 0.6f; return SFX_SPELL;
     case EVENT_KIND_COUNT: break;
   }
   return SFX_BUMP;

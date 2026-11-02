@@ -51,13 +51,13 @@ void world_bump_block(world_t* world, int col, int row) {
 
   item_kind_t what = (item_kind_t)world->level.content[row][col];
   world->level.tiles[row][col] = TILE_USED;
-  world_emit(world, EVENT_BLOCK_OPENS, cx);
   float top = (float)(row * TILE);
   if (what == ITEM_COIN || what == ITEM_NONE) {
-    collect(world, ITEM_COIN, cx, top - 8.0f);
+    collect(world, ITEM_COIN, cx, top - 8.0f); /* the coin has its own jingle */
     world_burst(world, cx, top - 8.0f, 8, 255, 210, 40, 220.0f);
   } else {
     world_spawn_pickup(world, what, cx, top - 14.0f);
+    world_emit(world, EVENT_BLOCK_OPENS, cx); /* something comes up out of it */
   }
 }
 
@@ -87,7 +87,7 @@ void items_update(world_t* world, float dt) {
   for (pickup_t* pickup;
        (pickup = pool_next_active(&world->pickups, &pickup_cursor));) {
     pickup->age += dt;
-    float w = 24.0f, h = 24.0f;
+    float w = PICKUP_SIZE, h = PICKUP_SIZE;
     float feet = pickup->y + h * 0.5f;
     pickup->vy = fminf(pickup->vy + GRAVITY * 0.6f * dt, MAX_FALL);
     physics_move(level, &pickup->x, &feet, &pickup->vx, &pickup->vy, w, h, dt);

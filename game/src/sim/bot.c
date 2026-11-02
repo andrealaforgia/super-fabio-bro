@@ -32,7 +32,8 @@ static bool monk_ahead(const world_t* world, float reach) {
   size_t cursor = 0;
   for (const enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
     float dx = (e->x - p->x) * (float)p->facing;
-    if ((e->kind == ENEMY_MONK || e->kind == ENEMY_CHEF) && dx > 0.0f && dx < reach &&
+    if ((e->kind == ENEMY_MONK || e->kind == ENEMY_CHEF ||
+         e->kind == ENEMY_GORILLA || e->kind == ENEMY_DEMON) && dx > 0.0f && dx < reach &&
         fabsf(e->y - p->y) < 60.0f)
       return true;
   }
@@ -78,7 +79,7 @@ buttons_t bot_decide(const world_t* world, bot_t* bot, float dt) {
   bool armed = p->ammo > 0 || p->spell_time > 0.0f;
   if (armed && enemy_ahead(world, 460.0f, 70.0f)) b |= BTN_SHOOT;
   if (enemy_ahead(world, 44.0f, 70.0f)) b |= BTN_MELEE;
-  /* A monk, skeleton or chef hurts to touch, and the swing takes a moment to land. */
+  /* A monk, skeleton, chef, gorilla or demon hurts to touch, and the swing takes a moment to land. */
   if (monk_ahead(world, 110.0f)) b |= BTN_MELEE;
 
   bot->drink_wait -= dt;

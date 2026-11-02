@@ -148,6 +148,7 @@ static void monks_turn_up_ahead_of_fabio_but_never_more_than_two(void) {
   world->zombie_timer = 1e9f;
   world->bug_timer = 1e9f;
   world->book_reader_timer = 1e9f;
+  world->gorilla_timer = 1e9f;
   world->monk_timer = 2.0f;
   world->chef_timer = 1e9f;
   world->player.invulnerable = 1e9f;
@@ -227,6 +228,7 @@ static void both_kinds_turn_up_over_time(void) {
   world->zombie_timer = 1e9f;
   world->bug_timer = 1e9f;
   world->book_reader_timer = 1e9f;
+  world->gorilla_timer = 1e9f;
   world->monk_timer = 0.1f;
   world->chef_timer = 1e9f;
   world->player.invulnerable = 1e9f;

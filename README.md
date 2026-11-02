@@ -45,15 +45,32 @@ start.
 | F11 | full screen |
 
 - Hit `?` blocks from below. The first row holds the pistol and a potion.
+  They turn round every couple of seconds (frames in
+  `assets/source/question_block.png`).
 - The pistol fires bullets that explode zombies and bugs. Each pistol adds
   15 bullets, counted next to it at the top of the screen; when they run out
   the pistol is gone until you find another.
 - A potion gives 14 seconds of the TDD spell: shooting casts a piercing ray
   through everything in line, gun or no gun. A bar shows it fading.
-- Zombies walk in from both edges at regular intervals, faster as you go.
+- When the hooded monk goes up in smoke, a demon rises from it where he stood,
+  fading in as the smoke fades out (he does no harm until he is all there).
+  He stays there, turned towards Fabio, and every few seconds casts a fireball
+  straight at him while he is on screen; it costs a heart, flies past everybody
+  else and goes out against a wall. Walking into him hurts; a stomp, a bullet,
+  the TDD ray or the pickaxe makes him clutch himself and dissolve into smoke
+  (500 points). His frames are cut from `assets/source/demon.jpeg`.
+- Everyone who turns up on the ground has ground under the whole of him, never
+  half over a pit or a gap.
+- Characters arrive one at a time, about 2.3 seconds apart at the start and
+  1.4 near the castle, and none at all while six (nine near the castle) are
+  already within a screen of Fabio. The book readers, monks, chefs and gorillas
+  come at least 6 seconds apart, never more than two about at once. All of
+  this follows one setting, `SPAWN_PACE` in `game/src/sim/world.h`: 2 is twice
+  the calm base rate. Each kind waits its turn: the one that has waited longest goes next.
+- Zombies walk in from both edges, more often as you go.
   Bugs crawl or fly. Touching them costs a heart; mushrooms give one back;
   pits cost one too.
-- Every 12 to 24 seconds a Book Reader turns up ahead of you, up to three at
+- Every 10 to 18 seconds a Book Reader turns up ahead of you, up to two at
   a time, reading Fabio's book. He never moves from where he appears and is
   harmless: touching him, jumping on him or swinging the pickaxe does
   nothing. He reads for a few seconds, laughs his head off for a couple,
@@ -64,7 +81,7 @@ start.
 - Every run has its own level layout and its own look: the seed picks the
   time of day (day, sunset, dusk, dawn or overcast) and where the mountains
   and clouds start. The first few screens are always the same by design.
-- Every 18 to 32 seconds a monk or a skeleton turns up ahead of you, up to two
+- Every 13 to 20 seconds a monk or a skeleton turns up ahead of you, up to two
   at a time. The monk keeps saying "I WON'T PAIR!", the skeleton "I LOVE
   PRS!". The monk never moves: he prays while Fabio is far and holds up his cross
   as Fabio gets close. The skeleton walks slowly towards Fabio, hopping
@@ -76,12 +93,15 @@ start.
   `assets/source/monk.png` and `assets/source/retro_characters.png`. They
   always turn to face Fabio, and speak in the zombies' bubble style (made by
   `scripts/make_bubbles.py`, kept in `assets/source/bubbles.png`).
-- Now and then (the first after about 24 seconds, then every 40 to 70) a chef
+- Now and then (the first after about 12 seconds, then every 20 to 35) a chef
   turns up ahead of you on a flat stretch of grass, asking "ELEPHANT
   CARPACCIO, ANYONE?". While Fabio is far he smiles; once Fabio is within
   about 150 pixels he swings his knife, and the blade hurts Fabio from beyond
   the chef's own body. Jumping on the chef (or a bullet, the TDD ray or the
-  pickaxe) kills him: he bursts into vegetables and smoke (600 points). Book
+  pickaxe) kills him: he bursts into smoke and a shower of fifty
+  vegetables of every kind, flung every way, swelling as they fade away; they
+  hurt nobody (600 points). The vegetables are cut from
+  `assets/source/vegetables.jpeg`. Book
   readers, monks and chefs never appear on top of one another. Sprites are cut
   from `assets/source/chef_happy.jpeg` and `assets/source/chef_angry.jpeg`.
 - The level has moving planks. Over the wider pits a wooden plank swings from
@@ -93,6 +113,19 @@ start.
   monk or chef that ends up in one leaps out again, towards Fabio's side if
   it can, and up to five tiles of wall are no obstacle. Now and then one is
   sent up out of a pit ahead of Fabio.
+- Every 15 to 23 seconds a gorilla turns up ahead of you, one at a time. He
+  stands where he appears, always turned towards Fabio, and goes round and
+  round: he stands, roars, beats his chest and throws a banana. The banana
+  spins along an arc aimed roughly at Fabio (anywhere up to 90 pixels either
+  side of him, so he can often dodge it) and costs him a heart, like any hit, but
+  kills any zombie, bug or monk it hits first on the way; only the gorilla who
+  threw it is safe, and walls squash it. He throws whenever he
+  is on screen, from over his head so the banana clears a low wall in front of
+  him. Walking into him hurts like a zombie; a stomp, a
+  bullet, the TDD ray or the pickaxe knocks him out (400 points), and he
+  bursts into a shower of fifty bananas that fly every way and fade out; they
+  are innocent and hurt nobody. His frames
+  are cut from `assets/source/gorilla.jpeg`.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

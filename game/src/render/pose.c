@@ -38,7 +38,7 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_COIN] = {"coin", 0},
     [STRIP_MUSHROOM] = {"mushroom", 0},
     [STRIP_TILE_SOLID] = {"tile_solid", 0},
-    [STRIP_TILE_Q] = {"tile_q", 0},
+    [STRIP_TILE_Q] = {"tile_q", 16},
     [STRIP_TILE_BRICK] = {"tile_brick", 0},
     [STRIP_TILE_GOLD] = {"tile_gold", 0},
     [STRIP_TILE_STONE] = {"tile_stone", 0},
@@ -64,6 +64,16 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_CHEF_ATTACK] = {"chef_attack", 4},
     [STRIP_CHEF_BOOM] = {"chef_boom", 2},
     [STRIP_BUBBLE_CHEF] = {"bubble_chef", 0},
+    [STRIP_GORILLA_IDLE] = {"gorilla_idle", 0},
+    [STRIP_GORILLA_ROAR] = {"gorilla_roar", 4},
+    [STRIP_GORILLA_BEAT] = {"gorilla_beat", 2},
+    [STRIP_GORILLA_THROW] = {"gorilla_throw", 4},
+    [STRIP_BANANA] = {"banana", 0},
+    [STRIP_DEMON_STAND] = {"demon_stand", 4},
+    [STRIP_DEMON_CAST] = {"demon_cast", 4},
+    [STRIP_DEMON_DEATH] = {"demon_death", 8},
+    [STRIP_FIREBALL] = {"demon_fireball", 0},
+    [STRIP_VEGETABLE] = {"vegetable", VEGETABLE_KINDS},
 };
 
 static pose_t make(strip_id_t strip, int frame) {
@@ -170,6 +180,42 @@ pose_t pose_chef_death(float age) {
   return make(STRIP_CHEF_BOOM, age < 0.25f ? 0 : 1);
 }
 
+pose_t pose_gorilla(const enemy_t* g) {
+  float into;
+  switch (gorilla_act(g, &into)) {
+    case GORILLA_ROARING:
+      return make(STRIP_GORILLA_ROAR, (int)(into / (GORILLA_ROAR_SECONDS / 4.0f)));
+    case GORILLA_BEATING: return make(STRIP_GORILLA_BEAT, (int)(into / 0.09f) % 2);
+    case GORILLA_THROWING: {
+      int frame = (int)(into / (GORILLA_RELEASE / 3.0f));
+      return make(STRIP_GORILLA_THROW, frame > 3 ? 3 : frame);
+    }
+    case GORILLA_STANDING: break;
+  }
+  return make(STRIP_GORILLA_IDLE, 0);
+}
+
+pose_t pose_demon(const enemy_t* d) {
+  float into;
+  if (demon_casting(d, &into)) {
+    int frame = (int)(into / (DEMON_CAST_SECONDS / 4.0f));
+    return make(STRIP_DEMON_CAST, frame > 3 ? 3 : frame);
+  }
+  return make(STRIP_DEMON_STAND, (int)(into * 4.0f));
+}
+
+pose_t pose_demon_death(float age) {
+  int frame = (int)(age / (DEMON_DEATH_SECONDS / 8.0f));
+  return make(STRIP_DEMON_DEATH, frame > 7 ? 7 : frame);
+}
+
+pose_t pose_question_block(float time) {
+  /* It turns round in a second, then rests a moment facing out. */
+  float in_cycle = fmodf(time, QBLOCK_SPIN_SECONDS + QBLOCK_REST_SECONDS);
+  if (in_cycle >= QBLOCK_SPIN_SECONDS) return make(STRIP_TILE_Q, 0);
+  return make(STRIP_TILE_Q, (int)(in_cycle / QBLOCK_SPIN_SECONDS * 16.0f));
+}
+
 pose_t pose_effect(fx_kind_t kind) {
   switch (kind) {
     case FX_ZOMBIE_BOOM: return make(STRIP_FX_ZOMBIE_BOOM, 0);
@@ -184,6 +230,7 @@ pose_t pose_effect(fx_kind_t kind) {
     case FX_MONK_BOOM: return make(STRIP_MONK_BOOM, 0);
     case FX_SKELETON_VANISH: return make(STRIP_SKELETON_VANISH, 0);
     case FX_CHEF_EXPLODE: return make(STRIP_CHEF_BOOM, 0);
+    case FX_DEMON_DEATH: return make(STRIP_DEMON_DEATH, 0);
   }
   return make(STRIP_FX_SMOKE, 0);
 }

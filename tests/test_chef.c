@@ -258,7 +258,44 @@ static void the_demo_bot_deals_with_a_chef_in_its_way(void) {
   world_free(world);
 }
 
+static void a_burst_chef_flings_every_kind_of_vegetable_every_way(void) {
+  world_t* world = fresh();
+  spawn_chef(world, world->player.x + 60.0f, world->player.y);
+  spawn_zombie(world, world->player.x + 100.0f, world->player.y);
+  enemy_at(world, 1)->speed = 0.0f; /* stays in the shower */
+  world_kill_enemy(world, enemy_at(world, 0), false);
+  CHECK((int)pool_get_active_count(&world->debris) == VEGETABLE_SHOWER);
+  int kinds[VEGETABLE_KINDS] = {0}, left = 0, right = 0, up = 0, down = 0;
+  size_t cursor = 0;
+  for (const debris_t* d; (d = pool_next_active(&world->debris, &cursor));) {
+    CHECK(d->kind == DEBRIS_VEGETABLE);
+    CHECK(d->variant >= 0 && d->variant < VEGETABLE_KINDS);
+    CHECK(d->grow > 1.5f); /* they swell as they fade */
+    kinds[d->variant]++;
+    left += d->vx < 0.0f, right += d->vx > 0.0f, up += d->vy < 0.0f, down += d->vy > 0.0f;
+  }
+  for (int k = 0; k < VEGETABLE_KINDS; k++) CHECK(kinds[k] >= 3); /* all sixteen, a few of each */
+  CHECK(left > 15 && right > 15 && up > 15 && down > 15);
+  step(world, NULL, 0.3f);
+  CHECK(world->player.hp == PLAYER_HP); /* they hurt nobody */
+  CHECK(world_count_enemies(world, ENEMY_ZOMBIE) == 1);
+  step(world, NULL, 1.4f);
+  CHECK(pool_get_active_count(&world->debris) == 0); /* all faded away */
+  world_free(world);
+}
+
+static void the_chef_is_a_little_smaller_than_he_was(void) {
+  world_t* world = fresh();
+  spawn_chef(world, world->player.x + 300.0f, world->player.y);
+  CHECK_NEAR(enemy_at(world, 0)->w, 26.0f * 0.9f, 0.01f);
+  CHECK_NEAR(enemy_at(world, 0)->h, 58.0f * 0.9f, 0.01f);
+  CHECK_NEAR(CHEF_KNIFE_REACH, 72.0f * 0.9f, 0.01f);
+  world_free(world);
+}
+
 void run_chef_tests(void) {
+  RUN(a_burst_chef_flings_every_kind_of_vegetable_every_way);
+  RUN(the_chef_is_a_little_smaller_than_he_was);
   RUN(the_chef_stands_where_he_appeared_facing_fabio);
   RUN(far_from_fabio_he_smiles_and_close_to_him_he_swings_the_knife);
   RUN(the_smile_runs_through_all_its_frames_and_the_swing_through_all_its_own);

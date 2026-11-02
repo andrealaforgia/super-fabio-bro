@@ -32,23 +32,30 @@ static bool make_pools(world_t* world) {
   world->particles = create_object_pool(sizeof(particle_t), MAX_PARTICLES);
   world->bumps = create_object_pool(sizeof(bump_t), MAX_BUMPS);
   world->popups = create_object_pool(sizeof(popup_t), MAX_POPUPS);
+  world->bananas = create_object_pool(sizeof(banana_t), MAX_BANANAS);
+  world->fireballs = create_object_pool(sizeof(fireball_t), MAX_FIREBALLS);
+  world->debris = create_object_pool(sizeof(debris_t), MAX_DEBRIS);
   return world->enemies.objects && world->pickups.objects &&
          world->bullets.objects && world->rays.objects &&
          world->effects.objects && world->particles.objects &&
-         world->bumps.objects && world->popups.objects;
+         world->bumps.objects && world->popups.objects && world->bananas.objects &&
+         world->fireballs.objects && world->debris.objects;
 }
+
+#define POOL_COUNT 11
 
 static object_pool_t* pools_of(world_t* world, int index) {
   object_pool_t* all[] = {&world->enemies, &world->pickups, &world->bullets,
                           &world->rays,    &world->effects, &world->particles,
-                          &world->bumps,    &world->popups};
+                          &world->bumps,    &world->popups,  &world->bananas, &world->fireballs,
+                          &world->debris};
   return all[index];
 }
 
 void world_restart(world_t* world, uint32_t seed) {
   world_t fresh;  /* everything but the pools and the events starts from zero */
   memset(&fresh, 0, sizeof(fresh));
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < POOL_COUNT; i++) {
     *pools_of(&fresh, i) = *pools_of(world, i);
     pool_reset(pools_of(&fresh, i));
   }
@@ -61,11 +68,12 @@ void world_restart(world_t* world, uint32_t seed) {
   world->state = STATE_PLAYING;
   world->view_w = 960.0f;
   world->spawning = true;
-  world->zombie_timer = 5.0f;
-  world->bug_timer = 9.0f;
-  world->book_reader_timer = 8.0f;
-  world->monk_timer = 14.0f;
-  world->chef_timer = 24.0f;
+  world->zombie_timer = 4.0f / SPAWN_PACE;
+  world->bug_timer = 9.0f / SPAWN_PACE;
+  world->book_reader_timer = 12.0f / SPAWN_PACE;
+  world->monk_timer = 18.0f / SPAWN_PACE;
+  world->chef_timer = 24.0f / SPAWN_PACE;
+  world->gorilla_timer = 30.0f / SPAWN_PACE;
   world->camera_x = 0.0f;
   platforms_reset(world);
 }
@@ -84,7 +92,7 @@ world_t* world_new(uint32_t seed, event_system_ptr events) {
 
 void world_free(world_t* world) {
   if (!world) return;
-  for (int i = 0; i < 8; i++) pool_destroy(pools_of(world, i));
+  for (int i = 0; i < POOL_COUNT; i++) pool_destroy(pools_of(world, i));
   free(world);
 }
 

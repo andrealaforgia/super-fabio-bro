@@ -9,9 +9,13 @@
 #define BOOK_READER_SCALE 0.5f
 #define MONK_SCALE 0.26f /* his blast, from the old sheet */
 #define MONK_STAND_SCALE 1.0f /* baked into the sprites by cook_sprites.py */
-#define SKELETON_SCALE 0.1728f
+#define SKELETON_SCALE 0.15552f /* 10% smaller than 0.1728 */
 #define CHEF_SCALE 1.0f /* baked into the sprites by cook_sprites.py */
 #define CHEF_DEATH_SCALE 1.0f
+#define GORILLA_SCALE 0.48f /* his frames are cooked at half size */
+#define BANANA_SCALE 0.256f
+#define VEGETABLE_SCALE 0.45f /* at the start; they grow as they fade */
+#define DEMON_SCALE 0.4f /* his frames are cooked at half size */
 
 typedef struct {
   graphics_context_ptr gfx;
@@ -130,11 +134,15 @@ static float bump_offset(const world_t* world, int col, int row) {
   return 0.0f;
 }
 
-static void draw_tile_sprite(const frame_t* f, strip_id_t strip, float x, float y) {
-  const sprite_t* s = look_sprite(f->look, (pose_t){strip, 0});
+static void draw_tile_pose(const frame_t* f, pose_t pose, float x, float y) {
+  const sprite_t* s = look_sprite(f->look, pose);
   /* A hair larger than the tile hides seams between neighbours. */
   render_sprite(f->gfx, &s->texture, NULL,
            rect(x - f->cam_x - 0.4f, y - 0.4f, TILE + 0.8f, TILE + 0.8f), NULL);
+}
+
+static void draw_tile_sprite(const frame_t* f, strip_id_t strip, float x, float y) {
+  draw_tile_pose(f, (pose_t){strip, 0}, x, y);
 }
 
 static void draw_tiles(const frame_t* f) {
@@ -163,7 +171,7 @@ static void draw_tiles(const frame_t* f) {
         }
         case TILE_ROCK: draw_tile_sprite(f, STRIP_GROUND_ROCK, x, y); break;
         case TILE_BRICK: draw_tile_sprite(f, STRIP_TILE_BRICK, x, y); break;
-        case TILE_QBLOCK: draw_tile_sprite(f, STRIP_TILE_Q, x, y); break;
+        case TILE_QBLOCK: draw_tile_pose(f, pose_question_block(f->world->time), x, y); break;
         case TILE_USED: draw_tile_sprite(f, STRIP_TILE_SOLID, x, y); break;
         case TILE_GOLD: draw_tile_sprite(f, STRIP_TILE_GOLD, x, y); break;
         case TILE_STONE: draw_tile_sprite(f, STRIP_TILE_STONE, x, y); break;
@@ -246,9 +254,13 @@ static void draw_items(const frame_t* f) {
     strip_id_t strip = p->kind == ITEM_POTION ? STRIP_BOTTLE
                        : p->kind == ITEM_PISTOL ? STRIP_PISTOL : STRIP_MUSHROOM;
     float scale = p->kind == ITEM_POTION ? 0.3f : 0.4f;
-    if (p->kind == ITEM_POTION)
-      draw_texture_centred(f, f->look->glow, p->x, p->y, 64.0f, 64.0f, 0.7f);
-    draw_centred(f, (pose_t){strip, 0}, p->x, p->y, scale, scale, 0.0f, false, 1.0f);
+    /* Standing on the block: the bottom of the picture where its box rests. */
+    float feet = p->y + PICKUP_SIZE * 0.5f;
+    if (p->kind == ITEM_POTION) {
+      float middle = feet - (float)look_sprite(f->look, (pose_t){strip, 0})->h * scale * 0.5f;
+      draw_texture_centred(f, f->look->glow, p->x, middle, 64.0f, 64.0f, 0.7f);
+    }
+    draw_grounded(f, (pose_t){strip, 0}, p->x, feet, scale, 1.0f);
   }
 }
 
@@ -277,7 +289,13 @@ static void draw_enemies(const frame_t* f) {
   for (const enemy_t* e;
        (e = pool_next_active(&f->world->enemies, &enemy_cursor));) {
     if (e->x < f->cam_x - 120.0f || e->x > f->cam_x + f->view_w + 120.0f) continue;
-    if (e->kind == ENEMY_MONK) {
+    if (e->kind == ENEMY_DEMON) {
+      /* Drawn facing right: turned to face Fabio. */
+      draw_sprite(f, pose_demon(e), e->x, e->y, DEMON_SCALE, e->facing < 0, demon_presence(e));
+    } else if (e->kind == ENEMY_GORILLA) {
+      /* Drawn facing right: turned to face Fabio. */
+      draw_sprite(f, pose_gorilla(e), e->x, e->y, GORILLA_SCALE, e->facing < 0, 1.0f);
+    } else if (e->kind == ENEMY_MONK) {
       /* Both are drawn facing right: turn them to face Fabio. */
       bool skeleton = e->variant == MONK_SKELETON;
       draw_sprite(f, skeleton ? pose_skeleton(e) : pose_monk(e, &f->world->player), e->x, e->y,
@@ -364,6 +382,10 @@ static void draw_effects(const frame_t* f) {
   for (const effect_t* fx;
        (fx = pool_next_active(&f->world->effects, &effect_cursor));) {
     float life = fx->age / fx->duration;
+    if (fx->kind == FX_DEMON_DEATH) {
+      draw_sprite(f, pose_demon_death(fx->age), fx->x, fx->y, DEMON_SCALE, fx->facing < 0, 1.0f);
+      continue;
+    }
     if (fx->kind == FX_SKELETON_VANISH) {
       float left = fx->duration - fx->age;
       pose_t pose = pose_skeleton_vanish(fx->age);
@@ -431,6 +453,28 @@ static void draw_effects(const frame_t* f) {
        (b = pool_next_active(&f->world->bullets, &bullet_cursor));)
     draw_centred(f, (pose_t){STRIP_FX_BULLET, 0}, b->x, b->y, 0.3f, 0.3f, 0.0f,
                  b->vx < 0.0f, 1.0f);
+  /* Bananas spin end over end the way they fly. */
+  size_t banana_cursor = 0;
+  for (const banana_t* b; (b = pool_next_active(&f->world->bananas, &banana_cursor));)
+    draw_centred(f, (pose_t){STRIP_BANANA, 0}, b->x, b->y, BANANA_SCALE, BANANA_SCALE,
+                 b->age * (b->vx < 0.0f ? -900.0f : 900.0f), false, 1.0f);
+  /* The pieces of a burst gorilla or chef spin, swell and fade away. */
+  size_t debris_cursor = 0;
+  for (const debris_t* d; (d = pool_next_active(&f->world->debris, &debris_cursor));) {
+    float life = d->age / d->life;
+    bool vegetable = d->kind == DEBRIS_VEGETABLE;
+    pose_t pose = vegetable ? (pose_t){STRIP_VEGETABLE, d->variant} : (pose_t){STRIP_BANANA, 0};
+    float scale = (vegetable ? VEGETABLE_SCALE : BANANA_SCALE) * (1.0f + (d->grow - 1.0f) * life);
+    draw_centred(f, pose, d->x, d->y, scale, scale, d->age * d->spin, false, 1.0f - life);
+  }
+  /* The demon's fireballs flicker and pulse as they fly. */
+  size_t fireball_cursor = 0;
+  for (const fireball_t* b; (b = pool_next_active(&f->world->fireballs, &fireball_cursor));) {
+    float pulse = 0.4f * (1.0f + sinf(b->age * 30.0f) * 0.12f);
+    draw_texture_centred(f, f->look->glow, b->x, b->y, 40.0f, 40.0f, 0.6f);
+    draw_centred(f, (pose_t){STRIP_FIREBALL, 0}, b->x, b->y, pulse, pulse, b->age * 360.0f,
+                 b->vx < 0.0f, 1.0f);
+  }
   size_t ray_cursor = 0;
   for (const ray_t* r; (r = pool_next_active(&f->world->rays, &ray_cursor));) {
     const sprite_t* s = look_sprite(f->look, (pose_t){STRIP_FX_RAY, 0});

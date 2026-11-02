@@ -33,10 +33,16 @@ RETRO = "retro_characters.png"
 BUBBLES = "bubbles.png"
 CHEF_HAPPY = "chef_happy.jpeg"
 CHEF_ANGRY = "chef_angry.jpeg"
+GORILLA = "gorilla.jpeg"
+QBLOCK = "question_block.png"
+DEMON = "demon.jpeg"
+VEGETABLES = "vegetables.jpeg"
 
 # kind "band": every blob in the rectangle, left to right, named in order.
 # kind "one": the rectangle is one sprite.
-# bg "white", "paper", "cutout" and "sky" are keyed out ("cutout" also clears paper
+# bg "white", "paper", "cutout", "sky", "magenta" and "vivid" (pure magenta only)
+# are keyed out, "alpha" keeps
+# the sheet's own transparency ("cutout" also clears paper
 # seen through gaps in the pose, which "paper" keeps for bright blast cores), "none" keeps the rectangle opaque.
 SPEC = [
     # Fabio, base sheet
@@ -144,16 +150,89 @@ SPEC = [
     ("one", BUBBLES, "bubble_monk", (0, 0, 130, 100), "white"),
     ("one", BUBBLES, "bubble_skeleton", (130, 0, 260, 100), "white"),
     ("one", BUBBLES, "bubble_chef", (260, 0, 450, 130), "white"),
-    # The chef: two happy frames, then the angry swing, then the blast.
-    ("one", CHEF_HAPPY, "chef_happy_0", (25, 18, 305, 315), "checker", "fixed", "scale=0.29"),
-    ("one", CHEF_HAPPY, "chef_happy_1", (10, 355, 268, 652), "checker", "fixed", "scale=0.29"),
-    ("one", CHEF_HAPPY, "chef_boom_0", (270, 355, 545, 652), "checker", "fixed", "scale=0.29"),
-    ("one", CHEF_HAPPY, "chef_boom_1", (585, 355, 955, 652), "checker", "fixed", "scale=0.29"),
-    ("band", CHEF_ANGRY, (232, 30, 1015, 320), ["chef_attack_%d" % i for i in range(4)], "checker", "scale=0.29"),
+    # The chef: two happy frames, then the angry swing, then the blast (0.261, ten
+    # per cent under the 0.29 he was first cut at).
+    ("one", CHEF_HAPPY, "chef_happy_0", (25, 18, 305, 315), "checker", "fixed", "scale=0.261"),
+    ("one", CHEF_HAPPY, "chef_happy_1", (10, 355, 268, 652), "checker", "fixed", "scale=0.261"),
+    ("one", CHEF_HAPPY, "chef_boom_0", (270, 355, 545, 652), "checker", "fixed", "scale=0.261"),
+    ("one", CHEF_HAPPY, "chef_boom_1", (585, 355, 955, 652), "checker", "fixed", "scale=0.261"),
+    ("band", CHEF_ANGRY, (232, 30, 1015, 320), ["chef_attack_%d" % i for i in range(4)], "checker", "scale=0.261"),
 
+    # The gorilla, facing right: standing, roaring, beating his chest and throwing
+    # a banana; and the banana itself. Every frame is the same 400-pixel band of its
+    # cell down to his feet, kept whole and anchored at its middle ("centre"), so he
+    # stays put from frame to frame. They are drawn small, so they are cooked at half
+    # size ("half").
+    ("one", GORILLA, "gorilla_idle", (64, 24, 464, 399), "magenta", "fixed", "centre", "half"),
+    ("one", GORILLA, "gorilla_roar_0", (64, 453, 464, 835), "magenta", "fixed", "centre", "half"),
+    ("one", GORILLA, "gorilla_roar_1", (574, 453, 974, 835), "magenta", "fixed", "centre", "half"),
+    ("one", GORILLA, "gorilla_roar_2", (1084, 453, 1484, 835), "magenta", "fixed", "centre", "half"),
+    ("one", GORILLA, "gorilla_roar_3", (1595, 453, 1995, 835), "magenta", "fixed", "centre", "half"),
+    ("one", GORILLA, "gorilla_beat_0", (64, 883, 464, 1263), "magenta", "fixed", "centre", "half"),
+    ("one", GORILLA, "gorilla_beat_1", (1595, 883, 1995, 1263), "magenta", "fixed", "centre", "half"),
+    ("one", GORILLA, "gorilla_throw_0", (64, 1313, 464, 1736), "magenta", "fixed", "centre", "half"),
+    ("one", GORILLA, "gorilla_throw_1", (574, 1313, 974, 1736), "magenta", "fixed", "centre", "half"),
+    ("one", GORILLA, "gorilla_throw_2", (1084, 1313, 1484, 1736), "magenta", "fixed", "centre", "half"),
+    ("one", GORILLA, "gorilla_throw_3", (1595, 1313, 1995, 1736), "magenta", "fixed", "centre", "half"),
+    ("one", GORILLA, "banana", (24, 1779, 321, 2023), "magenta"),
+    # The demon who rises from the monk, facing right: standing, casting a fireball,
+    # dying and dissolving; and the fireball. Frames are whole cells down to his
+    # feet, anchored at their middle and cooked at half size, like the gorilla's.
+    ("one", DEMON, "demon_stand_0", (21, 21, 495, 403), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_stand_1", (531, 21, 1005, 403), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_stand_2", (1041, 21, 1515, 403), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_stand_3", (1552, 21, 2026, 403), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_cast_0", (21, 450, 495, 841), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_cast_1", (531, 450, 1005, 841), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_cast_2", (1041, 450, 1515, 841), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_cast_3", (1552, 450, 2026, 841), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_death_0", (21, 880, 495, 1274), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_death_1", (531, 880, 1005, 1274), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_death_2", (1041, 880, 1515, 1274), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_death_3", (1552, 880, 2026, 1274), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_death_4", (21, 1310, 495, 1740), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_death_5", (531, 1310, 1005, 1740), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_death_6", (1041, 1310, 1515, 1740), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_death_7", (1552, 1310, 2026, 1740), "magenta", "fixed", "centre", "half"),
+    ("one", DEMON, "demon_fireball", (930, 640, 1000, 705), "magenta"),
+    # The chef's vegetables, flung out when he bursts: carrots, potatoes, onions,
+    # broccoli, tomatoes, peppers and slices, one per cell, read left to right.
+    ("one", VEGETABLES, "vegetable_0", (67, 65, 491, 489), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_1", (563, 65, 987, 489), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_2", (1060, 65, 1484, 489), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_3", (1556, 65, 1980, 489), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_4", (67, 562, 491, 986), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_5", (563, 562, 987, 986), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_6", (1060, 562, 1484, 986), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_7", (1556, 562, 1980, 986), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_8", (67, 1060, 491, 1484), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_9", (563, 1060, 987, 1484), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_10", (1060, 1060, 1484, 1484), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_11", (1556, 1060, 1980, 1484), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_12", (67, 1559, 491, 1983), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_13", (563, 1559, 987, 1983), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_14", (1060, 1559, 1484, 1983), "vivid", "scale=0.15"),
+    ("one", VEGETABLES, "vegetable_15", (1556, 1559, 1980, 1983), "vivid", "scale=0.15"),
+    # The "?" block turning round: the yellow column, sixteen frames, each kept a
+    # whole 32-pixel square so the narrow ones are not stretched.
+    ("one", QBLOCK, "tile_q_0", (0, 0, 32, 32), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_1", (0, 32, 32, 64), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_2", (0, 64, 32, 96), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_3", (0, 96, 32, 128), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_4", (0, 128, 32, 160), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_5", (0, 160, 32, 192), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_6", (0, 192, 32, 224), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_7", (0, 224, 32, 256), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_8", (0, 256, 32, 288), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_9", (0, 288, 32, 320), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_10", (0, 320, 32, 352), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_11", (0, 352, 32, 384), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_12", (0, 384, 32, 416), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_13", (0, 416, 32, 448), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_14", (0, 448, 32, 480), "alpha", "fixed"),
+    ("one", QBLOCK, "tile_q_15", (0, 480, 32, 512), "alpha", "fixed"),
     # The world
     ("one", WORLD, "tile_solid", (0, 212, 42, 255), "none"),
-    ("one", WORLD, "tile_q", (43, 212, 85, 255), "none"),
     ("one", WORLD, "tile_brick", (0, 470, 42, 512), "none"),
     ("one", WORLD, "tile_gold", (385, 300, 426, 341), "none"),
     ("one", WORLD, "tile_stone", (0, 664, 42, 706), "none"),
@@ -182,13 +261,17 @@ def is_background(pixel, bg):
         return max(r, g, b) - min(r, g, b) <= 14 and 105 <= min(r, g, b) <= 225
     if bg == "sky":
         return (min(r, g, b) >= WHITE_MIN) or (b > r + 28 and b >= g - 6)
+    if bg == "magenta":  # the gorilla's backdrop; his browns and the banana have little blue
+        return r > g + 40 and b > g + 40
+    if bg == "vivid":  # pure magenta only, so a red onion's purple survives
+        return r > 200 and b > 200 and g < 90
     return False
 
 
 def key_background(image, bg):
     """Returns the image as RGBA with the connected background transparent."""
     rgba = image.convert("RGBA")
-    if bg == "none":
+    if bg in ("none", "alpha"):
         return rgba
     width, height = rgba.size
     pixels = rgba.load()
@@ -214,6 +297,8 @@ def key_background(image, bg):
                 pixels[x, y] = (0, 0, 0, 0)
             elif bg == "cutout" and min(pixels[x, y][:3]) >= PAPER_MIN:
                 pixels[x, y] = (0, 0, 0, 0)  # paper showing through a gap in the pose
+            elif bg == "vivid" and is_background(pixels[x, y][:3], bg):
+                pixels[x, y] = (0, 0, 0, 0)  # backdrop showing through a gap, as between stems
     # Light fringe left by JPEG blur next to the keyed area.
     fringe = []
     for y in range(height):
@@ -223,7 +308,9 @@ def key_background(image, bg):
             r, g, b, _ = pixels[x, y]
             if bg == "checker":
                 continue
-            if min(r, g, b) < (225 if bg in ("paper", "cutout") else 150) and not (bg == "sky" and b > r + 40):
+            pinkish = bg == "vivid" and r > g + 60 and b > g + 60  # the blurred edge of the backdrop
+            if (min(r, g, b) < (225 if bg in ("paper", "cutout") else 150) and not pinkish
+                    and not (bg == "sky" and b > r + 40)):
                 continue
             for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
                 if 0 <= nx < width and 0 <= ny < height and seen[ny * width + nx]:
@@ -447,17 +534,17 @@ def cook(output):
     sheets = {}
     manifest = []
 
-    def emit(name, sprite):
+    def emit(name, sprite, centre=False):
         if name == "bottle":
             paint_bottle_label(sprite)
         sprite.save(output / (name + ".png"))
-        ax, ay = feet_anchor(sprite)
+        ax, ay = (sprite.width // 2, sprite.height - 1) if centre else feet_anchor(sprite)
         manifest.append("%s %s.png %d %d %d %d" % (name, name, sprite.width, sprite.height, ax, ay))
 
     for entry in SPEC:
         kind, sheet = entry[0], entry[1]
         if sheet not in sheets:
-            sheets[sheet] = Image.open(SOURCE / sheet).convert("RGB")
+            sheets[sheet] = Image.open(SOURCE / sheet).convert("RGBA" if entry[4] == "alpha" else "RGB")
         if kind == "band":
             rect, names, bg = entry[2], entry[3], entry[4]
             keyed = key_background(sheets[sheet].crop(rect), bg)
@@ -482,7 +569,9 @@ def cook(output):
             if "clean" in entry[5:]:
                 sprite = clean_edges(sprite)
             sprite = baked(sprite, entry[5:])
-            emit(name, sprite)
+            if "half" in entry[5:]:
+                sprite = sprite.resize((sprite.width // 2, sprite.height // 2), Image.LANCZOS)
+            emit(name, sprite, "centre" in entry[5:])
     (output / "manifest.txt").write_text("\n".join(manifest) + "\n")
     # The box art is the title screen.
     Image.open(SOURCE / "box_art.jpeg").convert("RGB").resize((768, 768), Image.LANCZOS).save(output / "cover.png")

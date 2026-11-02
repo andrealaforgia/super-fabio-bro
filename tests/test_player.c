@@ -132,7 +132,7 @@ static void hitting_a_question_block_from_below_releases_its_item(void) {
   buttons_t jump = held(false, false, true, false);
   step(world, &jump, 0.6f);
   CHECK(world->level.tiles[GROUND_ROW - 4][10] == TILE_USED);
-  CHECK(world_has_event(world, EVENT_BLOCK_OPENS) || world_event_count(world) > 0);
+  CHECK(world_has_event(world, EVENT_BLOCK_OPENS)); /* the sound of something coming up */
   int pickups = (int)pool_get_active_count(&world->pickups);
   CHECK(pickups == 1 || world->player.potions == 1);
   world_free(world);
@@ -147,6 +147,8 @@ static void a_coin_block_pays_out_at_once(void) {
   step(world, &jump, 0.6f);
   CHECK(world->coins == 1);
   CHECK(world->score >= 100);
+  CHECK(world_has_event(world, EVENT_COIN));
+  CHECK(!world_has_event(world, EVENT_BLOCK_OPENS)); /* just the coin's jingle */
   world_free(world);
 }
 

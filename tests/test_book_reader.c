@@ -27,6 +27,7 @@ static void the_book_reader_turns_up_by_himself_ahead_of_fabio(void) {
   world->bug_timer = 1e9f;
   world->monk_timer = 1e9f;
   world->chef_timer = 1e9f;
+  world->gorilla_timer = 1e9f;
   world->book_reader_timer = 2.0f;
   world->player.invulnerable = 1e9f;
   step(world, NULL, 1.5f);
@@ -48,12 +49,14 @@ static void they_come_often_but_never_more_than_a_few_at_once(void) {
   world->bug_timer = 1e9f;
   world->monk_timer = 1e9f;
   world->chef_timer = 1e9f;
+  world->gorilla_timer = 1e9f;
   world->book_reader_timer = 0.1f;
   world->player.invulnerable = 1e9f;
   step(world, NULL, 0.2f);
   CHECK(world_count_enemies(world, ENEMY_BOOK_READER) == 1);
-  /* The next one is due within 12 to 24 seconds. */
-  CHECK(world->book_reader_timer > 12.0f && world->book_reader_timer <= 24.5f);
+  /* The next one is due within 20 to 35 seconds at the base pace, sooner at a faster one. */
+  CHECK(world->book_reader_timer > 20.0f / SPAWN_PACE - 0.5f &&
+        world->book_reader_timer <= 35.0f / SPAWN_PACE + 0.5f);
   int most = 0;
   for (int i = 0; i < 200; i++) {
     step(world, NULL, 1.0f);

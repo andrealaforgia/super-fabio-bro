@@ -28,8 +28,34 @@ static void every_sound_effect_is_built_audible_and_short(void) {
   sfx_free(clips);
 }
 
+/* How often the wave crosses zero in [from, to) seconds: a measure of pitch. */
+static int crossings(const sample_t* clip, double from, double to) {
+  int n = 0;
+  for (int i = (int)(from * MIXER_RATE) + 1; i < (int)(to * MIXER_RATE) && i < clip->length; i++)
+    n += (clip->data[i - 1] < 0) != (clip->data[i] < 0);
+  return n;
+}
+
+static void an_item_coming_out_of_a_block_climbs_three_times_then_twinkles(void) {
+  sample_t clips[SFX_COUNT];
+  CHECK(sfx_build(clips));
+  const sample_t* block = &clips[SFX_BLOCK];
+  CHECK(block->length > MIXER_RATE / 2); /* more than a beep */
+  /* Each climb rises: higher at its end than at its start. */
+  for (int k = 0; k < 3; k++) {
+    double start = k * 0.13;
+    CHECK(crossings(block, start + 0.095, start + 0.125) > crossings(block, start + 0.005, start + 0.035));
+  }
+  /* And each starts higher than the one before. */
+  CHECK(crossings(block, 0.135, 0.165) > crossings(block, 0.005, 0.035));
+  CHECK(crossings(block, 0.265, 0.295) > crossings(block, 0.135, 0.165));
+  /* The twinkle on top is the highest of all. */
+  CHECK(crossings(block, 0.40, 0.43) > crossings(block, 0.355, 0.385));
+  sfx_free(clips);
+}
+
 static void every_game_event_has_a_sound(void) {
-  for (int kind = EVENT_JUMP; kind <= EVENT_CHEF_DIES; kind++) {
+  for (int kind = EVENT_JUMP; kind < EVENT_KIND_COUNT; kind++) {
     float volume = 0.0f;
     sfx_id_t id = sfx_for_event((event_kind_t)kind, &volume);
     CHECK(id >= 0 && id < SFX_COUNT);
@@ -103,6 +129,7 @@ void run_audio_tests(void) {
   RUN(the_spoken_lines_are_loud_and_long_enough_to_be_understood);
   RUN(every_sound_effect_is_built_audible_and_short);
   RUN(every_game_event_has_a_sound);
+  RUN(an_item_coming_out_of_a_block_climbs_three_times_then_twinkles);
   RUN(explosions_are_louder_than_the_rest_of_the_noise);
   RUN(the_mixer_plays_a_built_clip_to_the_end);
   RUN(the_music_is_audible_and_loops_without_running_away);

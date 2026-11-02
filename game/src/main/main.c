@@ -98,6 +98,11 @@ static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const opt
     size_t cursor = 0; /* the farther monk goes up in smoke */
     for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));)
       if (e->kind == ENEMY_MONK && e->x > p->x + 450.0f) world_kill_enemy(world, e, false);
+    /* The gorilla has just let go of a banana, and it spins towards Fabio. */
+    spawn_gorilla(world, p->x + 395.0f, p->y);
+    cursor = 0;
+    for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));)
+      if (e->kind == ENEMY_GORILLA) e->anim_time = GORILLA_CYCLE - GORILLA_THROW_SECONDS + 0.38f;
     for (int i = 0; i < 40; i++) world_update(world, &controls, 1.0f / 120.0f);
     render_world(gfx, look, world);
     bool ok = save_frame_bmp(gfx, o->snapshot);

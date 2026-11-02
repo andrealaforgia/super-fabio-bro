@@ -198,6 +198,7 @@ static void zombies_sometimes_jump_out_of_a_pit_ahead_of_fabio(void) {
   int from_the_pit = 0;
   for (int i = 0; i < 80; i++) {
     world->zombie_timer = 0.01f;
+    world->arrival_wait = 0.0f; /* no waiting for a turn: this is about where they come from */
     step(world, NULL, 0.02f);
     size_t cursor = 0;
     for (const enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));)

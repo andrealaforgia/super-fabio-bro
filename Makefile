@@ -50,7 +50,7 @@ $(TARGET): $(OBJ)
 	$(CC) -o $@ $^ $(LFLAGS)
 
 # Cuts the generated sprite sheets in assets/source into transparent PNGs.
-$(SPRITES): scripts/cook_sprites.py $(wildcard assets/source/*.jpeg)
+$(SPRITES): scripts/cook_sprites.py $(wildcard assets/source/*.jpeg assets/source/*.png)
 	python3 scripts/cook_sprites.py
 
 assets: $(SPRITES)

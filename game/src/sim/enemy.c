@@ -10,10 +10,14 @@
 #define BOOK_READER_H 54.0f
 #define MONK_W 29.0f
 #define MONK_H 65.0f
-#define SKELETON_W 18.0f
-#define SKELETON_H 39.0f
-#define CHEF_W 26.0f
-#define CHEF_H 58.0f
+#define SKELETON_W 16.2f
+#define SKELETON_H 35.1f
+#define CHEF_W 23.4f
+#define CHEF_H 52.2f
+#define DEMON_W 34.0f
+#define DEMON_H 60.0f
+#define GORILLA_W 55.0f
+#define GORILLA_H 77.0f
 
 static const struct {
   float w, h, speed;
@@ -141,6 +145,75 @@ static void chef_watch_fabio(enemy_t* c, const player_t* p, float dt) {
   c->phase = near ? c->phase + dt : 0.0f;
 }
 
+void spawn_gorilla(world_t* world, float x, float y) {
+  enemy_t* e = pool_acquire(&world->enemies, NULL);
+  if (!e) return;
+  *e = (enemy_t){0};
+  e->kind = ENEMY_GORILLA;
+  e->x = x;
+  e->y = y;
+  e->w = GORILLA_W;
+  e->h = GORILLA_H;
+  e->facing = world->player.x < x ? -1 : 1;
+  e->anim_time = 0.0f; /* he starts out standing */
+}
+
+gorilla_act_t gorilla_act(const enemy_t* g, float* into) {
+  float t = fmodf(g->anim_time, GORILLA_CYCLE);
+  static const float length[] = {GORILLA_STAND_SECONDS, GORILLA_ROAR_SECONDS,
+                                 GORILLA_BEAT_SECONDS, GORILLA_THROW_SECONDS};
+  int act = 0;
+  while (act < 3 && t >= length[act]) t -= length[act++];
+  if (into) *into = t;
+  return (gorilla_act_t)act;
+}
+
+/* The banana leaves his hand the moment the throw reaches GORILLA_RELEASE,
+ * whenever he is on screen: a throw is never shown without its banana. */
+static void gorilla_throws(world_t* world, enemy_t* g, float dt) {
+  float before = fmodf(g->anim_time - dt, GORILLA_CYCLE);
+  float now = fmodf(g->anim_time, GORILLA_CYCLE);
+  float release = GORILLA_CYCLE - GORILLA_THROW_SECONDS + GORILLA_RELEASE;
+  bool crossed = before < now ? (before < release && now >= release)
+                              : (before < release || now >= release);
+  const player_t* p = &world->player;
+  bool on_screen = g->x > world->camera_x && g->x < world->camera_x + world->view_w;
+  if (crossed && p->alive && on_screen) world_throw_banana(world, g);
+}
+
+void spawn_demon(world_t* world, float x, float y) {
+  enemy_t* e = pool_acquire(&world->enemies, NULL);
+  if (!e) return;
+  *e = (enemy_t){0};
+  e->kind = ENEMY_DEMON;
+  e->x = x;
+  e->y = y;
+  e->w = DEMON_W;
+  e->h = DEMON_H;
+  e->facing = world->player.x < x ? -1 : 1;
+}
+
+float demon_presence(const enemy_t* d) {
+  return clampf(d->anim_time / DEMON_FADE_SECONDS, 0.0f, 1.0f);
+}
+
+bool demon_casting(const enemy_t* d, float* into) {
+  float t = fmodf(d->anim_time, DEMON_CYCLE);
+  if (into) *into = t < DEMON_STAND_SECONDS ? t : t - DEMON_STAND_SECONDS;
+  return t >= DEMON_STAND_SECONDS;
+}
+
+/* The fireball leaves his fist DEMON_RELEASE into the cast, while he is on screen. */
+static void demon_casts(world_t* world, enemy_t* d, float dt) {
+  float release = DEMON_STAND_SECONDS + DEMON_RELEASE;
+  float before = fmodf(d->anim_time - dt, DEMON_CYCLE);
+  float now = fmodf(d->anim_time, DEMON_CYCLE);
+  bool crossed = before < now ? (before < release && now >= release)
+                              : (before < release || now >= release);
+  bool on_screen = d->x > world->camera_x && d->x < world->camera_x + world->view_w;
+  if (crossed && world->player.alive && on_screen) world_cast_fireball(world, d);
+}
+
 book_reader_mood_t book_reader_mood(const enemy_t* m) {
   float in_cycle = fmodf(m->anim_time, BOOK_READER_READ_SECONDS + BOOK_READER_LAUGH_SECONDS);
   return in_cycle < BOOK_READER_READ_SECONDS ? BOOK_READER_READING : BOOK_READER_LAUGHING;
@@ -249,15 +322,24 @@ void enemies_update(world_t* world, float dt) {
   size_t cursor = 0;
   for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
     e->anim_time += dt;
-    if (e->kind == ENEMY_MONK || e->kind == ENEMY_CHEF) e->facing = p->x < e->x ? -1 : 1; /* turns to Fabio */
+    if (e->kind == ENEMY_MONK || e->kind == ENEMY_CHEF || e->kind == ENEMY_GORILLA ||
+        e->kind == ENEMY_DEMON)
+      e->facing = p->x < e->x ? -1 : 1; /* turns to Fabio */
     if (e->kind == ENEMY_CHEF) chef_watch_fabio(e, p, dt);
-    if (e->kind == ENEMY_BOOK_READER || e->kind == ENEMY_CHEF ||
-        (e->kind == ENEMY_MONK && e->variant == MONK_HOODED))
+    if (e->kind == ENEMY_GORILLA) {
       stand_in_place(world, e, dt);
-    else if (is_flier(e))
+      gorilla_throws(world, e, dt);
+    } else if (e->kind == ENEMY_DEMON) {
+      stand_in_place(world, e, dt);
+      demon_casts(world, e, dt);
+    } else if (e->kind == ENEMY_BOOK_READER || e->kind == ENEMY_CHEF ||
+               (e->kind == ENEMY_MONK && e->variant == MONK_HOODED)) {
+      stand_in_place(world, e, dt);
+    } else if (is_flier(e)) {
       fly_towards_player(world, e, dt);
-    else
+    } else {
       walk_towards_player(world, e, dt);
+    }
     bool fell = e->y > level_height() + 120.0f;
     bool left_behind = fabsf(e->x - p->x) > 2400.0f;
     if (fell || left_behind) pool_release_object(&world->enemies, e);
@@ -298,10 +380,26 @@ static bool clear_of_pit_walkers(const world_t* world, float x) {
   return true;
 }
 
-/* A spot just off screen, on the right with probability `right_chance`. */
-static bool pick_spawn_point(world_t* world, bool ground, float right_chance,
-                             float* x, float* y) {
-  for (int attempt = 0; attempt < 6; attempt++) {
+/* Ground under the whole width of a w by h character standing at (x, y), the
+ * same surface all the way across, and room above it for his height: nobody
+ * appears with half his body over a pit or inside a wall. */
+static bool has_footing(const world_t* world, float x, float y, float w, float h) {
+  int row = (int)(y / TILE);
+  int first = (int)floorf((x - w * 0.5f) / TILE), last = (int)floorf((x + w * 0.5f) / TILE);
+  int rows_above = (int)ceilf(h / TILE);
+  for (int col = first; col <= last; col++) {
+    if (!tile_is_solid(level_tile(&world->level, col, row))) return false;
+    for (int above = 1; above <= rows_above; above++)
+      if (tile_is_solid(level_tile(&world->level, col, row - above))) return false;
+  }
+  return true;
+}
+
+/* A spot just off screen, on the right with probability `right_chance`, for a
+ * character w by h; on the ground, with footing for all of him. */
+static bool pick_spawn_point(world_t* world, bool ground, float right_chance, float w,
+                             float h, float* x, float* y) {
+  for (int attempt = 0; attempt < 12; attempt++) {
     bool right = rng_chance(&world->rng, right_chance);
     float edge = right ? world->camera_x + world->view_w + SPAWN_MARGIN
                        : world->camera_x - SPAWN_MARGIN;
@@ -314,7 +412,8 @@ static bool pick_spawn_point(world_t* world, bool ground, float right_chance,
       return true;
     }
     float surface;
-    if (ground_in_column(world, (int)(px / TILE), &surface)) {
+    if (ground_in_column(world, (int)(px / TILE), &surface) &&
+        has_footing(world, px, surface, w, h)) {
       *x = px;
       *y = surface;
       return true;
@@ -343,89 +442,169 @@ static bool pick_pit_point(world_t* world, float* x, float* y, float* exit_x) {
   return false;
 }
 
+/* Each kind's arrival: it tries to bring one in. On success it sets when that
+ * kind is next due and returns true; when there is no room or no spot it tries
+ * again in a moment. */
+static bool zombie_arrives(world_t* world, float progress) {
+  int limit = 3 + (int)(progress * 3.0f);
+  float x, y, exit_x;
+  if (world_count_enemies(world, ENEMY_ZOMBIE) < limit &&
+      ((rng_chance(&world->rng, PIT_AMBUSH_CHANCE) && pick_pit_point(world, &x, &y, &exit_x)) ||
+       pick_spawn_point(world, true, 0.72f, ZOMBIE_W, ZOMBIE_H, &x, &y))) {
+    spawn_zombie(world, x, y);
+    world->zombie_timer = (lerpf(6.0f, 3.5f, progress) + rng_float(&world->rng) * 2.0f) / SPAWN_PACE;
+    return true;
+  }
+  world->zombie_timer = 0.4f;
+  return false;
+}
+
+static bool bug_arrives(world_t* world, float progress) {
+  int limit = 2 + (int)(progress * 2.0f);
+  int variant = rng_range(&world->rng, 0, BUG_VARIANTS - 1);
+  float x, y, exit_x;
+  bool from_a_pit = !kBugs[variant].flies && rng_chance(&world->rng, PIT_AMBUSH_CHANCE) &&
+                    pick_pit_point(world, &x, &y, &exit_x);
+  if (world_count_enemies(world, ENEMY_BUG) < limit &&
+      (from_a_pit || pick_spawn_point(world, !kBugs[variant].flies, 0.72f, kBugs[variant].w,
+                                         kBugs[variant].h, &x, &y))) {
+    spawn_bug(world, variant, x, y);
+    world->bug_timer = (lerpf(9.0f, 5.0f, progress) + rng_float(&world->rng) * 3.0f) / SPAWN_PACE;
+    return true;
+  }
+  world->bug_timer = 0.5f;
+  return false;
+}
+
+static bool monk_arrives(world_t* world, float progress) {
+  (void)progress;
+  float x, y, exit_x;
+  monk_variant_t variant = (monk_variant_t)rng_range(&world->rng, 0, MONK_VARIANTS - 1);
+  bool from_a_pit = rng_chance(&world->rng, PIT_AMBUSH_CHANCE) && pick_pit_point(world, &x, &y, &exit_x) &&
+                    (variant == MONK_SKELETON || clear_of_characters(world, exit_x));
+  if (world_count_enemies(world, ENEMY_MONK) < MONK_MAX &&
+      (from_a_pit || (pick_spawn_point(world, true, 1.0f, variant == MONK_SKELETON ? SKELETON_W : MONK_W,
+                                        variant == MONK_SKELETON ? SKELETON_H : MONK_H, &x, &y) &&
+                       clear_of_characters(world, x)))) {
+    spawn_monk(world, variant, x, y);
+    world->monk_timer = (25.0f + rng_float(&world->rng) * 15.0f) / SPAWN_PACE;
+    return true;
+  }
+  world->monk_timer = 1.0f;
+  return false;
+}
+
+static bool chef_arrives(world_t* world, float progress) {
+  (void)progress;
+  float x = 0.0f, y = 0.0f;
+  float exit_x = 0.0f;
+  bool found = false;
+  for (int attempt = 0; attempt < 16 && !found; attempt++)
+    found = pick_spawn_point(world, true, 1.0f, CHEF_W, CHEF_H, &x, &y) && chef_has_room(world, x, y) &&
+            clear_of_characters(world, x);
+  if (!found && rng_chance(&world->rng, PIT_AMBUSH_CHANCE))
+    found = pick_pit_point(world, &x, &y, &exit_x) &&
+            chef_has_room(world, exit_x, (float)(GROUND_ROW * TILE)) &&
+            clear_of_characters(world, exit_x);
+  if (world_count_enemies(world, ENEMY_CHEF) < CHEF_MAX && found) {
+    spawn_chef(world, x, y);
+    world->chef_timer = (40.0f + rng_float(&world->rng) * 30.0f) / SPAWN_PACE;
+    return true;
+  }
+  world->chef_timer = 1.0f;
+  return false;
+}
+
+static bool gorilla_arrives(world_t* world, float progress) {
+  (void)progress;
+  float x, y;
+  if (world_count_enemies(world, ENEMY_GORILLA) < GORILLA_MAX &&
+      pick_spawn_point(world, true, 1.0f, GORILLA_W, GORILLA_H, &x, &y) &&
+      clear_of_characters(world, x)) {
+    spawn_gorilla(world, x, y);
+    world->gorilla_timer = (30.0f + rng_float(&world->rng) * 15.0f) / SPAWN_PACE;
+    return true;
+  }
+  world->gorilla_timer = 1.0f;
+  return false;
+}
+
+static bool book_reader_arrives(world_t* world, float progress) {
+  (void)progress;
+  float x, y, exit_x;
+  bool from_a_pit = rng_chance(&world->rng, PIT_AMBUSH_CHANCE) &&
+                    pick_pit_point(world, &x, &y, &exit_x) && clear_of_characters(world, exit_x);
+  if (world_count_enemies(world, ENEMY_BOOK_READER) < BOOK_READER_MAX &&
+      (from_a_pit || (pick_spawn_point(world, true, 1.0f, BOOK_READER_W, BOOK_READER_H, &x, &y) &&
+                       clear_of_characters(world, x)))) {
+    spawn_book_reader(world, x, y);
+    world->book_reader_timer = (20.0f + rng_float(&world->rng) * 15.0f) / SPAWN_PACE;
+    return true;
+  }
+  world->book_reader_timer = 1.0f;
+  return false;
+}
+
+static bool is_special(enemy_kind_t kind) {
+  return kind != ENEMY_ZOMBIE && kind != ENEMY_BUG;
+}
+
+/* Everybody within a screen of Fabio, either side; `specials` counts the book
+ * readers, monks, chefs and gorillas among them. */
+static int crowd_around_fabio(const world_t* world, int* specials) {
+  int count = 0;
+  *specials = 0;
+  size_t cursor = 0;
+  for (const enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
+    if (fabsf(e->x - world->player.x) > world->view_w) continue;
+    count++;
+    *specials += is_special(e->kind);
+  }
+  return count;
+}
+
+int world_crowd_limit(const world_t* world) {
+  return (int)lerpf((float)CROWD_START, (float)CROWD_END + 0.99f, world_progress(world));
+}
+
+/* One director for every kind. Each kind's timer says when it is next due;
+ * arrivals come one at a time, ARRIVAL_GAP apart, only while the crowd round
+ * Fabio is under its limit, and the book readers, monks, chefs and gorillas
+ * SPECIAL_GAP apart and no more than SPECIALS_MAX about. Of the kinds that are
+ * due, the one that has waited longest goes first. */
 void spawner_update(world_t* world, float dt) {
   if (!world->spawning) return;
+  struct {
+    float* timer;
+    bool (*arrive)(world_t*, float);
+    bool special;
+  } kinds[] = {
+      {&world->zombie_timer, zombie_arrives, false},
+      {&world->bug_timer, bug_arrives, false},
+      {&world->book_reader_timer, book_reader_arrives, true},
+      {&world->monk_timer, monk_arrives, true},
+      {&world->chef_timer, chef_arrives, true},
+      {&world->gorilla_timer, gorilla_arrives, true},
+  };
+  const int count = (int)(sizeof(kinds) / sizeof(kinds[0]));
+  for (int i = 0; i < count; i++) *kinds[i].timer -= dt;
+  world->arrival_wait -= dt;
+  world->special_wait -= dt;
+  if (world->arrival_wait > 0.0f) return;
+
+  int specials;
+  if (crowd_around_fabio(world, &specials) >= world_crowd_limit(world)) return;
+  bool special_allowed = world->special_wait <= 0.0f && specials < SPECIALS_MAX;
+  int next = -1;
+  for (int i = 0; i < count; i++) {
+    if (*kinds[i].timer > 0.0f || (kinds[i].special && !special_allowed)) continue;
+    if (next < 0 || *kinds[i].timer < *kinds[next].timer) next = i;
+  }
+  if (next < 0) return;
+
   float progress = world_progress(world);
-  world->zombie_timer -= dt;
-  world->bug_timer -= dt;
-
-  if (world->zombie_timer <= 0.0f) {
-    int limit = 5 + (int)(progress * 6.0f);
-    float x, y, exit_x;
-    if (world_count_enemies(world, ENEMY_ZOMBIE) < limit &&
-        ((rng_chance(&world->rng, PIT_AMBUSH_CHANCE) && pick_pit_point(world, &x, &y, &exit_x)) ||
-         pick_spawn_point(world, true, 0.72f, &x, &y))) {
-      spawn_zombie(world, x, y);
-      world->zombie_timer = lerpf(4.2f, 1.7f, progress) +
-                            rng_float(&world->rng) * 1.2f;
-    } else {
-      world->zombie_timer = 0.4f;
-    }
-  }
-
-  world->monk_timer -= dt;
-  if (world->monk_timer <= 0.0f) {
-    float x, y, exit_x;
-    monk_variant_t variant = (monk_variant_t)rng_range(&world->rng, 0, MONK_VARIANTS - 1);
-    bool from_a_pit = rng_chance(&world->rng, PIT_AMBUSH_CHANCE) && pick_pit_point(world, &x, &y, &exit_x) &&
-                      (variant == MONK_SKELETON || clear_of_characters(world, exit_x));
-    if (world_count_enemies(world, ENEMY_MONK) < MONK_MAX &&
-        (from_a_pit || (pick_spawn_point(world, true, 1.0f, &x, &y) && clear_of_characters(world, x)))) {
-      spawn_monk(world, variant, x, y);
-      world->monk_timer = 18.0f + rng_float(&world->rng) * 14.0f;
-    } else {
-      world->monk_timer = 1.0f;
-    }
-  }
-
-  world->chef_timer -= dt;
-  if (world->chef_timer <= 0.0f) {
-    float x = 0.0f, y = 0.0f;
-    float exit_x = 0.0f;
-    bool found = false;
-    for (int attempt = 0; attempt < 16 && !found; attempt++)
-      found = pick_spawn_point(world, true, 1.0f, &x, &y) && chef_has_room(world, x, y) &&
-              clear_of_characters(world, x);
-    if (!found && rng_chance(&world->rng, PIT_AMBUSH_CHANCE))
-      found = pick_pit_point(world, &x, &y, &exit_x) &&
-              chef_has_room(world, exit_x, (float)(GROUND_ROW * TILE)) &&
-              clear_of_characters(world, exit_x);
-    if (world_count_enemies(world, ENEMY_CHEF) < CHEF_MAX && found) {
-      spawn_chef(world, x, y);
-      world->chef_timer = 40.0f + rng_float(&world->rng) * 30.0f;
-    } else {
-      world->chef_timer = 1.0f;
-    }
-  }
-
-  world->book_reader_timer -= dt;
-  if (world->book_reader_timer <= 0.0f) {
-    float x, y, exit_x;
-    bool from_a_pit = rng_chance(&world->rng, PIT_AMBUSH_CHANCE) &&
-                      pick_pit_point(world, &x, &y, &exit_x) && clear_of_characters(world, exit_x);
-    if (world_count_enemies(world, ENEMY_BOOK_READER) < BOOK_READER_MAX &&
-        (from_a_pit || (pick_spawn_point(world, true, 1.0f, &x, &y) && clear_of_characters(world, x)))) {
-      spawn_book_reader(world, x, y);
-      world->book_reader_timer = 12.0f + rng_float(&world->rng) * 12.0f;
-    } else {
-      world->book_reader_timer = 1.0f;
-    }
-  }
-
-  if (world->bug_timer <= 0.0f) {
-    int limit = 3 + (int)(progress * 4.0f);
-    int variant = rng_range(&world->rng, 0, BUG_VARIANTS - 1);
-    float x, y;
-    float exit_x;
-    bool from_a_pit = !kBugs[variant].flies && rng_chance(&world->rng, PIT_AMBUSH_CHANCE) &&
-                      pick_pit_point(world, &x, &y, &exit_x);
-    if (world_count_enemies(world, ENEMY_BUG) < limit &&
-        (from_a_pit || pick_spawn_point(world, !kBugs[variant].flies, 0.72f, &x, &y))) {
-      spawn_bug(world, variant, x, y);
-      world->bug_timer = lerpf(6.5f, 3.2f, progress) +
-                         rng_float(&world->rng) * 2.0f;
-    } else {
-      world->bug_timer = 0.5f;
-    }
-  }
+  if (!kinds[next].arrive(world, progress)) return;
+  world->arrival_wait = lerpf(ARRIVAL_GAP_START, ARRIVAL_GAP_END, progress) +
+                        rng_float(&world->rng) * ARRIVAL_GAP_JITTER;
+  if (kinds[next].special) world->special_wait = SPECIAL_GAP;
 }

@@ -196,6 +196,21 @@ static void each_bug_and_effect_has_its_own_picture(void) {
     CHECK(pose_effect((fx_kind_t)k).strip >= STRIP_FX_MUZZLE);
 }
 
+static void question_blocks_turn_round_then_rest(void) {
+  int seen[16] = {0}, last = 0;
+  for (float t = 0.0f; t < QBLOCK_SPIN_SECONDS; t += 0.005f) {
+    pose_t pose = pose_question_block(t);
+    CHECK(pose.strip == STRIP_TILE_Q);
+    CHECK(pose.frame == last || pose.frame == last + 1); /* in order, none skipped */
+    last = pose.frame;
+    seen[pose.frame] = 1;
+  }
+  for (int i = 0; i < 16; i++) CHECK(seen[i]);
+  for (float t = QBLOCK_SPIN_SECONDS; t < QBLOCK_SPIN_SECONDS + QBLOCK_REST_SECONDS; t += 0.05f)
+    CHECK(pose_question_block(t).frame == 0);
+  CHECK(pose_question_block(QBLOCK_SPIN_SECONDS + QBLOCK_REST_SECONDS + 0.5f).frame == 8);
+}
+
 void run_sprites_tests(void) {
   RUN(the_manifest_parser_reads_lines_and_rejects_junk);
   RUN(every_sprite_the_game_draws_was_cooked);
@@ -209,4 +224,5 @@ void run_sprites_tests(void) {
   RUN(every_pose_is_a_frame_that_exists);
   RUN(zombies_shuffle_and_claw_when_close);
   RUN(each_bug_and_effect_has_its_own_picture);
+  RUN(question_blocks_turn_round_then_rest);
 }
