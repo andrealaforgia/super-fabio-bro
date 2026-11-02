@@ -149,6 +149,7 @@ static void monks_turn_up_ahead_of_fabio_but_never_more_than_two(void) {
   world->bug_timer = 1e9f;
   world->book_reader_timer = 1e9f;
   world->monk_timer = 2.0f;
+  world->chef_timer = 1e9f;
   world->player.invulnerable = 1e9f;
   step(world, NULL, 1.5f);
   CHECK(world_count_enemies(world, ENEMY_MONK) == 0);
@@ -227,6 +228,7 @@ static void both_kinds_turn_up_over_time(void) {
   world->bug_timer = 1e9f;
   world->book_reader_timer = 1e9f;
   world->monk_timer = 0.1f;
+  world->chef_timer = 1e9f;
   world->player.invulnerable = 1e9f;
   bool seen[MONK_VARIANTS] = {false};
   for (int i = 0; i < 60 * 30 * 4; i++) {
@@ -291,7 +293,7 @@ static void a_walking_skeleton_cycles_through_his_walk_frames(void) {
   world_free(world);
 }
 
-static void a_skeleton_that_walks_into_a_pit_is_gone(void) {
+static void a_skeleton_that_walks_into_a_pit_climbs_out_the_far_side(void) {
   world_t* world = fresh();
   world->player.invulnerable = 1e9f;
   for (int col = 20; col < 24; col++)
@@ -301,16 +303,34 @@ static void a_skeleton_that_walks_into_a_pit_is_gone(void) {
   enemy_at(world, 0)->speed = 90.0f;
   world->player.x = 10 * TILE;
   step(world, NULL, 6.0f);
-  CHECK(world_count_enemies(world, ENEMY_MONK) == 0);
+  CHECK(world_count_enemies(world, ENEMY_MONK) == 1);
+  CHECK(first_enemy(world)->x < 20 * TILE);
   world_free(world);
 }
 
-static void the_skeleton_stands_taller_than_the_monk(void) {
+static void the_monk_prays_from_afar_and_shows_the_cross_as_fabio_comes_close(void) {
+  world_t* world = fresh();
+  spawn_monk(world, MONK_HOODED, world->player.x + 600.0f, world->player.y);
+  const enemy_t* monk = enemy_at(world, 0);
+  CHECK(pose_monk(monk, &world->player).strip == STRIP_MONK_CROSS);
+  CHECK(pose_monk(monk, &world->player).frame == 0);
+  int last = 0;
+  for (float away = 600.0f; away > 20.0f; away -= 10.0f) {
+    world->player.x = monk->x - away;
+    int frame = pose_monk(monk, &world->player).frame;
+    CHECK(frame >= last && frame - last <= 1);
+    last = frame;
+  }
+  CHECK(last == 3);
+  world_free(world);
+}
+
+static void the_skeleton_is_no_bigger_than_the_monk(void) {
   world_t* world = fresh();
   spawn_monk(world, MONK_HOODED, world->player.x + 200.0f, world->player.y);
   spawn_monk(world, MONK_SKELETON, world->player.x + 300.0f, world->player.y);
-  CHECK(enemy_at(world, 1)->h > enemy_at(world, 0)->h + 8.0f);
-  CHECK(enemy_at(world, 1)->w > enemy_at(world, 0)->w);
+  CHECK(enemy_at(world, 1)->h <= enemy_at(world, 0)->h);
+  CHECK(enemy_at(world, 1)->w <= enemy_at(world, 0)->w);
   world_free(world);
 }
 
@@ -349,7 +369,8 @@ void run_monk_tests(void) {
   RUN(the_skeleton_is_slower_than_a_running_fabio);
   RUN(the_hooded_monk_never_walks_even_with_fabio_in_reach);
   RUN(a_walking_skeleton_cycles_through_his_walk_frames);
-  RUN(a_skeleton_that_walks_into_a_pit_is_gone);
-  RUN(the_skeleton_stands_taller_than_the_monk);
+  RUN(a_skeleton_that_walks_into_a_pit_climbs_out_the_far_side);
+  RUN(the_monk_prays_from_afar_and_shows_the_cross_as_fabio_comes_close);
+  RUN(the_skeleton_is_no_bigger_than_the_monk);
   RUN(the_demo_bot_deals_with_a_monk_in_its_way);
 }

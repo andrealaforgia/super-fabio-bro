@@ -72,6 +72,7 @@ typedef enum {
   EVENT_HEAL,
   EVENT_BOOK_READER_DIES,
   EVENT_MONK_DIES,
+  EVENT_CHEF_DIES,
   EVENT_KIND_COUNT
 } event_kind_t;
 
@@ -99,11 +100,12 @@ typedef struct {
   float anim_time;
   float safe_x, safe_y;
   float dead_time;
+  int platform; /* the plank he stands on (an index into the level's), or -1 */
 } player_t;
 
 /* The book reader is no enemy: he reads Fabio's book, laughs and does no harm.
  * Only a shot (a bullet or the ray) sets him off. */
-typedef enum { ENEMY_ZOMBIE, ENEMY_BUG, ENEMY_BOOK_READER, ENEMY_MONK } enemy_kind_t;
+typedef enum { ENEMY_ZOMBIE, ENEMY_BUG, ENEMY_BOOK_READER, ENEMY_MONK, ENEMY_CHEF } enemy_kind_t;
 
 typedef enum {
   BUG_BEETLE,
@@ -127,6 +129,7 @@ typedef struct {
   float anim_time;
   float base_y;
   float phase_seed; /* de-synchronises the zombies' floating speech */
+  int leap;         /* -1 or 1 while climbing out of a pit that way, otherwise 0 */
 } enemy_t;
 
 typedef struct {
@@ -155,7 +158,8 @@ typedef enum {
   FX_BUG_SPLAT,
   FX_BOOK_READER_BOOM,
   FX_MONK_BOOM,
-  FX_SKELETON_VANISH
+  FX_SKELETON_VANISH,
+  FX_CHEF_EXPLODE
 } fx_kind_t;
 
 typedef struct {
@@ -180,8 +184,15 @@ typedef struct {
   int points;
 } popup_t;
 
+/* Where a plank is now and how far it moved in the last update. */
+typedef struct {
+  float x, top; /* middle of the top */
+  float dx, dy;
+} plank_t;
+
 typedef struct {
   level_t level;
+  plank_t planks[MAX_LEVEL_PLATFORMS];
   player_t player;
   /* Everything that comes and goes lives in an engine object pool. */
   object_pool_t enemies;   /* enemy_t */
@@ -202,7 +213,7 @@ typedef struct {
   float state_time;
   float camera_x;
   float view_w; /* the window's width in world units; set by the caller */
-  float zombie_timer, bug_timer, book_reader_timer, monk_timer;
+  float zombie_timer, bug_timer, book_reader_timer, monk_timer, chef_timer;
   bool spawning;
 
   int score;
@@ -211,6 +222,7 @@ typedef struct {
   int bugs_killed;
   int book_readers_killed;
   int monks_killed;
+  int chefs_killed;
 } world_t;
 
 /* A new world with its object pools, or NULL when memory runs out.
@@ -241,12 +253,31 @@ typedef struct {
 move_result_t physics_move(const level_t* level, float* x, float* y,
                            float* vx, float* vy, float w, float h, float dt);
 
+/* platforms.c */
+#define PLANK_THICKNESS 14.0f
+/* Puts every plank where it is at world->time and works out how far it moved. */
+void platforms_update(world_t* world);
+/* The same, without any movement: for a level that has just begun. */
+void platforms_reset(world_t* world);
+/* While Fabio stands on a plank it carries him along. */
+void platforms_carry(world_t* world, player_t* player);
+/* After he has moved: lands him on a plank he came down onto, or lets him go. */
+void platforms_land(world_t* world, player_t* player, float feet_before);
+
 /* player.c */
 void player_reset(player_t* player, const level_t* level);
 void player_update(world_t* world, const controls_t* controls, float dt);
 void player_hurt(world_t* world, float from_x);
 
 /* enemy.c */
+/* A walker that falls into a pit leaps out again, towards the nearer side, and
+ * every so often one is sent up out of a pit ahead of Fabio. */
+#define PIT_LEAP_LINE ((float)(GROUND_ROW * TILE) + 56.0f)
+#define PIT_LEAP_SPEED 190.0f
+#define PIT_EXIT_REACH 5     /* columns it will look for a way out */
+#define PIT_EXIT_HEIGHT 5    /* tiles of wall it can leap onto, from the ground up */
+#define PIT_AMBUSH_CHANCE 0.3f /* of a walker's arrivals: up out of a pit ahead */
+
 void enemies_update(world_t* world, float dt);
 void spawner_update(world_t* world, float dt);
 void spawn_zombie(world_t* world, float x, float y);
@@ -259,6 +290,30 @@ void spawn_book_reader(world_t* world, float x, float y);
 typedef enum { MONK_HOODED, MONK_SKELETON, MONK_VARIANTS } monk_variant_t;
 void spawn_monk(world_t* world, monk_variant_t variant, float x, float y);
 #define MONK_MAX 2
+/* The hooded monk starts to show his cross when Fabio is this close. */
+#define MONK_CROSS_RANGE 320.0f
+/* The chef offers elephant carpaccio. He stands where he appeared, smiling
+ * while Fabio is far. Once Fabio is within CHEF_ATTACK_RANGE he swings his knife, and the
+ * swing hurts for as long as the blade is out in front of him. Stomp, shoot or
+ * swing at the chef and he explodes. */
+#define CHEF_MAX 1
+/* Horizontal space kept between a new book reader, monk or chef and any other one. */
+#define CHARACTER_SPACING 130.0f
+#define CHEF_ATTACK_RANGE 150.0f
+#define CHEF_KNIFE_REACH 72.0f
+#define CHEF_SWING_FRAMES 4
+#define CHEF_SWING_FPS 9.0f
+#define CHEF_EXPLODE_SECONDS 0.6f
+/* He only appears on flat grass with this many tiles of open air above. */
+#define CHEF_HEIGHT_TILES 3
+void spawn_chef(world_t* world, float x, float y);
+/* Whether a chef at (x, y) fits on flat grass with nothing in the way above. */
+bool chef_has_room(const world_t* world, float x, float y);
+bool chef_attacking(const enemy_t* chef);
+/* The frame of the swing, 0 to CHEF_SWING_FRAMES - 1; the knife is out in front
+ * of him from the middle of the swing. */
+int chef_swing_frame(const enemy_t* chef);
+bool chef_knife_out(const enemy_t* chef);
 /* They come every 12 to 24 seconds, ahead of Fabio, and stay where they
  * appear: never more than this many at once. */
 #define BOOK_READER_MAX 3

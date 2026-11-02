@@ -66,14 +66,33 @@ start.
   and clouds start. The first few screens are always the same by design.
 - Every 18 to 32 seconds a monk or a skeleton turns up ahead of you, up to two
   at a time. The monk keeps saying "I WON'T PAIR!", the skeleton "I LOVE
-  PRS!". The monk never moves; the skeleton walks slowly towards Fabio, hopping
+  PRS!". The monk never moves: he prays while Fabio is far and holds up his cross
+  as Fabio gets close. The skeleton walks slowly towards Fabio, hopping
   blocks and falling into pits like a zombie. Walking into either hurts Fabio
   and throws him back, like a zombie, and jumping on one squashes it. A bullet, the TDD ray or the pickaxe
   also sets them off: the monk goes up in an explosion, the skeleton fades into
-  dust in half a second (300 points). Their frames are cut from
+  dust in half a second (300 points). The monk's standing frames are cut
+  from `assets/source/monk_cross.jpeg`, his blast and the skeleton from
   `assets/source/monk.png` and `assets/source/retro_characters.png`. They
   always turn to face Fabio, and speak in the zombies' bubble style (made by
   `scripts/make_bubbles.py`, kept in `assets/source/bubbles.png`).
+- Now and then (the first after about 24 seconds, then every 40 to 70) a chef
+  turns up ahead of you on a flat stretch of grass, asking "ELEPHANT
+  CARPACCIO, ANYONE?". While Fabio is far he smiles; once Fabio is within
+  about 150 pixels he swings his knife, and the blade hurts Fabio from beyond
+  the chef's own body. Jumping on the chef (or a bullet, the TDD ray or the
+  pickaxe) kills him: he bursts into vegetables and smoke (600 points). Book
+  readers, monks and chefs never appear on top of one another. Sprites are cut
+  from `assets/source/chef_happy.jpeg` and `assets/source/chef_angry.jpeg`.
+- The level has moving planks. Over the wider pits a wooden plank swings from
+  one side to the other, level with the ground, and beside some of the high
+  gold ledges a steel lift rises and falls on its cable. Fabio can jump up
+  through a plank from below, lands on it from above and is carried along
+  with it. Planks do nothing for the enemies.
+- Nothing is lost in a pit for good: a zombie, skeleton, beetle, book reader,
+  monk or chef that ends up in one leaps out again, towards Fabio's side if
+  it can, and up to five tiles of wall are no obstacle. Now and then one is
+  sent up out of a pit ahead of Fabio.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

@@ -23,6 +23,7 @@ void player_reset(player_t* p, const level_t* level) {
   p->x = level->spawn_x;
   p->y = level->spawn_y;
   p->facing = 1;
+  p->platform = -1;
   p->alive = true;
   p->hp = PLAYER_HP;
   p->safe_x = p->x;
@@ -81,6 +82,7 @@ static void fall_into_pit(world_t* world) {
   }
   p->x = p->safe_x;
   p->y = p->safe_y;
+  p->platform = -1;
   p->vx = p->vy = 0.0f;
   p->invulnerable = 2.0f;
 }
@@ -132,6 +134,7 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
     return;
   }
 
+  platforms_carry(world, p);
   p->invulnerable = fmaxf(0.0f, p->invulnerable - dt);
   p->hurt_timer = fmaxf(0.0f, p->hurt_timer - dt);
   p->gun_cooldown = fmaxf(0.0f, p->gun_cooldown - dt);
@@ -177,9 +180,11 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
 
   actions(world, controls, dt);
 
+  float feet_before = p->y;
   move_result_t moved = physics_move(level, &p->x, &p->y, &p->vx, &p->vy,
                                      PLAYER_W, PLAYER_H, dt);
   p->grounded = moved.grounded;
+  platforms_land(world, p, feet_before);
   if (moved.hit_ceiling) world_bump_block(world, moved.ceiling_col, moved.ceiling_row);
 
   if (p->grounded && fabsf(p->vx) > 8.0f)

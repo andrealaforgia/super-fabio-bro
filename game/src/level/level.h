@@ -18,6 +18,7 @@
 #define GROUND_ROW 13
 #define MAX_LEVEL_ITEMS 512
 #define MAX_LEVEL_DECOR 256
+#define MAX_LEVEL_PLATFORMS 64
 
 typedef enum {
   TILE_EMPTY = 0,
@@ -54,6 +55,21 @@ typedef struct {
   float x, y; /* middle of the base */
 } decor_t;
 
+/* Planks that carry Fabio: a slider swings left and right across a pit, a lift
+ * rises and falls beside a ledge. Each is a pure function of the time, so the
+ * level only stores where it swings about and how far. A plank is solid from
+ * above only. */
+typedef enum { PLATFORM_SLIDER, PLATFORM_LIFT } platform_kind_t;
+
+typedef struct {
+  platform_kind_t kind;
+  float x, y;    /* middle of the plank's top, in the middle of its travel */
+  float w;       /* the plank's width */
+  float range;   /* how far it swings either way from the middle */
+  float period;  /* seconds for a full swing there and back */
+  float phase;   /* radians into the swing at time zero */
+} platform_def_t;
+
 typedef struct {
   uint8_t tiles[LEVEL_ROWS][LEVEL_COLS];
   uint8_t content[LEVEL_ROWS][LEVEL_COLS]; /* item_kind_t inside a ? block */
@@ -61,6 +77,8 @@ typedef struct {
   int item_count;
   decor_t decor[MAX_LEVEL_DECOR];
   int decor_count;
+  platform_def_t platforms[MAX_LEVEL_PLATFORMS];
+  int platform_count;
   float spawn_x, spawn_y; /* middle of the feet */
   float castle_x;         /* middle of the castle */
   float goal_x;           /* reaching it wins */
@@ -72,6 +90,9 @@ tile_t level_tile(const level_t* level, int col, int row);
 bool level_solid_at(const level_t* level, float x, float y);
 float level_width(void);
 float level_height(void);
+
+/* Where the middle of the top of a plank is `time` seconds into the level. */
+void platform_position(const platform_def_t* plank, float time, float* x, float* y);
 
 void level_generate(level_t* level, uint32_t seed);
 

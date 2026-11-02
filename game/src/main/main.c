@@ -24,6 +24,7 @@
 typedef struct {
   const char* snapshot;
   float seconds;
+  float start_x;
   bool title;
   bool showcase;
   float delay;
@@ -93,6 +94,7 @@ static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const opt
     spawn_monk(world, MONK_SKELETON, p->x - 340.0f, p->y);
     spawn_monk(world, MONK_HOODED, p->x + 470.0f, p->y);
     spawn_monk(world, MONK_SKELETON, p->x + 520.0f, p->y);
+    spawn_chef(world, p->x + 560.0f, p->y); /* far: smiling and pointing */
     size_t cursor = 0; /* the farther monk goes up in smoke */
     for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));)
       if (e->kind == ENEMY_MONK && e->x > p->x + 450.0f) world_kill_enemy(world, e, false);
@@ -102,6 +104,11 @@ static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const opt
     present_frame(gfx);
     world_free(world);
     return ok ? 0 : 1;
+  }
+  if (o->start_x > 0.0f) { /* a quiet look at one stretch of the level */
+    world->spawning = false;
+    world->player.x = o->start_x;
+    world->camera_x = o->start_x - world->view_w * 0.42f;
   }
   for (float t = 0.0f; t < o->seconds; t += 1.0f / 120.0f) {
     buttons_t now = bot_decide(world, &bot, 1.0f / 120.0f);
@@ -116,13 +123,15 @@ static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const opt
 }
 
 int main(int argc, char** argv) {
-  options_t options = {NULL, 4.0f, false, false, 0.0f,
+  options_t options = {NULL, 4.0f, 0.0f, false, false, 0.0f,
                        (int)((uint32_t)time(NULL) & 0x7fffffffu), 0, 0};
   const custom_option_t custom[] = {
       {"snapshot", OPTION_STRING, &options.snapshot,
        "save a frame to this BMP file and quit"},
       {"seconds", OPTION_FLOAT, &options.seconds,
        "with --snapshot, how long a bot plays first (default 4)"},
+      {"start-x", OPTION_FLOAT, &options.start_x,
+       "with --snapshot, start Fabio here, with nothing spawning"},
       {"title", OPTION_FLAG, &options.title, "with --snapshot, the title screen"},
       {"showcase", OPTION_FLAG, &options.showcase,
        "with --snapshot, a staged fight"},

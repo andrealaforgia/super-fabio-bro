@@ -51,6 +51,7 @@ static inline world_t* new_empty_world(void) {
   memset(world->level.content, 0, sizeof(world->level.content));
   world->level.item_count = 0;
   world->level.decor_count = 0;
+  world->level.platform_count = 0;
   for (int col = 0; col < LEVEL_COLS; col++) {
     world->level.tiles[GROUND_ROW][col] = TILE_GRASS;
     for (int row = GROUND_ROW + 1; row < LEVEL_ROWS; row++)

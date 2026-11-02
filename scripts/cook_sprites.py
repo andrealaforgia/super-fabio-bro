@@ -28,8 +28,11 @@ ZOMBIE = "fabio_zombie_attack.jpeg"
 WORLD = "world_elements.jpeg"
 BOOK_READER = "book_reader.jpeg"
 MONK = "monk.png"
+MONK_CROSS = "monk_cross.jpeg"
 RETRO = "retro_characters.png"
 BUBBLES = "bubbles.png"
+CHEF_HAPPY = "chef_happy.jpeg"
+CHEF_ANGRY = "chef_angry.jpeg"
 
 # kind "band": every blob in the rectangle, left to right, named in order.
 # kind "one": the rectangle is one sprite.
@@ -111,7 +114,12 @@ SPEC = [
     # The hooded monk standing (his walk cycle, facing right) and the skeleton who
     # loves PRs, walking and vanishing. The skeleton's vanishing frames keep their whole cell ("fixed") so
     # the dust stays where it fell.
-    ("one", RETRO, "monk_idle", (10, 85, 127, 300), "cutout"),
+    # The hooded monk, from the second row of his own sheet: hands joined, then the cross
+    # comes out and is held up, and finally flashes red.
+    ("one", MONK_CROSS, "monk_cross_0", (50, 380, 250, 640), "checker", "fixed", "clean", "scale=0.2541"),
+    ("one", MONK_CROSS, "monk_cross_1", (300, 380, 500, 640), "checker", "fixed", "clean", "scale=0.2541"),
+    ("one", MONK_CROSS, "monk_cross_2", (555, 380, 775, 640), "checker", "fixed", "clean", "scale=0.2541"),
+    ("one", MONK_CROSS, "monk_cross_3", (800, 380, 1020, 640), "checker", "fixed", "clean", "scale=0.2541"),
     ("one", RETRO, "skeleton_vanish_0", (1064, 455, 1161, 692), "cutout", "fixed"),
     ("one", RETRO, "skeleton_vanish_1", (1161, 455, 1254, 692), "cutout", "fixed"),
     ("one", RETRO, "skeleton_vanish_2", (1254, 455, 1350, 692), "cutout", "fixed"),
@@ -135,6 +143,14 @@ SPEC = [
     # Their speech bubbles, made by scripts/make_bubbles.py in the zombies' style.
     ("one", BUBBLES, "bubble_monk", (0, 0, 130, 100), "white"),
     ("one", BUBBLES, "bubble_skeleton", (130, 0, 260, 100), "white"),
+    ("one", BUBBLES, "bubble_chef", (260, 0, 450, 130), "white"),
+    # The chef: two happy frames, then the angry swing, then the blast.
+    ("one", CHEF_HAPPY, "chef_happy_0", (25, 18, 305, 315), "checker", "fixed", "scale=0.29"),
+    ("one", CHEF_HAPPY, "chef_happy_1", (10, 355, 268, 652), "checker", "fixed", "scale=0.29"),
+    ("one", CHEF_HAPPY, "chef_boom_0", (270, 355, 545, 652), "checker", "fixed", "scale=0.29"),
+    ("one", CHEF_HAPPY, "chef_boom_1", (585, 355, 955, 652), "checker", "fixed", "scale=0.29"),
+    ("band", CHEF_ANGRY, (232, 30, 1015, 320), ["chef_attack_%d" % i for i in range(4)], "checker", "scale=0.29"),
+
     # The world
     ("one", WORLD, "tile_solid", (0, 212, 42, 255), "none"),
     ("one", WORLD, "tile_q", (43, 212, 85, 255), "none"),
@@ -162,6 +178,8 @@ def is_background(pixel, bg):
         return min(r, g, b) >= WHITE_MIN
     if bg in ("paper", "cutout"):  # a clean sheet: only near-white goes, so pale smoke stays
         return min(r, g, b) >= PAPER_MIN
+    if bg == "checker":  # the baked grey chequerboard: neutral, mid-light, never white or ink
+        return max(r, g, b) - min(r, g, b) <= 14 and 105 <= min(r, g, b) <= 225
     if bg == "sky":
         return (min(r, g, b) >= WHITE_MIN) or (b > r + 28 and b >= g - 6)
     return False
@@ -203,6 +221,8 @@ def key_background(image, bg):
             if seen[y * width + x]:
                 continue
             r, g, b, _ = pixels[x, y]
+            if bg == "checker":
+                continue
             if min(r, g, b) < (225 if bg in ("paper", "cutout") else 150) and not (bg == "sky" and b > r + 40):
                 continue
             for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
@@ -251,6 +271,11 @@ def tall_enough(members, cell=2, minimum=40):
     return (max(ys) - min(ys) + 1) * cell >= minimum
 
 
+def wide_enough(members, cell=2, minimum=24):
+    xs = [x for x, _ in members]
+    return (max(xs) - min(xs) + 1) * cell >= minimum
+
+
 def tight(rgba, members=None, cell=2):
     """Crops to the opaque pixels (only those of the blob when given)."""
     width, height = rgba.size
@@ -297,6 +322,87 @@ def erase_lettering(sprite, tallest=24, smallest_area=400):
     return sprite.crop(box) if box else sprite
 
 
+def clean_edges(sprite, min_area=120, thin=14):
+    """Drops slivers of the neighbouring frame left against the cell's sides
+    (small blobs touching the left or right edge), and the pale halo the
+    keying leaves around the outline."""
+    width, height = sprite.size
+    pixels = sprite.load()
+    seen = bytearray(width * height)
+    for y0 in range(height):
+        for x0 in range(width):
+            if seen[y0 * width + x0] or not pixels[x0, y0][3]:
+                continue
+            seen[y0 * width + x0] = 1
+            stack, members = [(x0, y0)], []
+            while stack:
+                x, y = stack.pop()
+                members.append((x, y))
+                for dy in (-1, 0, 1):
+                    for dx in (-1, 0, 1):
+                        nx, ny = x + dx, y + dy
+                        if (0 <= nx < width and 0 <= ny < height and not seen[ny * width + nx]
+                                and pixels[nx, ny][3]):
+                            seen[ny * width + nx] = 1
+                            stack.append((nx, ny))
+            xs = [x for x, _ in members]
+            at_side = min(xs) == 0 or max(xs) == width - 1
+            if at_side and (len(members) < min_area or max(xs) - min(xs) < thin):
+                for x, y in members:
+                    pixels[x, y] = (0, 0, 0, 0)
+    # Background trapped inside a curl of the pose: a big patch of near-white
+    # (the eyes are far smaller).
+    paler = lambda r, g, b: min(r, g, b) >= 215 and max(r, g, b) - min(r, g, b) < 30
+    seen = bytearray(width * height)
+    for y0 in range(height):
+        for x0 in range(width):
+            if seen[y0 * width + x0] or not pixels[x0, y0][3] or not paler(*pixels[x0, y0][:3]):
+                continue
+            seen[y0 * width + x0] = 1
+            stack, members = [(x0, y0)], []
+            while stack:
+                x, y = stack.pop()
+                members.append((x, y))
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if (0 <= nx < width and 0 <= ny < height and not seen[ny * width + nx]
+                            and pixels[nx, ny][3] and paler(*pixels[nx, ny][:3])):
+                        seen[ny * width + nx] = 1
+                        stack.append((nx, ny))
+            if len(members) >= 100:
+                for x, y in members:
+                    pixels[x, y] = (0, 0, 0, 0)
+    # Light, grey-ish pixels touching the transparent area are halo, not ink.
+    for _ in range(2):
+        halo = []
+        for y in range(height):
+            for x in range(width):
+                r, g, b, a = pixels[x, y]
+                if not a or max(r, g, b) - min(r, g, b) > 45 or (r + g + b) / 3 < 150:
+                    continue
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if not (0 <= nx < width and 0 <= ny < height) or not pixels[nx, ny][3]:
+                        halo.append((x, y))
+                        break
+        for x, y in halo:
+            pixels[x, y] = (0, 0, 0, 0)
+    return sprite
+
+
+def bake_scale(sprite, factor):
+    """Enlarges the sprite to the size it is drawn at, with a sharp filter and
+    hard edges, so the game draws it 1:1 instead of stretching it blurry."""
+    size = (round(sprite.width * factor), round(sprite.height * factor))
+    big = sprite.resize(size, Image.LANCZOS)
+    if factor < 1.0:
+        return big  # shrunk, so the edges stay anti-aliased
+    pixels = big.load()
+    for y in range(big.height):
+        for x in range(big.width):
+            r, g, b, a = pixels[x, y]
+            pixels[x, y] = (r, g, b, 255) if a >= 128 else (0, 0, 0, 0)
+    return big
+
+
 def feet_anchor(sprite):
     """Anchor at the bottom, x at the centre of the lowest third of the ink."""
     width, height = sprite.size
@@ -328,6 +434,14 @@ def paint_bottle_label(sprite):
               text, font=font, fill=(10, 10, 10, 255))
 
 
+def baked(sprite, options):
+    """Applies a "scale=F" option: the sprite is resized once, so the game draws it 1:1."""
+    for option in options:
+        if option.startswith("scale="):
+            return bake_scale(sprite, float(option[6:]))
+    return sprite
+
+
 def cook(output):
     output.mkdir(parents=True, exist_ok=True)
     sheets = {}
@@ -347,7 +461,7 @@ def cook(output):
         if kind == "band":
             rect, names, bg = entry[2], entry[3], entry[4]
             keyed = key_background(sheets[sheet].crop(rect), bg)
-            found = [b for b in blobs(keyed) if len(b) > 40 and tall_enough(b)]
+            found = [b for b in blobs(keyed) if len(b) > 40 and tall_enough(b) and wide_enough(b)]
             found.sort(key=lambda b: min(x for x, _ in b))
             if len(found) != len(names):
                 boxes = [(rect[0] + 2 * min(x for x, _ in b), rect[1] + 2 * min(y for _, y in b),
@@ -358,13 +472,16 @@ def cook(output):
                 sprite = tight(keyed, members)
                 if "notext" in entry[5:]:
                     sprite = erase_lettering(sprite)
-                emit(name, sprite)
+                emit(name, baked(sprite, entry[5:]))
         else:
             name, rect, bg = entry[2], entry[3], entry[4]
             keyed = key_background(sheets[sheet].crop(rect), bg)
             sprite = keyed if "fixed" in entry[5:] else tight(keyed)
             if sprite is None:
                 sys.exit("%s is empty" % name)
+            if "clean" in entry[5:]:
+                sprite = clean_edges(sprite)
+            sprite = baked(sprite, entry[5:])
             emit(name, sprite)
     (output / "manifest.txt").write_text("\n".join(manifest) + "\n")
     # The box art is the title screen.

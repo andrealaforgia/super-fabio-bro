@@ -1,5 +1,6 @@
 #include "level.h"
 
+#include <math.h>
 #include <string.h>
 
 #include "rng.h"
@@ -20,6 +21,12 @@ bool level_solid_at(const level_t* level, float x, float y) {
 
 float level_width(void) { return (float)(LEVEL_COLS * TILE); }
 float level_height(void) { return (float)(LEVEL_ROWS * TILE); }
+
+void platform_position(const platform_def_t* plank, float time, float* x, float* y) {
+  float swing = plank->range * sinf(6.2831853f * time / plank->period + plank->phase);
+  *x = plank->kind == PLATFORM_SLIDER ? plank->x + swing : plank->x;
+  *y = plank->kind == PLATFORM_LIFT ? plank->y + swing : plank->y;
+}
 
 typedef struct {
   level_t* level;
@@ -54,6 +61,14 @@ static void add_decor(generator_t* g, decor_kind_t kind, int col) {
   decor->x = (float)(col * TILE + TILE / 2);
   decor->y = (float)(GROUND_ROW * TILE);
   g->last_decor = col;
+}
+
+static void add_platform(generator_t* g, platform_kind_t kind, float x, float y, float w,
+                         float range, float period, float phase) {
+  level_t* level = g->level;
+  if (level->platform_count >= MAX_LEVEL_PLATFORMS) return;
+  level->platforms[level->platform_count++] =
+      (platform_def_t){kind, x, y, w, range, period, phase};
 }
 
 static void ground_column(generator_t* g, int col) {
@@ -161,8 +176,35 @@ static void pit(generator_t* g, int width) {
       add_item(g, ITEM_COIN, g->x + i, GROUND_ROW - 4);
     }
   }
+  if (width >= 4 && rng_chance(&g->rng, 0.85f)) {
+    /* A plank swings from one side of the pit to the other, level with the ground. */
+    float plank = 3.0f * TILE;
+    float range = ((float)width * TILE - plank) * 0.5f;
+    add_platform(g, PLATFORM_SLIDER, (float)(g->x * TILE) + (float)width * TILE * 0.5f,
+                 (float)(GROUND_ROW * TILE), plank, range, 3.0f + range / 48.0f,
+                 rng_chance(&g->rng, 0.5f) ? 0.0f : 3.1415927f);
+  }
   g->x += width;
   g->since_hazard = 0;
+}
+
+/* A gold ledge high above the ground, with a lift beside it that carries Fabio up. */
+static void lift_ledge(generator_t* g) {
+  flat(g, 3, true);
+  int left = g->x;
+  int length = rng_range(&g->rng, 4, 6);
+  for (int i = 0; i < 2 + length; i++) ground_column(g, left + i);
+  int ledge_row = GROUND_ROW - 8;
+  for (int i = 0; i < length; i++) {
+    put(g, left + 2 + i, ledge_row, TILE_GOLD);
+    add_item(g, ITEM_COIN, left + 2 + i, ledge_row - 1);
+  }
+  float bottom = (float)(GROUND_ROW * TILE) - 8.0f;
+  float top = (float)(ledge_row * TILE);
+  add_platform(g, PLATFORM_LIFT, (float)((left + 1) * TILE) - 12.0f, (bottom + top) * 0.5f, 2.0f * TILE,
+               (bottom - top) * 0.5f, 8.0f, 1.5707963f); /* it starts at the bottom */
+  g->x += 2 + length;
+  g->since_hazard += 2 + length;
 }
 
 static void stairs(generator_t* g, int steps, bool descend) {
@@ -239,7 +281,9 @@ void level_generate(level_t* level, uint32_t seed) {
     } else if (roll < 66) {
       pit(g, rng_range(&g->rng, 2, 6));
       flat(g, 6, false);
-    } else if (roll < 82) {
+    } else if (roll < 74) {
+      lift_ledge(g);
+    } else if (roll < 84) {
       pipe(g);
     } else {
       int steps = rng_range(&g->rng, 2, 4);

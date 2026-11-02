@@ -26,6 +26,7 @@ static void the_book_reader_turns_up_by_himself_ahead_of_fabio(void) {
   world->zombie_timer = 1e9f;
   world->bug_timer = 1e9f;
   world->monk_timer = 1e9f;
+  world->chef_timer = 1e9f;
   world->book_reader_timer = 2.0f;
   world->player.invulnerable = 1e9f;
   step(world, NULL, 1.5f);
@@ -46,6 +47,7 @@ static void they_come_often_but_never_more_than_a_few_at_once(void) {
   world->zombie_timer = 1e9f;
   world->bug_timer = 1e9f;
   world->monk_timer = 1e9f;
+  world->chef_timer = 1e9f;
   world->book_reader_timer = 0.1f;
   world->player.invulnerable = 1e9f;
   step(world, NULL, 0.2f);
@@ -55,6 +57,8 @@ static void they_come_often_but_never_more_than_a_few_at_once(void) {
   int most = 0;
   for (int i = 0; i < 200; i++) {
     step(world, NULL, 1.0f);
+    world->camera_x += 25.0f; /* Fabio walks on, so that there is fresh ground to appear on */
+    world->player.x += 25.0f;
     int n = world_count_enemies(world, ENEMY_BOOK_READER);
     if (n > most) most = n;
   }

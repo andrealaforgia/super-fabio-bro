@@ -52,6 +52,14 @@ void world_kill_enemy(world_t* world, enemy_t* e, bool by_spell) {
     world_award(world, 500, cx, e->y - e->h);
     world->book_readers_killed++;
     world_emit(world, EVENT_BOOK_READER_DIES, cx);
+  } else if (e->kind == ENEMY_CHEF) {
+    /* The chef bursts apart in a shower of vegetables. */
+    world_add_effect(world, FX_CHEF_EXPLODE, cx, e->y, CHEF_EXPLODE_SECONDS, e->facing);
+    world_burst(world, cx, cy, 16, 240, 240, 240, 320.0f);
+    world_burst(world, cx, cy, 8, 200, 30, 30, 260.0f);
+    world_award(world, 600, cx, e->y - e->h);
+    world->chefs_killed++;
+    world_emit(world, EVENT_CHEF_DIES, cx);
   } else if (e->kind == ENEMY_MONK) {
     if (e->variant == MONK_SKELETON) {
       /* He loves PRs, and fades away into dust. */
@@ -174,6 +182,19 @@ static frect_t inset(frect_t r, float by) {
   return out;
 }
 
+/* The chef's blade reaches out in front of him, past his own body. */
+static void chef_knives(world_t* world) {
+  player_t* p = &world->player;
+  if (!p->alive) return;
+  size_t cursor = 0;
+  for (const enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
+    if (e->kind != ENEMY_CHEF || !chef_knife_out(e)) continue;
+    float reach = (float)e->facing * CHEF_KNIFE_REACH;
+    frect_t blade = {fminf(e->x, e->x + reach), e->y - 46.0f, fabsf(reach), 34.0f};
+    if (frect_overlaps(inset(player_rect(p), 3.0f), blade)) player_hurt(world, e->x);
+  }
+}
+
 static void touch_enemies(world_t* world) {
   player_t* p = &world->player;
   if (!p->alive) return;
@@ -200,6 +221,7 @@ void combat_update(world_t* world, float dt) {
   update_bullets(world, dt);
   update_melee(world);
   touch_enemies(world);
+  chef_knives(world);
 
   size_t cursor = 0;
   for (ray_t* ray; (ray = pool_next_active(&world->rays, &cursor));) {

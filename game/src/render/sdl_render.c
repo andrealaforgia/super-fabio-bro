@@ -7,8 +7,11 @@
 #define FABIO_SCALE 0.5f
 #define ZOMBIE_SCALE 0.46f
 #define BOOK_READER_SCALE 0.5f
-#define MONK_SCALE 0.26f
-#define SKELETON_SCALE 0.30f
+#define MONK_SCALE 0.26f /* his blast, from the old sheet */
+#define MONK_STAND_SCALE 1.0f /* baked into the sprites by cook_sprites.py */
+#define SKELETON_SCALE 0.1728f
+#define CHEF_SCALE 1.0f /* baked into the sprites by cook_sprites.py */
+#define CHEF_DEATH_SCALE 1.0f
 
 typedef struct {
   graphics_context_ptr gfx;
@@ -182,6 +185,31 @@ static void draw_tiles(const frame_t* f) {
   }
 }
 
+/* The planks are drawn with plain rectangles: wood over the pits, steel for the lifts. */
+static void draw_platforms(const frame_t* f) {
+  const world_t* world = f->world;
+  for (int i = 0; i < world->level.platform_count; i++) {
+    const platform_def_t* def = &world->level.platforms[i];
+    const plank_t* plank = &world->planks[i];
+    float left = plank->x - def->w * 0.5f - f->cam_x;
+    if (left > f->view_w + 40.0f || left + def->w < -40.0f) continue;
+    float top = plank->top;
+    bool lift = def->kind == PLATFORM_LIFT;
+    if (lift) { /* it hangs from a cable that runs off the top of the screen */
+      fill_rect(f->gfx, rect(left + def->w * 0.5f - 1.0f, 0.0f, 2.0f, top), 40, 40, 48, 255);
+      fill_rect(f->gfx, rect(left + def->w * 0.5f - 6.0f, top - 10.0f, 12.0f, 10.0f), 70, 74, 86, 255);
+    }
+    uint8_t body[3] = {lift ? 96 : 122, lift ? 104 : 80, lift ? 120 : 42};
+    fill_rect(f->gfx, rect(left, top, def->w, PLANK_THICKNESS), body[0], body[1], body[2], 255);
+    fill_rect(f->gfx, rect(left, top, def->w, 3.0f), lift ? 160 : 176, lift ? 170 : 126, lift ? 188 : 68, 255);
+    fill_rect(f->gfx, rect(left, top + PLANK_THICKNESS - 3.0f, def->w, 3.0f), 52, 36, 22, 255);
+    for (float x = 8.0f; x < def->w - 4.0f; x += 16.0f)
+      fill_rect(f->gfx, rect(left + x, top + 6.0f, 3.0f, 3.0f), lift ? 190 : 70, lift ? 196 : 46, lift ? 208 : 24, 255);
+    fill_rect(f->gfx, rect(left, top, 2.0f, PLANK_THICKNESS), 40, 28, 18, 255);
+    fill_rect(f->gfx, rect(left + def->w - 2.0f, top, 2.0f, PLANK_THICKNESS), 40, 28, 18, 255);
+  }
+}
+
 static void draw_items(const frame_t* f) {
   const level_t* level = &f->world->level;
   float t = f->world->time;
@@ -226,12 +254,22 @@ static void draw_items(const frame_t* f) {
 
 /* The same floating bubble as the zombies', in step with the zombies' bob and
  * sway, with their own words in it. */
-static void draw_bubble(const frame_t* f, strip_id_t strip, const enemy_t* e, float height) {
+static void draw_bubble(const frame_t* f, strip_id_t strip, const enemy_t* e, float height,
+                        float scale) {
   float t = f->world->time * 2.6f + e->phase_seed;
   float sway = sinf(t * 0.7f) * 5.0f, bob = sinf(t) * 4.0f;
   float pulse = 1.0f + sinf(t * 2.3f) * 0.05f;
   draw_centred(f, (pose_t){strip, 0}, e->x + sway, e->y - height - 38.0f + bob,
-               0.78f * pulse, 0.78f * pulse, sinf(t * 0.9f) * 4.0f, false, 1.0f);
+               scale * pulse, scale * pulse, sinf(t * 0.9f) * 4.0f, false, 1.0f);
+}
+
+/* A sprite with its middle on `cx` and its bottom edge (less the margin the
+ * artist left) on `y`. */
+static void draw_standing(const frame_t* f, pose_t pose, float cx, float y, float scale,
+                          float sink, bool flip, float alpha) {
+  const sprite_t* sprite = look_sprite(f->look, pose);
+  draw_centred(f, pose, cx, y + sink - (float)sprite->h * scale * 0.5f, scale, scale, 0.0f, flip,
+               alpha);
 }
 
 static void draw_enemies(const frame_t* f) {
@@ -242,9 +280,13 @@ static void draw_enemies(const frame_t* f) {
     if (e->kind == ENEMY_MONK) {
       /* Both are drawn facing right: turn them to face Fabio. */
       bool skeleton = e->variant == MONK_SKELETON;
-      draw_sprite(f, skeleton ? pose_skeleton(e) : (pose_t){STRIP_MONK, 0}, e->x, e->y,
-                  skeleton ? SKELETON_SCALE : MONK_SCALE, e->facing < 0, 1.0f);
-      draw_bubble(f, skeleton ? STRIP_BUBBLE_SKELETON : STRIP_BUBBLE_MONK, e, e->h + 2.0f);
+      draw_sprite(f, skeleton ? pose_skeleton(e) : pose_monk(e, &f->world->player), e->x, e->y,
+                  skeleton ? SKELETON_SCALE : MONK_STAND_SCALE, e->facing < 0, 1.0f);
+      draw_bubble(f, skeleton ? STRIP_BUBBLE_SKELETON : STRIP_BUBBLE_MONK, e, e->h + 2.0f, 0.78f);
+    } else if (e->kind == ENEMY_CHEF) {
+      /* Drawn facing right: turned to face Fabio. */
+      draw_standing(f, pose_chef(e), e->x, e->y, CHEF_SCALE, 3.0f, e->facing < 0, 1.0f);
+      draw_bubble(f, STRIP_BUBBLE_CHEF, e, e->h + 2.0f, 0.75f);
     } else if (e->kind == ENEMY_BOOK_READER) {
       draw_sprite(f, pose_book_reader(e), e->x, e->y,
                   BOOK_READER_SCALE, e->facing < 0, 1.0f);
@@ -328,6 +370,12 @@ static void draw_effects(const frame_t* f) {
       float lift = (float)look_sprite(f->look, pose)->h * SKELETON_SCALE * 0.5f;
       draw_centred(f, pose, fx->x, fx->y - lift, SKELETON_SCALE, SKELETON_SCALE,
                    0.0f, fx->facing < 0, left < 0.12f ? left / 0.12f : 1.0f);
+      continue;
+    }
+    if (fx->kind == FX_CHEF_EXPLODE) {
+      float left = fx->duration - fx->age;
+      draw_standing(f, pose_chef_death(fx->age), fx->x, fx->y, CHEF_DEATH_SCALE, 3.0f,
+                    fx->facing < 0, left < 0.15f ? left / 0.15f : 1.0f);
       continue;
     }
     if (fx->kind == FX_MONK_BOOM) {
@@ -516,6 +564,7 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
   draw_backdrop(&f);
   draw_decor(&f);
   draw_tiles(&f);
+  draw_platforms(&f);
   draw_items(&f);
   draw_enemies(&f);
   draw_player(&f);

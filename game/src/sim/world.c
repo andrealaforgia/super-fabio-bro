@@ -65,7 +65,9 @@ void world_restart(world_t* world, uint32_t seed) {
   world->bug_timer = 9.0f;
   world->book_reader_timer = 8.0f;
   world->monk_timer = 14.0f;
+  world->chef_timer = 24.0f;
   world->camera_x = 0.0f;
+  platforms_reset(world);
 }
 
 world_t* world_new(uint32_t seed, event_system_ptr events) {
@@ -103,6 +105,7 @@ void world_update(world_t* world, const controls_t* controls, float dt) {
     return;
   }
 
+  platforms_update(world);
   player_update(world, controls, dt);
   if (world->state == STATE_PLAYING) {
     spawner_update(world, dt);

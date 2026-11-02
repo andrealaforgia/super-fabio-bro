@@ -61,12 +61,16 @@ typedef enum {
   STRIP_READER_FLASH,
   STRIP_READER_BOOM,
   STRIP_READER_REMAINS,
-  STRIP_MONK,
+  STRIP_MONK_CROSS,
   STRIP_MONK_BOOM,
   STRIP_SKELETON_WALK,
   STRIP_SKELETON_VANISH,
   STRIP_BUBBLE_MONK,
   STRIP_BUBBLE_SKELETON,
+  STRIP_CHEF_HAPPY,
+  STRIP_CHEF_ATTACK,
+  STRIP_CHEF_BOOM,
+  STRIP_BUBBLE_CHEF,
   STRIP_COUNT
 } strip_id_t;
 
@@ -83,6 +87,9 @@ typedef struct {
 } pose_t;
 
 pose_t pose_player(const player_t* player);
+/* The hooded monk prays while Fabio is far, and shows the cross, more and more
+ * boldly, as he comes close. */
+pose_t pose_monk(const enemy_t* monk, const player_t* player);
 pose_t pose_zombie(const enemy_t* zombie, const player_t* player);
 pose_t pose_bug(const enemy_t* bug);
 pose_t pose_effect(fx_kind_t kind);
@@ -97,5 +104,11 @@ pose_t pose_monk_boom(float age);
 pose_t pose_skeleton(const enemy_t* skeleton);
 /* The skeleton dissolves into dust fast: a frame every 45 milliseconds. */
 pose_t pose_skeleton_vanish(float age);
+/* The chef smiles and points while Fabio is far (his smile frames, there and
+ * back), and swings the knife once Fabio is close. */
+pose_t pose_chef(const enemy_t* chef);
+/* The chef reels from the hit, then explodes into pieces and smoke. `age` is
+ * seconds since the hit. */
+pose_t pose_chef_death(float age);
 
 #endif  // GAME_RENDER_POSE_H_

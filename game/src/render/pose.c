@@ -54,12 +54,16 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_READER_FLASH] = {"reader_flash", 0},
     [STRIP_READER_BOOM] = {"reader_boom", 0},
     [STRIP_READER_REMAINS] = {"reader_remains", 0},
-    [STRIP_MONK] = {"monk_idle", 0},
+    [STRIP_MONK_CROSS] = {"monk_cross", 4},
     [STRIP_MONK_BOOM] = {"monk_boom", 15},
     [STRIP_SKELETON_WALK] = {"skeleton_walk", 8},
     [STRIP_SKELETON_VANISH] = {"skeleton_vanish", 11},
     [STRIP_BUBBLE_MONK] = {"bubble_monk", 0},
     [STRIP_BUBBLE_SKELETON] = {"bubble_skeleton", 0},
+    [STRIP_CHEF_HAPPY] = {"chef_happy", 2},
+    [STRIP_CHEF_ATTACK] = {"chef_attack", 4},
+    [STRIP_CHEF_BOOM] = {"chef_boom", 2},
+    [STRIP_BUBBLE_CHEF] = {"bubble_chef", 0},
 };
 
 static pose_t make(strip_id_t strip, int frame) {
@@ -98,6 +102,14 @@ pose_t pose_player(const player_t* p) {
   /* The generated walk frames barely differ from one another; the run frames
    * swing arms and legs, so they carry walking too. */
   return make(STRIP_FAB_RUN, (int)p->walk_phase);
+}
+
+pose_t pose_monk(const enemy_t* m, const player_t* p) {
+  float away = fabsf(p->x - m->x);
+  if (fabsf(p->y - m->y) > 140.0f || away >= MONK_CROSS_RANGE) return make(STRIP_MONK_CROSS, 0);
+  if (away >= MONK_CROSS_RANGE * 0.7f) return make(STRIP_MONK_CROSS, 1);
+  if (away >= MONK_CROSS_RANGE * 0.45f) return make(STRIP_MONK_CROSS, 2);
+  return make(STRIP_MONK_CROSS, 3);
 }
 
 pose_t pose_zombie(const enemy_t* z, const player_t* p) {
@@ -148,6 +160,16 @@ pose_t pose_skeleton_vanish(float age) {
   return make(STRIP_SKELETON_VANISH, frame > 10 ? 10 : frame);
 }
 
+pose_t pose_chef(const enemy_t* c) {
+  if (chef_attacking(c)) return make(STRIP_CHEF_ATTACK, chef_swing_frame(c));
+  /* Two happy frames, arms up and arms down. */
+  return make(STRIP_CHEF_HAPPY, (int)(c->anim_time * 3.0f));
+}
+
+pose_t pose_chef_death(float age) {
+  return make(STRIP_CHEF_BOOM, age < 0.25f ? 0 : 1);
+}
+
 pose_t pose_effect(fx_kind_t kind) {
   switch (kind) {
     case FX_ZOMBIE_BOOM: return make(STRIP_FX_ZOMBIE_BOOM, 0);
@@ -161,6 +183,7 @@ pose_t pose_effect(fx_kind_t kind) {
     case FX_BOOK_READER_BOOM: return make(STRIP_READER_BOOM, 0);
     case FX_MONK_BOOM: return make(STRIP_MONK_BOOM, 0);
     case FX_SKELETON_VANISH: return make(STRIP_SKELETON_VANISH, 0);
+    case FX_CHEF_EXPLODE: return make(STRIP_CHEF_BOOM, 0);
   }
   return make(STRIP_FX_SMOKE, 0);
 }

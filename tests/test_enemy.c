@@ -21,6 +21,7 @@ static void zombies_appear_at_regular_intervals_off_screen(void) {
   world->bug_timer = 1000.0f;
   world->book_reader_timer = 1e9f;
   world->monk_timer = 1e9f;
+  world->chef_timer = 1e9f;
   world->player.invulnerable = 1000.0f;
   int spawned = 0;
   float last_spawn = -1.0f, shortest = 100.0f, longest = 0.0f;
@@ -75,7 +76,7 @@ static void a_zombie_hops_over_a_block_in_its_way(void) {
   world_free(world);
 }
 
-static void a_zombie_that_walks_into_a_pit_is_gone(void) {
+static void a_zombie_that_walks_into_a_pit_climbs_out_the_far_side(void) {
   world_t* world = fresh();
   world->player.invulnerable = 1000.0f;
   for (int col = 20; col < 24; col++)
@@ -85,7 +86,8 @@ static void a_zombie_that_walks_into_a_pit_is_gone(void) {
   enemy_at(world, 0)->speed = 90.0f;
   world->player.x = 10 * TILE;
   step(world, NULL, 6.0f);
-  CHECK(world_count_enemies(world, ENEMY_ZOMBIE) == 0);
+  CHECK(world_count_enemies(world, ENEMY_ZOMBIE) == 1);
+  CHECK(first_enemy(world)->x < 20 * TILE); /* out the far side, on towards Fabio */
   world_free(world);
 }
 
@@ -104,6 +106,7 @@ static void there_is_a_cap_on_how_many_zombies_chase_him(void) {
   world->bug_timer = 1e9f;
   world->book_reader_timer = 1e9f;
   world->monk_timer = 1e9f;
+  world->chef_timer = 1e9f;
   world->player.invulnerable = 1e9f;
   world->player.x = 40 * TILE;
   world->camera_x = world->player.x - 400.0f;
@@ -151,6 +154,7 @@ static void bugs_come_with_the_zombies(void) {
   world->bug_timer = 1.0f;
   world->book_reader_timer = 1e9f;
   world->monk_timer = 1e9f;
+  world->chef_timer = 1e9f;
   world->player.invulnerable = 1e9f;
   int seen = 0;
   for (int i = 0; i < 60; i++) {
@@ -165,7 +169,7 @@ void run_enemy_tests(void) {
   RUN(zombies_appear_at_regular_intervals_off_screen);
   RUN(a_zombie_walks_towards_fabio_from_either_side);
   RUN(a_zombie_hops_over_a_block_in_its_way);
-  RUN(a_zombie_that_walks_into_a_pit_is_gone);
+  RUN(a_zombie_that_walks_into_a_pit_climbs_out_the_far_side);
   RUN(zombies_far_behind_are_forgotten);
   RUN(there_is_a_cap_on_how_many_zombies_chase_him);
   RUN(a_flying_bug_closes_in_and_hovers_near_fabio);

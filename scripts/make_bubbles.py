@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draws the monk's and the skeleton's speech bubbles in the zombies' style.
+"""Draws the monk's, the skeleton's and the chef's speech bubbles in the zombies' style.
 
 It takes the zombies' "I DON'T TEST!" bubble from the generated sheet, wipes
 the lettering and sets new lettering in a bold condensed face, then writes
@@ -22,8 +22,13 @@ FONTS = [
     "/System/Library/Fonts/Supplemental/Arial Narrow Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSansCondensed-Bold.ttf",
 ]
-WORDS = [("I WON'T", "PAIR!"), ("I LOVE", "PRS!")]
-CELL = (130, 100)
+# (lines, enlargement, font size, line pitch, cell width, cell height); the chef's
+# bubble is bigger because it carries three lines.
+WORDS = [
+    (("I WON'T", "PAIR!"), 1.0, 17, 15, 130, 100),
+    (("I LOVE", "PRS!"), 1.0, 17, 15, 130, 100),
+    (("ELEPHANT", "CARPACCIO,", "ANYONE?"), 1.55, 14, 13, 190, 130),
+]
 SCALE = 4  # draw big, then shrink, for the soft edges of the zombies' lettering
 
 
@@ -47,13 +52,13 @@ def blank_bubble():
     return bubble
 
 
-def lettered(bubble, lines):
+def lettered(bubble, lines, size, pitch):
     w, h = bubble.size
     big = Image.new("RGBA", (w * SCALE, h * SCALE), (0, 0, 0, 0))
     draw = ImageDraw.Draw(big)
-    face = font(17 * SCALE)
-    pitch = 15 * SCALE
-    top = (h - 14) * SCALE / 2 - pitch + 1 * SCALE
+    face = font(size * SCALE)
+    pitch *= SCALE
+    top = (h - 14) * SCALE / 2 - pitch * len(lines) / 2 + pitch / 2 + 1 * SCALE
     for i, line in enumerate(lines):
         width = draw.textlength(line, font=face)
         draw.text(((w * SCALE - width) / 2, top + i * pitch + pitch / 2), line, font=face, fill=(20, 20, 20, 255), anchor="lm", stroke_width=SCALE // 2, stroke_fill=(20, 20, 20, 255))
@@ -64,11 +69,15 @@ def lettered(bubble, lines):
 
 
 def main():
-    sheet = Image.new("RGB", (CELL[0] * len(WORDS), CELL[1]), (255, 255, 255))
+    sheet = Image.new("RGB", (sum(word[4] for word in WORDS), max(word[5] for word in WORDS)), (255, 255, 255))
     base = blank_bubble()
-    for i, lines in enumerate(WORDS):
-        bubble = lettered(base, lines)
-        sheet.paste(bubble, (i * CELL[0] + 18, 14), bubble)
+    left = 0
+    for lines, grow, size, pitch, width, _ in WORDS:
+        blank = base if grow == 1.0 else base.resize(
+            (round(base.width * grow), round(base.height * grow)), Image.LANCZOS)
+        bubble = lettered(blank, lines, round(size), pitch)
+        sheet.paste(bubble, (left + 18, 14), bubble)
+        left += width
     sheet.save(cook.SOURCE / "bubbles.png")
     print("wrote", cook.SOURCE / "bubbles.png")
 

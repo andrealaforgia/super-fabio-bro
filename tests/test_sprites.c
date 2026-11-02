@@ -59,7 +59,7 @@ static void cooked_sprites_have_sensible_sizes_and_anchors(void) {
   manifest_entry_t entries[MANIFEST_MAX];
   int count = load_cooked(entries);
   for (int i = 0; i < count; i++) {
-    CHECK(entries[i].w >= 8 && entries[i].w <= 400);
+    CHECK(entries[i].w >= 8 && entries[i].w <= 640);
     CHECK(entries[i].h >= 8 && entries[i].h <= 400);
     CHECK(entries[i].anchor_x >= 0 && entries[i].anchor_x < entries[i].w);
     CHECK(entries[i].anchor_y == entries[i].h - 1);
