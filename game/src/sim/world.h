@@ -29,6 +29,7 @@
 #define MAX_BUMPS 8
 #define MAX_POPUPS 24
 #define MAX_BANANAS 8
+#define MAX_SKEWERS 8
 #define MAX_DEBRIS 128 /* room for a gorilla's and a chef's showers at once */
 #define BANANA_SHOWER 50
 #define MAX_FIREBALLS 8
@@ -48,6 +49,13 @@
 #define PISTOL_AMMO 15 /* bullets each pistol adds */
 #define SPELL_LENGTH 620.0f
 #define BULLET_SPEED 760.0f
+#define HELICOPTER_FUEL_SECONDS 30.0f
+#define HELICOPTER_W 84.0f /* the box he lands in, and the one he flies in */
+#define HELICOPTER_H 60.0f
+#define HELICOPTER_SPEED 264.0f /* up and down */
+#define HELICOPTER_SPEEDUP 1.1f /* his walking and running speeds, sideways, in it */
+#define HELICOPTER_CEILING 140.0f /* the highest his skids go: under the scoreboard */
+#define HELICOPTER_BOOM_SECONDS 0.9f /* seven frames */
 #define PICKUP_SIZE 24.0f /* the box a prize from a block falls and rests as */
 
 typedef enum {
@@ -82,6 +90,9 @@ typedef enum {
   EVENT_BANANA_THROWN,
   EVENT_DEMON_DIES,
   EVENT_DEMON_CASTS,
+  EVENT_HELICOPTER_BOARDS,
+  EVENT_HELICOPTER_EXPLODES,
+  EVENT_SKEWER_THROWN,
   EVENT_KIND_COUNT
 } event_kind_t;
 
@@ -110,6 +121,8 @@ typedef struct {
   float safe_x, safe_y;
   float dead_time;
   int platform; /* the plank he stands on (an index into the level's), or -1 */
+  bool flying;  /* he is in the helicopter */
+  float fuel;   /* seconds of flight left */
 } player_t;
 
 /* The book reader is no enemy: he reads Fabio's book, laughs and does no harm.
@@ -159,6 +172,24 @@ typedef struct {
   float x, y, vx, life;
 } bullet_t;
 
+/* A lamb skewer Fabio shoots from the helicopter. It leaves at SKEWER_ANGLE
+ * degrees above the horizontal and arcs under SKEWER_GRAVITY; the sprite turns
+ * with it: 45 degrees, flat at the top, then another 80, stopping 10 short of straight down. */
+#define SKEWER_SPEED 560.0f
+#define SKEWER_ANGLE 45.0f
+#define SKEWER_DIVE 80.0f
+#define SKEWER_GRAVITY 900.0f
+#define SKEWER_LIFE 1.4f
+#define SKEWER_COOLDOWN 0.28f
+#define SKEWER_SIZE 24.0f /* the box that hits */
+typedef struct {
+  float x, y, vx, vy, age;
+} skewer_t;
+
+/* Degrees above flat: 45 at the muzzle, 0 at the top of the arc, then on to
+ * -SKEWER_DIVE, 10 degrees short of straight down, by the time it falls as fast as it left. */
+float skewer_tilt(const skewer_t* skewer);
+
 /* A banana the gorilla threw: it spins along an arc and kills whoever it hits
  * first, but never the gorilla who threw it; Fabio only loses a heart. */
 typedef struct {
@@ -203,7 +234,8 @@ typedef enum {
   FX_MONK_BOOM,
   FX_SKELETON_VANISH,
   FX_CHEF_EXPLODE,
-  FX_DEMON_DEATH
+  FX_DEMON_DEATH,
+  FX_HELICOPTER_BOOM
 } fx_kind_t;
 
 typedef struct {
@@ -234,8 +266,16 @@ typedef struct {
   float dx, dy;
 } plank_t;
 
+/* The one helicopter, resting on the grass until Fabio drops into it. Once he
+ * has, it is no longer there to land on: it is the one he flies. */
+typedef struct {
+  bool present;
+  float x, y; /* middle, and the skids */
+} helicopter_t;
+
 typedef struct {
   level_t level;
+  helicopter_t helicopter;
   plank_t planks[MAX_LEVEL_PLATFORMS];
   player_t player;
   /* Everything that comes and goes lives in an engine object pool. */
@@ -249,6 +289,7 @@ typedef struct {
   object_pool_t bumps;     /* bump_t */
   object_pool_t popups;    /* popup_t */
   object_pool_t bananas;   /* banana_t */
+  object_pool_t skewers;   /* skewer_t */
   object_pool_t fireballs; /* fireball_t */
   object_pool_t debris;    /* debris_t */
   event_system_ptr events; /* where the world announces what happens; may be NULL */
@@ -289,6 +330,7 @@ float world_progress(const world_t* world);
 int world_count_enemies(const world_t* world, enemy_kind_t kind);
 frect_t player_rect(const player_t* player);
 frect_t enemy_rect(const enemy_t* enemy);
+frect_t helicopter_rect(const helicopter_t* helicopter);
 void world_emit(world_t* world, event_kind_t kind, float x);
 
 /* physics.c */
@@ -429,9 +471,17 @@ float demon_presence(const enemy_t* demon);
 typedef enum { BOOK_READER_READING, BOOK_READER_LAUGHING } book_reader_mood_t;
 book_reader_mood_t book_reader_mood(const enemy_t* book_reader);
 
+/* helicopter.c */
+/* Fabio lands on the resting helicopter from above and flies it, jump or up
+ * to climb, down to sink, nothing to hover, until the fuel is gone after
+ * HELICOPTER_FUEL_SECONDS: then it explodes and he falls, unharmed. */
+void helicopter_update(world_t* world, float dt);
+
 /* combat.c */
 void combat_update(world_t* world, float dt);
 void world_fire_bullet(world_t* world);
+/* From the helicopter only: a skewer on a parabola. Never runs out. */
+void world_fire_skewer(world_t* world);
 void world_cast_spell(world_t* world);
 void world_kill_enemy(world_t* world, enemy_t* enemy, bool by_spell);
 /* The gorilla throws a banana on an arc that comes down on Fabio, from wherever

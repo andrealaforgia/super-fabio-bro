@@ -332,6 +332,23 @@ static void draw_enemies(const frame_t* f) {
   }
 }
 
+/* The helicopter waiting on the grass for Fabio to drop in. */
+static void draw_helicopter(const frame_t* f) {
+  const helicopter_t* h = &f->world->helicopter;
+  if (!h->present || h->x < f->cam_x - 80.0f || h->x > f->cam_x + f->view_w + 80.0f) return;
+  draw_sprite(f, (pose_t){STRIP_HELI_REST, 0}, h->x, h->y, 1.0f, false, 1.0f);
+}
+
+/* How much fuel is left, over the helicopter, blinking red for the last seconds. */
+static void draw_fuel(const frame_t* f, const player_t* p) {
+  float w = 56.0f, x = p->x - w * 0.5f - f->cam_x, y = p->y - HELICOPTER_H - 14.0f;
+  bool low = p->fuel < 5.0f;
+  if (low && fmodf(f->world->time, 0.3f) < 0.15f) return;
+  fill_rect(f->gfx, rect(x - 2.0f, y - 2.0f, w + 4.0f, 9.0f), 20, 20, 50, 220);
+  fill_rect(f->gfx, rect(x, y, w * (p->fuel / HELICOPTER_FUEL_SECONDS), 5.0f), 255,
+            low ? 70 : 190, low ? 60 : 60, 255);
+}
+
 static void draw_player(const frame_t* f) {
   const player_t* p = &f->world->player;
   if (p->spell_time > 0.0f) {
@@ -351,13 +368,15 @@ static void draw_player(const frame_t* f) {
     lean = (fabsf(p->vx) > 230.0f ? 5.0f : 3.0f) * (float)p->facing;
   }
   const sprite_t* sprite = look_sprite(f->look, pose_player(p));
-  float w = (float)sprite->w * FABIO_SCALE, h = (float)sprite->h * FABIO_SCALE;
-  float ax = (float)sprite->anchor_x * FABIO_SCALE;
+  float scale = p->flying ? 1.0f : FABIO_SCALE; /* the helicopter is cooked at the size it is drawn */
+  float w = (float)sprite->w * scale, h = (float)sprite->h * scale;
+  float ax = (float)sprite->anchor_x * scale;
   bool flip = p->facing < 0;
   float left = flip ? p->x - (w - ax) : p->x - ax;
   draw_options_t options = {flip, alpha, lean, false, 0, 0, 0};
   render_sprite(f->gfx, &sprite->texture, NULL,
            rect(left - f->cam_x, p->y - h + bounce, w, h), &options);
+  if (p->flying && p->alive) draw_fuel(f, p);
 }
 
 /* The points just scored: gold, with a dark shadow, solid then fading as they
@@ -382,6 +401,11 @@ static void draw_effects(const frame_t* f) {
   for (const effect_t* fx;
        (fx = pool_next_active(&f->world->effects, &effect_cursor));) {
     float life = fx->age / fx->duration;
+    if (fx->kind == FX_HELICOPTER_BOOM) {
+      draw_centred(f, pose_helicopter_boom(fx->age), fx->x, fx->y - HELICOPTER_H * 0.5f, 1.0f, 1.0f,
+                   0.0f, false, 1.0f);
+      continue;
+    }
     if (fx->kind == FX_DEMON_DEATH) {
       draw_sprite(f, pose_demon_death(fx->age), fx->x, fx->y, DEMON_SCALE, fx->facing < 0, 1.0f);
       continue;
@@ -453,6 +477,15 @@ static void draw_effects(const frame_t* f) {
        (b = pool_next_active(&f->world->bullets, &bullet_cursor));)
     draw_centred(f, (pose_t){STRIP_FX_BULLET, 0}, b->x, b->y, 0.3f, 0.3f, 0.0f,
                  b->vx < 0.0f, 1.0f);
+  /* Skewers turn from 45 degrees at the muzzle, flat at the top of their arc, then
+ * on down to 10 degrees short of vertical. */
+  size_t skewer_cursor = 0;
+  for (const skewer_t* s; (s = pool_next_active(&f->world->skewers, &skewer_cursor));) {
+    float turn = SKEWER_ANGLE - skewer_tilt(s);
+    bool left = s->vx < 0.0f;
+    draw_centred(f, (pose_t){STRIP_SKEWER, 0}, s->x, s->y, 1.0f, 1.0f, left ? -turn : turn, left,
+                 1.0f);
+  }
   /* Bananas spin end over end the way they fly. */
   size_t banana_cursor = 0;
   for (const banana_t* b; (b = pool_next_active(&f->world->bananas, &banana_cursor));)
@@ -610,6 +643,7 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
   draw_tiles(&f);
   draw_platforms(&f);
   draw_items(&f);
+  draw_helicopter(&f);
   draw_enemies(&f);
   draw_player(&f);
   draw_effects(&f);

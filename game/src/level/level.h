@@ -79,6 +79,8 @@ typedef struct {
   int decor_count;
   platform_def_t platforms[MAX_LEVEL_PLATFORMS];
   int platform_count;
+  bool has_helicopter;    /* the one helicopter resting on the grass */
+  float helicopter_x, helicopter_y; /* middle, and the skids */
   float spawn_x, spawn_y; /* middle of the feet */
   float castle_x;         /* middle of the castle */
   float goal_x;           /* reaching it wins */

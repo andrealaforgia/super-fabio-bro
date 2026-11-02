@@ -126,6 +126,19 @@ start.
   bursts into a shower of fifty bananas that fly every way and fade out; they
   are innocent and hurt nobody. His frames
   are cut from `assets/source/gorilla.jpeg`.
+- There is one helicopter in every level, resting on the first long stretch of
+  open grass about a quarter of the way in. Land on it from above (a jump will
+  do) and Fabio climbs in; walking into it from the side does nothing. Flying,
+  space or up climbs, down sinks and with neither he hangs in the air; he
+  cannot leave the screen or sink into a pit, and nothing can hurt him up
+  there. The shoot key throws lamb skewers instead of bullets, with no limit:
+  each leaves at 45 degrees and arcs, turning flat at the top of its flight
+  and then another 80 degrees, stopping 10 short of pointing at the ground, and kills what it hits like a bullet (sprite: `assets/source/skewer.jpeg`).
+  The fuel lasts 30 seconds (a small bar over the helicopter, blinking in the
+  last five). Then the helicopter blows up and is gone for good, and Fabio
+  falls, unharmed (a pit below still costs a heart, as ever). The resting
+  helicopter is cut from `assets/source/helicopter.jpeg`; flying and
+  exploding, from `assets/source/fabio_helicopter.jpeg`.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

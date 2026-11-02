@@ -68,6 +68,16 @@ static double spell_voice(double t, double d, rng_t* r, void* s) {
          decay(t, 5.0);
 }
 
+/* A slide whistle that swoops up with a wobble, then flops back down. */
+static double skewer_voice(double t, double d, rng_t* r, void* s) {
+  (void)d; (void)r; (void)s;
+  double up = fmin(t, 0.26), down = fmax(t - 0.26, 0.0);
+  double phase = 330.0 * up + 0.5 * 2600.0 * up * up + 1000.0 * down - 0.5 * 4200.0 * down * down;
+  double wobble = 2.2 * sin(TAU * 24.0 * t);
+  double pop = t < 0.015 ? 0.5 * noise(r) : 0.0;
+  return (0.55 * sin(TAU * phase + wobble) + pop) * decay(t, 3.5);
+}
+
 static double melee_voice(double t, double d, rng_t* r, void* s) {
   (void)d;
   double* lp = (double*)s;
@@ -301,6 +311,7 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_JUMP], 0.22, jump_voice, 1);
   ok = ok && render(&clips[SFX_SHOOT], 0.22, shoot_voice, 2);
   ok = ok && render(&clips[SFX_SPELL], 0.45, spell_voice, 3);
+  ok = ok && render(&clips[SFX_SKEWER], 0.42, skewer_voice, 20);
   ok = ok && render(&clips[SFX_MELEE], 0.18, melee_voice, 4);
   ok = ok && render(&clips[SFX_ZOMBIE_BOOM], 0.6, zombie_boom_voice, 5);
   ok = ok && render(&clips[SFX_BUG_BOOM], 0.3, bug_boom_voice, 6);
@@ -359,6 +370,9 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_BANANA_THROWN: *volume = 0.5f; return SFX_MELEE;
     case EVENT_DEMON_DIES: *volume = 0.9f; return SFX_BOOK_READER_BOOM;
     case EVENT_DEMON_CASTS: *volume = 0.6f; return SFX_SPELL;
+    case EVENT_SKEWER_THROWN: *volume = 0.8f; return SFX_SKEWER;
+    case EVENT_HELICOPTER_BOARDS: *volume = 0.8f; return SFX_PICKUP;
+    case EVENT_HELICOPTER_EXPLODES: *volume = 1.0f; return SFX_BOOK_READER_BOOM;
     case EVENT_KIND_COUNT: break;
   }
   return SFX_BUMP;

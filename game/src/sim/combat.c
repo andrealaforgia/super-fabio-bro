@@ -165,6 +165,29 @@ void world_fire_bullet(world_t* world) {
   world_emit(world, EVENT_SHOOT, x);
 }
 
+float skewer_tilt(const skewer_t* s) {
+  if (s->vy >= 0.0f) { /* past the top: on down, stopping 10 degrees short of vertical */
+    float dive = s->vy / (SKEWER_SPEED * sinf(SKEWER_ANGLE * (3.14159265f / 180.0f)));
+    return -SKEWER_DIVE * fminf(dive, 1.0f);
+  }
+  float flight = atan2f(-s->vy, fabsf(s->vx)) * (180.0f / 3.14159265f);
+  return fminf(flight, SKEWER_ANGLE);
+}
+
+void world_fire_skewer(world_t* world) {
+  player_t* p = &world->player;
+  skewer_t* skewer = pool_acquire(&world->skewers, NULL);
+  if (!skewer) return;
+  float x, y;
+  muzzle(world, &x, &y);
+  y = p->y - HELICOPTER_H * 0.5f;
+  float rad = SKEWER_ANGLE * (3.14159265f / 180.0f);
+  *skewer = (skewer_t){x, y, (float)p->facing * SKEWER_SPEED * cosf(rad),
+                       -SKEWER_SPEED * sinf(rad), 0.0f};
+  p->shoot_pose = 0.2f;
+  world_emit(world, EVENT_SKEWER_THROWN, x);
+}
+
 void world_cast_spell(world_t* world) {
   player_t* p = &world->player;
   float x0, y;
@@ -205,6 +228,33 @@ static void update_bullets(world_t* world, float dt) {
       if (frect_overlaps(box, enemy_rect(enemy))) {
         world_kill_enemy(world, enemy, false);
         pool_release_object(&world->bullets, b);
+        break;
+      }
+    }
+  }
+}
+
+/* Like a bullet: the first enemy it touches dies. Walls and the ground stop it. */
+static void update_skewers(world_t* world, float dt) {
+  size_t cursor = 0;
+  for (skewer_t* s; (s = pool_next_active(&world->skewers, &cursor));) {
+    s->age += dt;
+    s->vy += SKEWER_GRAVITY * dt;
+    s->x += s->vx * dt;
+    s->y += s->vy * dt;
+    if (s->age > SKEWER_LIFE || s->y > level_height() + 60.0f ||
+        level_solid_at(&world->level, s->x, s->y)) {
+      if (s->age <= SKEWER_LIFE) world_burst(world, s->x, s->y, 4, 190, 90, 60, 120.0f);
+      pool_release_object(&world->skewers, s);
+      continue;
+    }
+    frect_t box = {s->x - SKEWER_SIZE * 0.5f, s->y - SKEWER_SIZE * 0.5f, SKEWER_SIZE,
+                   SKEWER_SIZE};
+    size_t target_cursor = 0;
+    for (enemy_t* e; (e = pool_next_active(&world->enemies, &target_cursor));) {
+      if (frect_overlaps(box, enemy_rect(e))) {
+        world_kill_enemy(world, e, false);
+        pool_release_object(&world->skewers, s);
         break;
       }
     }
@@ -387,6 +437,7 @@ static void touch_enemies(world_t* world) {
 
 void combat_update(world_t* world, float dt) {
   update_bullets(world, dt);
+  update_skewers(world, dt);
   update_bananas(world, dt);
   update_fireballs(world, dt);
   update_debris(world, dt);

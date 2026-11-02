@@ -33,6 +33,7 @@ void player_reset(player_t* p, const level_t* level) {
 static void die(world_t* world) {
   player_t* p = &world->player;
   p->alive = false;
+  p->flying = false;
   p->hp = 0;
   p->vy = -560.0f;
   p->vx = 0.0f;
@@ -44,7 +45,7 @@ static void die(world_t* world) {
 
 void player_hurt(world_t* world, float from_x) {
   player_t* p = &world->player;
-  if (!p->alive || p->invulnerable > 0.0f) return;
+  if (!p->alive || p->invulnerable > 0.0f || p->flying) return; /* nothing touches him up there */
   p->hp--;
   p->invulnerable = INVULNERABLE_AFTER_HIT;
   p->hurt_timer = 0.4f;
@@ -102,11 +103,16 @@ static void actions(world_t* world, const controls_t* controls, float dt) {
       p->drink_timer <= 0.0f)
     drink(world);
 
+  /* One shot at a time, and the weapons have a pecking order: the TDD spell's
+   * blast first, then the skewers while he is in the helicopter, then the pistol. */
   bool spell = p->spell_time > 0.0f;
   if (controls_held(controls, BTN_SHOOT) && p->gun_cooldown <= 0.0f && p->drink_timer <= 0.0f) {
     if (spell) {
       world_cast_spell(world);
       p->gun_cooldown = SPELL_COOLDOWN;
+    } else if (p->flying) {
+      world_fire_skewer(world);
+      p->gun_cooldown = SKEWER_COOLDOWN;
     } else if (p->ammo > 0) {
       p->ammo--;
       world_fire_bullet(world);
@@ -119,6 +125,46 @@ static void actions(world_t* world, const controls_t* controls, float dt) {
     p->melee_timer = MELEE_TIME;
     p->melee_struck = false;
     world_emit(world, EVENT_MELEE, p->x);
+  }
+}
+
+static void jump_and_fall(world_t* world, const controls_t* controls, float dt) {
+  player_t* p = &world->player;
+  p->coyote = p->grounded ? COYOTE_TIME : p->coyote - dt;
+  p->jump_buffer = controls_pressed(controls, BTN_JUMP) ? JUMP_BUFFER_TIME : p->jump_buffer - dt;
+  if (p->jump_buffer > 0.0f && p->coyote > 0.0f && p->hurt_timer <= 0.0f) {
+    p->vy = -JUMP_SPEED;
+    p->coyote = 0.0f;
+    p->jump_buffer = 0.0f;
+    p->grounded = false;
+    world_emit(world, EVENT_JUMP, p->x);
+  }
+  p->vy = fminf(p->vy + GRAVITY * dt, MAX_FALL);
+  /* Letting go of jump early makes a short hop. */
+  if (!controls_held(controls, BTN_JUMP) && p->vy < -CUT_JUMP_SPEED && p->hurt_timer <= 0.0f)
+    p->vy += GRAVITY * 2.0f * dt;
+}
+
+/* In the helicopter there is no gravity: jump or up climbs, down sinks, and
+ * with neither he hangs in the air. */
+static void fly(player_t* p, const controls_t* controls, float dt) {
+  float climb = (controls_held(controls, BTN_JUMP) || controls_held(controls, BTN_UP)) ? 1.0f : 0.0f;
+  float sink = controls_held(controls, BTN_DOWN) ? 1.0f : 0.0f;
+  p->vy = approachf(p->vy, (sink - climb) * HELICOPTER_SPEED, 1800.0f * dt);
+  p->coyote = 0.0f;
+  p->jump_buffer = 0.0f;
+}
+
+/* He stays on the screen, above the ground line (so never down into a pit). */
+static void keep_flying_in_bounds(player_t* p) {
+  float ground = (float)(GROUND_ROW * TILE);
+  if (p->y < HELICOPTER_CEILING) {
+    p->y = HELICOPTER_CEILING;
+    if (p->vy < 0.0f) p->vy = 0.0f;
+  }
+  if (p->y > ground) {
+    p->y = ground;
+    if (p->vy > 0.0f) p->vy = 0.0f;
   }
 }
 
@@ -151,6 +197,7 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
   float direction = (controls_held(controls, BTN_RIGHT) ? 1.0f : 0.0f) -
                     (controls_held(controls, BTN_LEFT) ? 1.0f : 0.0f);
   float top_speed = controls_held(controls, BTN_RUN) ? RUN_SPEED : WALK_SPEED;
+  if (p->flying) top_speed *= HELICOPTER_SPEEDUP;
   if (p->hurt_timer <= 0.0f) {
     if (direction != 0.0f) {
       float accel = p->grounded ? 2400.0f : 1500.0f;
@@ -164,19 +211,8 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
     }
   }
 
-  p->coyote = p->grounded ? COYOTE_TIME : p->coyote - dt;
-  p->jump_buffer = controls_pressed(controls, BTN_JUMP) ? JUMP_BUFFER_TIME : p->jump_buffer - dt;
-  if (p->jump_buffer > 0.0f && p->coyote > 0.0f && p->hurt_timer <= 0.0f) {
-    p->vy = -JUMP_SPEED;
-    p->coyote = 0.0f;
-    p->jump_buffer = 0.0f;
-    p->grounded = false;
-    world_emit(world, EVENT_JUMP, p->x);
-  }
-  p->vy = fminf(p->vy + GRAVITY * dt, MAX_FALL);
-  /* Letting go of jump early makes a short hop. */
-  if (!controls_held(controls, BTN_JUMP) && p->vy < -CUT_JUMP_SPEED && p->hurt_timer <= 0.0f)
-    p->vy += GRAVITY * 2.0f * dt;
+  if (p->flying) fly(p, controls, dt);
+  else jump_and_fall(world, controls, dt);
 
   actions(world, controls, dt);
 
@@ -184,6 +220,7 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
   move_result_t moved = physics_move(level, &p->x, &p->y, &p->vx, &p->vy,
                                      PLAYER_W, PLAYER_H, dt);
   p->grounded = moved.grounded;
+  if (p->flying) keep_flying_in_bounds(p);
   platforms_land(world, p, feet_before);
   if (moved.hit_ceiling) world_bump_block(world, moved.ceiling_col, moved.ceiling_row);
 

@@ -74,6 +74,10 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_DEMON_DEATH] = {"demon_death", 8},
     [STRIP_FIREBALL] = {"demon_fireball", 0},
     [STRIP_VEGETABLE] = {"vegetable", VEGETABLE_KINDS},
+    [STRIP_SKEWER] = {"skewer", 0},
+    [STRIP_HELI_REST] = {"heli_rest", 0},
+    [STRIP_FAB_HELI] = {"fab_heli", 3},
+    [STRIP_HELI_BOOM] = {"heli_boom", 7},
 };
 
 static pose_t make(strip_id_t strip, int frame) {
@@ -86,6 +90,7 @@ static pose_t make(strip_id_t strip, int frame) {
 
 pose_t pose_player(const player_t* p) {
   if (!p->alive) return make(STRIP_FAB_HURT, 3);
+  if (p->flying) return make(STRIP_FAB_HELI, (int)(p->anim_time * 18.0f)); /* the rotor spins */
   if (p->hurt_timer > 0.0f) return make(STRIP_FAB_HURT, 1);
   if (p->drink_timer > 0.15f) return make(STRIP_FAB_DRINK, 0);
   if (p->drink_timer > 0.0f) return make(STRIP_FAB_POTION, 0);
@@ -209,6 +214,11 @@ pose_t pose_demon_death(float age) {
   return make(STRIP_DEMON_DEATH, frame > 7 ? 7 : frame);
 }
 
+pose_t pose_helicopter_boom(float age) {
+  int frame = (int)(age / (HELICOPTER_BOOM_SECONDS / 7.0f));
+  return make(STRIP_HELI_BOOM, frame > 6 ? 6 : frame);
+}
+
 pose_t pose_question_block(float time) {
   /* It turns round in a second, then rests a moment facing out. */
   float in_cycle = fmodf(time, QBLOCK_SPIN_SECONDS + QBLOCK_REST_SECONDS);
@@ -231,6 +241,7 @@ pose_t pose_effect(fx_kind_t kind) {
     case FX_SKELETON_VANISH: return make(STRIP_SKELETON_VANISH, 0);
     case FX_CHEF_EXPLODE: return make(STRIP_CHEF_BOOM, 0);
     case FX_DEMON_DEATH: return make(STRIP_DEMON_DEATH, 0);
+    case FX_HELICOPTER_BOOM: return make(STRIP_HELI_BOOM, 0);
   }
   return make(STRIP_FX_SMOKE, 0);
 }

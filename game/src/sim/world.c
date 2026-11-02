@@ -33,21 +33,22 @@ static bool make_pools(world_t* world) {
   world->bumps = create_object_pool(sizeof(bump_t), MAX_BUMPS);
   world->popups = create_object_pool(sizeof(popup_t), MAX_POPUPS);
   world->bananas = create_object_pool(sizeof(banana_t), MAX_BANANAS);
+  world->skewers = create_object_pool(sizeof(skewer_t), MAX_SKEWERS);
   world->fireballs = create_object_pool(sizeof(fireball_t), MAX_FIREBALLS);
   world->debris = create_object_pool(sizeof(debris_t), MAX_DEBRIS);
   return world->enemies.objects && world->pickups.objects &&
          world->bullets.objects && world->rays.objects &&
          world->effects.objects && world->particles.objects &&
-         world->bumps.objects && world->popups.objects && world->bananas.objects &&
+         world->bumps.objects && world->popups.objects && world->bananas.objects && world->skewers.objects &&
          world->fireballs.objects && world->debris.objects;
 }
 
-#define POOL_COUNT 11
+#define POOL_COUNT 12
 
 static object_pool_t* pools_of(world_t* world, int index) {
   object_pool_t* all[] = {&world->enemies, &world->pickups, &world->bullets,
                           &world->rays,    &world->effects, &world->particles,
-                          &world->bumps,    &world->popups,  &world->bananas, &world->fireballs,
+                          &world->bumps,    &world->popups,  &world->bananas, &world->skewers, &world->fireballs,
                           &world->debris};
   return all[index];
 }
@@ -65,6 +66,8 @@ void world_restart(world_t* world, uint32_t seed) {
   level_generate(&world->level, seed);
   rng_seed(&world->rng, seed ^ 0x5bd1e995u);
   player_reset(&world->player, &world->level);
+  world->helicopter = (helicopter_t){world->level.has_helicopter, world->level.helicopter_x,
+                                     world->level.helicopter_y};
   world->state = STATE_PLAYING;
   world->view_w = 960.0f;
   world->spawning = true;
@@ -116,6 +119,7 @@ void world_update(world_t* world, const controls_t* controls, float dt) {
   platforms_update(world);
   player_update(world, controls, dt);
   if (world->state == STATE_PLAYING) {
+    helicopter_update(world, dt);
     spawner_update(world, dt);
     enemies_update(world, dt);
   }

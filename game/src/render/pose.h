@@ -81,6 +81,10 @@ typedef enum {
   STRIP_DEMON_DEATH,
   STRIP_FIREBALL,
   STRIP_VEGETABLE,
+  STRIP_SKEWER,
+  STRIP_HELI_REST,
+  STRIP_FAB_HELI,
+  STRIP_HELI_BOOM,
   STRIP_COUNT
 } strip_id_t;
 
@@ -127,6 +131,8 @@ pose_t pose_gorilla(const enemy_t* gorilla);
 pose_t pose_demon(const enemy_t* demon);
 /* The demon clutching himself and dissolving: eight frames over DEMON_DEATH_SECONDS. */
 pose_t pose_demon_death(float age);
+/* The helicopter blowing up: seven frames over HELICOPTER_BOOM_SECONDS. */
+pose_t pose_helicopter_boom(float age);
 /* The "?" blocks all turn round together, then rest facing out, by world time. */
 #define QBLOCK_SPIN_SECONDS 1.0f
 #define QBLOCK_REST_SECONDS 0.8f

@@ -37,6 +37,9 @@ GORILLA = "gorilla.jpeg"
 QBLOCK = "question_block.png"
 DEMON = "demon.jpeg"
 VEGETABLES = "vegetables.jpeg"
+HELICOPTER = "helicopter.jpeg"
+FABIO_HELICOPTER = "fabio_helicopter.jpeg"
+SKEWER = "skewer.jpeg"
 
 # kind "band": every blob in the rectangle, left to right, named in order.
 # kind "one": the rectangle is one sprite.
@@ -194,7 +197,27 @@ SPEC = [
     ("one", DEMON, "demon_death_5", (531, 1310, 1005, 1740), "magenta", "fixed", "centre", "half"),
     ("one", DEMON, "demon_death_6", (1041, 1310, 1515, 1740), "magenta", "fixed", "centre", "half"),
     ("one", DEMON, "demon_death_7", (1552, 1310, 2026, 1740), "magenta", "fixed", "centre", "half"),
+    # The lamb skewer Fabio shoots from the helicopter: the first "thrown projectile"
+    # frame, tilted up to the right at 45 degrees. The game turns it as it flies.
+    ("one", SKEWER, "skewer", (8, 618, 132, 740), "white", "scale=0.3"),
     ("one", DEMON, "demon_fireball", (930, 640, 1000, 705), "magenta"),
+    # The one helicopter. At rest it is the first "idle hovering" frame of its own
+    # sheet. With Fabio in it, the three rotor-spin frames of the second row of
+    # the sheet with him inside, each a cell of the same size so the rotor and the
+    # tail stay put from frame to frame (anchored at the middle of the skids' line),
+    # cooked at 0.6 so the game draws them 1:1. It blows up in the seven frames of
+    # the "exploding" row, equal cells centred on each blast.
+    ("one", HELICOPTER, "heli_rest", (12, 40, 166, 152), "white", "scale=0.6"),
+    ("one", FABIO_HELICOPTER, "fab_heli_0", (12, 186, 164, 299), "white", "fixed", "centre", "scale=0.6"),
+    ("one", FABIO_HELICOPTER, "fab_heli_1", (175, 186, 327, 299), "white", "fixed", "centre", "scale=0.6"),
+    ("one", FABIO_HELICOPTER, "fab_heli_2", (339, 186, 491, 299), "white", "fixed", "centre", "scale=0.6"),
+    ("one", FABIO_HELICOPTER, "heli_boom_0", (11, 740, 131, 846), "white", "fixed", "centre"),
+    ("one", FABIO_HELICOPTER, "heli_boom_1", (137, 740, 257, 846), "white", "fixed", "centre"),
+    ("one", FABIO_HELICOPTER, "heli_boom_2", (263, 740, 383, 846), "white", "fixed", "centre"),
+    ("one", FABIO_HELICOPTER, "heli_boom_3", (389, 740, 509, 846), "white", "fixed", "centre"),
+    ("one", FABIO_HELICOPTER, "heli_boom_4", (515, 740, 635, 846), "cutout", "fixed", "centre"),
+    ("one", FABIO_HELICOPTER, "heli_boom_5", (640, 740, 760, 846), "cutout", "fixed", "centre"),
+    ("one", FABIO_HELICOPTER, "heli_boom_6", (765, 740, 885, 846), "cutout", "fixed", "centre"),
     # The chef's vegetables, flung out when he bursts: carrots, potatoes, onions,
     # broccoli, tomatoes, peppers and slices, one per cell, read left to right.
     ("one", VEGETABLES, "vegetable_0", (67, 65, 491, 489), "vivid", "scale=0.15"),

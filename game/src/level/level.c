@@ -95,6 +95,19 @@ static void flat(generator_t* g, int length, bool scenery) {
   g->since_hazard += length;
 }
 
+/* The one helicopter rests in the middle of the first long stretch of open grass
+ * after HELICOPTER_FROM_COL (about a quarter of the way in). */
+#define HELICOPTER_FROM_COL 120
+#define HELICOPTER_MIN_FLAT 8
+
+static void rest_helicopter(generator_t* g, int length) {
+  level_t* level = g->level;
+  if (level->has_helicopter || g->x < HELICOPTER_FROM_COL || length < HELICOPTER_MIN_FLAT) return;
+  level->has_helicopter = true;
+  level->helicopter_x = (float)((g->x + length / 2) * TILE + TILE / 2);
+  level->helicopter_y = (float)(GROUND_ROW * TILE);
+}
+
 static item_kind_t roll_content(generator_t* g) {
   if (g->since_potion > 45 || rng_chance(&g->rng, 0.1f)) {
     g->since_potion = 0;
@@ -275,7 +288,9 @@ void level_generate(level_t* level, uint32_t seed) {
     int roll = rng_range(&g->rng, 0, 99);
     if (g->since_potion > 60) roll = 30; /* a platform, and a potion on it */
     if (roll < 22) {
-      flat(g, rng_range(&g->rng, 6, 14), true);
+      int length = rng_range(&g->rng, 6, 14);
+      rest_helicopter(g, length);
+      flat(g, length, true);
     } else if (roll < 50) {
       platform(g, rng_range(&g->rng, 3, 8));
     } else if (roll < 66) {
