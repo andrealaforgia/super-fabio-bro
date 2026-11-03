@@ -52,6 +52,8 @@ static void play_event_sound(const game_event_t* event, void* user) {
   float volume;
   sfx_id_t id = sfx_for_event((event_kind_t)event->type, &volume);
   play_sound_at_volume(user, (int)id, volume);
+  /* Fabio swears when he is hit. */
+  if (event_makes_fabio_swear((event_kind_t)event->type)) play_sound_at_volume(user, SFX_VOICE_CURSE, 1.0f);
 }
 
 /* Lets a bot play for a while, then saves what the screen shows. */

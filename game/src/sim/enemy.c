@@ -8,8 +8,8 @@
 #define SPAWN_MARGIN 40.0f
 #define BOOK_READER_W 26.0f
 #define BOOK_READER_H 54.0f
-#define MONK_W 29.0f
-#define MONK_H 65.0f
+#define MONK_W 32.0f
+#define MONK_H 72.0f
 #define SKELETON_W 16.2f
 #define SKELETON_H 35.1f
 #define CHEF_W 23.4f

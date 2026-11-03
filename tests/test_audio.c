@@ -125,7 +125,21 @@ static void the_spoken_lines_are_loud_and_long_enough_to_be_understood(void) {
   sfx_free(clips);
 }
 
+static void fabio_curses_when_he_is_hit_and_not_when_he_hits(void) {
+  CHECK(event_makes_fabio_swear(EVENT_HURT));
+  event_kind_t kills[] = {EVENT_ZOMBIE_DIES,  EVENT_BUG_DIES,     EVENT_BOOK_READER_DIES, EVENT_MONK_DIES,
+                          EVENT_CHEF_DIES,    EVENT_GORILLA_DIES, EVENT_DEMON_DIES,       EVENT_MELEE,
+                          EVENT_SHOOT,        EVENT_SPELL,        EVENT_SKEWER_THROWN,    EVENT_STOMP};
+  for (size_t i = 0; i < sizeof(kills) / sizeof(kills[0]); i++) CHECK(!event_makes_fabio_swear(kills[i]));
+  sample_t clips[SFX_COUNT];
+  CHECK(sfx_build(clips));
+  CHECK(peak(&clips[SFX_VOICE_CURSE]) > 28000);
+  CHECK(clips[SFX_VOICE_CURSE].length > MIXER_RATE);
+  sfx_free(clips);
+}
+
 void run_audio_tests(void) {
+  RUN(fabio_curses_when_he_is_hit_and_not_when_he_hits);
   RUN(the_spoken_lines_are_loud_and_long_enough_to_be_understood);
   RUN(every_sound_effect_is_built_audible_and_short);
   RUN(every_game_event_has_a_sound);

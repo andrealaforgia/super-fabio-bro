@@ -3,9 +3,10 @@
 #include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
-#include <stdlib.h>
+#include <string.h>
 
 #include "rng.h"
+#include "voice_curse.h"
 
 #define TAU 6.28318530718
 
@@ -305,6 +306,15 @@ static void normalise(sample_t* clip, double peak) {
   for (int i = 0; i < clip->length; i++) data[i] = (int16_t)(data[i] * gain);
 }
 
+/* A clip of our own, so sfx_free can release every clip alike. */
+static bool copy_clip(sample_t* clip, const int16_t* data, int length) {
+  int16_t* copy = malloc((size_t)length * sizeof(int16_t));
+  if (!copy) return false;
+  memcpy(copy, data, (size_t)length * sizeof(int16_t));
+  *clip = (sample_t){copy, length};
+  return true;
+}
+
 bool sfx_build(sample_t clips[SFX_COUNT]) {
   for (int i = 0; i < SFX_COUNT; i++) clips[i] = (sample_t){NULL, 0};
   bool ok = true;
@@ -327,6 +337,7 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_WIN], 1.5, win_voice, 16);
   ok = ok && render(&clips[SFX_HEAL], 0.35, heal_voice, 17);
   ok = ok && render(&clips[SFX_VOICE_FABIO], 1.5, speech_voice, 18);
+  ok = ok && copy_clip(&clips[SFX_VOICE_CURSE], kVoiceCurse, kVoiceCurseLength);
   ok = ok && render(&clips[SFX_BOOK_READER_BOOM], 1.1, book_reader_boom_voice, 19);
   if (ok) {
     normalise(&clips[SFX_VOICE_FABIO], 31000.0);
@@ -377,6 +388,8 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
   }
   return SFX_BUMP;
 }
+
+bool event_makes_fabio_swear(event_kind_t kind) { return kind == EVENT_HURT; }
 
 /* A small bouncy tune in C: melody in eighth notes (MIDI numbers, 0 is a
  * rest), and a bass in quarter notes. */

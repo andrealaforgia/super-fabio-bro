@@ -46,7 +46,8 @@ start.
 
 - Hit `?` blocks from below. The first row holds the pistol and a potion.
   They turn round every couple of seconds (frames in
-  `assets/source/question_block.png`).
+  `assets/source/question_block.png`). They come in four colours (yellow,
+  blue, grey, orange), each block keeping its own.
 - The pistol fires bullets that explode zombies and bugs. Each pistol adds
   15 bullets, counted next to it at the top of the screen; when they run out
   the pistol is gone until you find another.

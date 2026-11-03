@@ -39,6 +39,9 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_MUSHROOM] = {"mushroom", 0},
     [STRIP_TILE_SOLID] = {"tile_solid", 0},
     [STRIP_TILE_Q] = {"tile_q", 16},
+    [STRIP_TILE_Q_BLUE] = {"tile_q_blue", 16},
+    [STRIP_TILE_Q_GREY] = {"tile_q_grey", 16},
+    [STRIP_TILE_Q_ORANGE] = {"tile_q_orange", 16},
     [STRIP_TILE_BRICK] = {"tile_brick", 0},
     [STRIP_TILE_GOLD] = {"tile_gold", 0},
     [STRIP_TILE_STONE] = {"tile_stone", 0},
@@ -219,11 +222,17 @@ pose_t pose_helicopter_boom(float age) {
   return make(STRIP_HELI_BOOM, frame > 6 ? 6 : frame);
 }
 
-pose_t pose_question_block(float time) {
+int question_block_colour(int col, int row) {
+  unsigned h = (unsigned)col * 2654435761u + (unsigned)row * 40503u;
+  return (int)((h >> 13) % QBLOCK_COLOURS);
+}
+
+pose_t pose_question_block(float time, int col, int row) {
   /* It turns round in a second, then rests a moment facing out. */
+  strip_id_t strip = (strip_id_t)(STRIP_TILE_Q + question_block_colour(col, row));
   float in_cycle = fmodf(time, QBLOCK_SPIN_SECONDS + QBLOCK_REST_SECONDS);
-  if (in_cycle >= QBLOCK_SPIN_SECONDS) return make(STRIP_TILE_Q, 0);
-  return make(STRIP_TILE_Q, (int)(in_cycle / QBLOCK_SPIN_SECONDS * 16.0f));
+  if (in_cycle >= QBLOCK_SPIN_SECONDS) return make(strip, 0);
+  return make(strip, (int)(in_cycle / QBLOCK_SPIN_SECONDS * 16.0f));
 }
 
 pose_t pose_effect(fx_kind_t kind) {

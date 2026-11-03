@@ -199,16 +199,31 @@ static void each_bug_and_effect_has_its_own_picture(void) {
 static void question_blocks_turn_round_then_rest(void) {
   int seen[16] = {0}, last = 0;
   for (float t = 0.0f; t < QBLOCK_SPIN_SECONDS; t += 0.005f) {
-    pose_t pose = pose_question_block(t);
-    CHECK(pose.strip == STRIP_TILE_Q);
+    pose_t pose = pose_question_block(t, 0, 0);
+    CHECK((int)pose.strip == STRIP_TILE_Q + question_block_colour(0, 0));
     CHECK(pose.frame == last || pose.frame == last + 1); /* in order, none skipped */
     last = pose.frame;
     seen[pose.frame] = 1;
   }
   for (int i = 0; i < 16; i++) CHECK(seen[i]);
   for (float t = QBLOCK_SPIN_SECONDS; t < QBLOCK_SPIN_SECONDS + QBLOCK_REST_SECONDS; t += 0.05f)
-    CHECK(pose_question_block(t).frame == 0);
-  CHECK(pose_question_block(QBLOCK_SPIN_SECONDS + QBLOCK_REST_SECONDS + 0.5f).frame == 8);
+    CHECK(pose_question_block(t, 0, 0).frame == 0);
+  CHECK(pose_question_block(QBLOCK_SPIN_SECONDS + QBLOCK_REST_SECONDS + 0.5f, 0, 0).frame == 8);
+}
+
+static void question_blocks_come_in_four_colours_and_keep_theirs(void) {
+  int seen[QBLOCK_COLOURS] = {0};
+  for (int col = 0; col < 60; col++) {
+    for (int row = 0; row < 8; row++) {
+      int colour = question_block_colour(col, row);
+      CHECK(colour >= 0 && colour < QBLOCK_COLOURS);
+      CHECK(colour == question_block_colour(col, row)); /* not flickering */
+      CHECK((int)pose_question_block(0.3f, col, row).strip == STRIP_TILE_Q + colour);
+      seen[colour]++;
+    }
+  }
+  for (int i = 0; i < QBLOCK_COLOURS; i++) CHECK(seen[i] > 60); /* all well used */
+  CHECK(pose_question_block(0.3f, 3, 4).frame == pose_question_block(0.3f, 4, 3).frame);
 }
 
 void run_sprites_tests(void) {
@@ -225,4 +240,5 @@ void run_sprites_tests(void) {
   RUN(zombies_shuffle_and_claw_when_close);
   RUN(each_bug_and_effect_has_its_own_picture);
   RUN(question_blocks_turn_round_then_rest);
+  RUN(question_blocks_come_in_four_colours_and_keep_theirs);
 }

@@ -7,7 +7,7 @@
 #define FABIO_SCALE 0.5f
 #define ZOMBIE_SCALE 0.46f
 #define BOOK_READER_SCALE 0.5f
-#define MONK_SCALE 0.26f /* his blast, from the old sheet */
+#define MONK_SCALE 0.286f /* his blast, from the old sheet */
 #define MONK_STAND_SCALE 1.0f /* baked into the sprites by cook_sprites.py */
 #define SKELETON_SCALE 0.15552f /* 10% smaller than 0.1728 */
 #define CHEF_SCALE 1.0f /* baked into the sprites by cook_sprites.py */
@@ -171,7 +171,7 @@ static void draw_tiles(const frame_t* f) {
         }
         case TILE_ROCK: draw_tile_sprite(f, STRIP_GROUND_ROCK, x, y); break;
         case TILE_BRICK: draw_tile_sprite(f, STRIP_TILE_BRICK, x, y); break;
-        case TILE_QBLOCK: draw_tile_pose(f, pose_question_block(f->world->time), x, y); break;
+        case TILE_QBLOCK: draw_tile_pose(f, pose_question_block(f->world->time, col, row), x, y); break;
         case TILE_USED: draw_tile_sprite(f, STRIP_TILE_SOLID, x, y); break;
         case TILE_GOLD: draw_tile_sprite(f, STRIP_TILE_GOLD, x, y); break;
         case TILE_STONE: draw_tile_sprite(f, STRIP_TILE_STONE, x, y); break;

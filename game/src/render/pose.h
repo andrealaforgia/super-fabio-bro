@@ -45,7 +45,10 @@ typedef enum {
   STRIP_COIN,
   STRIP_MUSHROOM,
   STRIP_TILE_SOLID,
-  STRIP_TILE_Q,
+  STRIP_TILE_Q, /* yellow; the next three are blue, grey and orange, in this order */
+  STRIP_TILE_Q_BLUE,
+  STRIP_TILE_Q_GREY,
+  STRIP_TILE_Q_ORANGE,
   STRIP_TILE_BRICK,
   STRIP_TILE_GOLD,
   STRIP_TILE_STONE,
@@ -133,9 +136,13 @@ pose_t pose_demon(const enemy_t* demon);
 pose_t pose_demon_death(float age);
 /* The helicopter blowing up: seven frames over HELICOPTER_BOOM_SECONDS. */
 pose_t pose_helicopter_boom(float age);
+
 /* The "?" blocks all turn round together, then rest facing out, by world time. */
 #define QBLOCK_SPIN_SECONDS 1.0f
 #define QBLOCK_REST_SECONDS 0.8f
-pose_t pose_question_block(float time);
+#define QBLOCK_COLOURS 4
+/* Which of the four colours the block at (col, row) is, always the same one. */
+int question_block_colour(int col, int row);
+pose_t pose_question_block(float time, int col, int row);
 
 #endif  // GAME_RENDER_POSE_H_

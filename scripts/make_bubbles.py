@@ -52,16 +52,37 @@ def blank_bubble():
     return bubble
 
 
-def lettered(bubble, lines, size, pitch):
+def body_of(bubble):
+    """The rows the round part of the bubble spans, tail excluded."""
     w, h = bubble.size
+    alpha = bubble.getchannel("A").load()
+    rows = [y for y in range(h) if sum(1 for x in range(w) if alpha[x, y]) >= 0.6 * w]
+    return rows[0], rows[-1]
+
+
+def lettered(bubble, lines, size, pitch):
+    """Sets the lines at the biggest size that fits inside the outline, and centres
+    the ink, not the line boxes, in the round part of the bubble."""
+    w, h = bubble.size
+    top, bottom = body_of(bubble)
+    inner_w, inner_h = w - 2 * 10, bottom - top + 1 - 2 * 9  # outline and a little air
+    ratio = pitch / size
+    size = 60.0  # start big and shrink until it fits
+    draw = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    while True:
+        face = font(round(size * SCALE))
+        step = size * ratio * SCALE
+        widths = [draw.textlength(line, font=face) for line in lines]
+        ink_h = step * (len(lines) - 1) + face.size * 0.72  # cap height
+        if (max(widths) <= inner_w * SCALE and ink_h <= inner_h * SCALE) or size <= 6:
+            break
+        size -= 0.5
     big = Image.new("RGBA", (w * SCALE, h * SCALE), (0, 0, 0, 0))
     draw = ImageDraw.Draw(big)
-    face = font(size * SCALE)
-    pitch *= SCALE
-    top = (h - 14) * SCALE / 2 - pitch * len(lines) / 2 + pitch / 2 + 1 * SCALE
+    first = (top + (bottom - top + 1) / 2) * SCALE - step * (len(lines) - 1) / 2
     for i, line in enumerate(lines):
-        width = draw.textlength(line, font=face)
-        draw.text(((w * SCALE - width) / 2, top + i * pitch + pitch / 2), line, font=face, fill=(20, 20, 20, 255), anchor="lm", stroke_width=SCALE // 2, stroke_fill=(20, 20, 20, 255))
+        draw.text((w * SCALE / 2, first + i * step), line, font=face, fill=(20, 20, 20, 255),
+                  anchor="mm", stroke_width=SCALE // 2, stroke_fill=(20, 20, 20, 255))
     text = big.resize((w, h), Image.LANCZOS)
     out = bubble.copy()
     out.alpha_composite(text)

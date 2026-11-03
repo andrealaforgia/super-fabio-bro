@@ -125,10 +125,10 @@ SPEC = [
     # the dust stays where it fell.
     # The hooded monk, from the second row of his own sheet: hands joined, then the cross
     # comes out and is held up, and finally flashes red.
-    ("one", MONK_CROSS, "monk_cross_0", (50, 380, 250, 640), "checker", "fixed", "clean", "scale=0.2541"),
-    ("one", MONK_CROSS, "monk_cross_1", (300, 380, 500, 640), "checker", "fixed", "clean", "scale=0.2541"),
-    ("one", MONK_CROSS, "monk_cross_2", (555, 380, 775, 640), "checker", "fixed", "clean", "scale=0.2541"),
-    ("one", MONK_CROSS, "monk_cross_3", (800, 380, 1020, 640), "checker", "fixed", "clean", "scale=0.2541"),
+    ("one", MONK_CROSS, "monk_cross_0", (50, 380, 250, 640), "checker", "fixed", "clean", "scale=0.2795"),
+    ("one", MONK_CROSS, "monk_cross_1", (300, 380, 500, 640), "checker", "fixed", "clean", "scale=0.2795"),
+    ("one", MONK_CROSS, "monk_cross_2", (555, 380, 775, 640), "checker", "fixed", "clean", "scale=0.2795"),
+    ("one", MONK_CROSS, "monk_cross_3", (800, 380, 1020, 640), "checker", "fixed", "clean", "scale=0.2795"),
     ("one", RETRO, "skeleton_vanish_0", (1064, 455, 1161, 692), "cutout", "fixed"),
     ("one", RETRO, "skeleton_vanish_1", (1161, 455, 1254, 692), "cutout", "fixed"),
     ("one", RETRO, "skeleton_vanish_2", (1254, 455, 1350, 692), "cutout", "fixed"),
@@ -238,22 +238,11 @@ SPEC = [
     ("one", VEGETABLES, "vegetable_15", (1556, 1559, 1980, 1983), "vivid", "scale=0.15"),
     # The "?" block turning round: the yellow column, sixteen frames, each kept a
     # whole 32-pixel square so the narrow ones are not stretched.
-    ("one", QBLOCK, "tile_q_0", (0, 0, 32, 32), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_1", (0, 32, 32, 64), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_2", (0, 64, 32, 96), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_3", (0, 96, 32, 128), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_4", (0, 128, 32, 160), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_5", (0, 160, 32, 192), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_6", (0, 192, 32, 224), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_7", (0, 224, 32, 256), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_8", (0, 256, 32, 288), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_9", (0, 288, 32, 320), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_10", (0, 320, 32, 352), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_11", (0, 352, 32, 384), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_12", (0, 384, 32, 416), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_13", (0, 416, 32, 448), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_14", (0, 448, 32, 480), "alpha", "fixed"),
-    ("one", QBLOCK, "tile_q_15", (0, 480, 32, 512), "alpha", "fixed"),
+    # The question block turns round (16 frames); one column per colour, yellow first.
+    *[("one", QBLOCK, "%s_%d" % (name, row), (32 * col, 32 * row, 32 * col + 32, 32 * row + 32),
+       "alpha", "fixed")
+      for col, name in enumerate(["tile_q", "tile_q_blue", "tile_q_grey", "tile_q_orange"])
+      for row in range(16)],
     # The world
     ("one", WORLD, "tile_solid", (0, 212, 42, 255), "none"),
     ("one", WORLD, "tile_brick", (0, 470, 42, 512), "none"),

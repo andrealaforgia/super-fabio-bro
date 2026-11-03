@@ -31,6 +31,7 @@ typedef enum {
   SFX_VOICE_FABIO, /* "It's me! Fabio!" */
   SFX_BOOK_READER_BOOM,
   SFX_SKEWER, /* a cartoon slide whistle */
+  SFX_VOICE_CURSE, /* "Mannaggia Sanda!" */
   SFX_COUNT
 } sfx_id_t;
 
@@ -40,6 +41,9 @@ void sfx_free(sample_t clips[SFX_COUNT]);
 
 /* The clip a game event sounds like, and how loud. */
 sfx_id_t sfx_for_event(event_kind_t kind, float* volume);
+
+/* Whether Fabio shouts "Mannaggia Sanda!" at this event: when he is hit. */
+bool event_makes_fabio_swear(event_kind_t kind);
 
 typedef struct {
   double time;
