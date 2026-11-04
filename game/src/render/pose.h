@@ -88,6 +88,8 @@ typedef enum {
   STRIP_HELI_REST,
   STRIP_FAB_HELI,
   STRIP_HELI_BOOM,
+  STRIP_DRUMS_REST,
+  STRIP_DRUMS_PLAY,
   STRIP_COUNT
 } strip_id_t;
 
@@ -136,6 +138,8 @@ pose_t pose_demon(const enemy_t* demon);
 pose_t pose_demon_death(float age);
 /* The helicopter blowing up: seven frames over HELICOPTER_BOOM_SECONDS. */
 pose_t pose_helicopter_boom(float age);
+/* The drum kit on its own, or with Fabio flat out at it: DRUM_FRAMES frames, flashing by. */
+pose_t pose_drums(const drum_kit_t* kit, float time);
 
 /* The "?" blocks all turn round together, then rest facing out, by world time. */
 #define QBLOCK_SPIN_SECONDS 1.0f

@@ -262,6 +262,10 @@ void level_generate(level_t* level, uint32_t seed) {
 
   /* The opening: room to move, then a row of bricks with the pistol and a
    * potion in the first question blocks. */
+  /* Fabio's drum kit stands just ahead of where he starts, on the open grass. */
+  level->has_drums = true;
+  level->drums_x = 7.0f * TILE + TILE / 2;
+  level->drums_y = (float)(GROUND_ROW * TILE);
   flat(g, 9, true);
   int left = g->x;
   for (int i = 0; i < 9; i++) ground_column(g, left + i);

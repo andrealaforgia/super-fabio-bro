@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "rng.h"
+#include "drum_sounds.h"
 #include "voice_curse.h"
 
 #define TAU 6.28318530718
@@ -338,6 +339,8 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_HEAL], 0.35, heal_voice, 17);
   ok = ok && render(&clips[SFX_VOICE_FABIO], 1.5, speech_voice, 18);
   ok = ok && copy_clip(&clips[SFX_VOICE_CURSE], kVoiceCurse, kVoiceCurseLength);
+  for (int i = 0; i < DRUM_WORDS; i++)
+    ok = ok && copy_clip(&clips[SFX_DRUM_BOOM + i], kDrumClips[i].data, kDrumClips[i].length);
   ok = ok && render(&clips[SFX_BOOK_READER_BOOM], 1.1, book_reader_boom_voice, 19);
   if (ok) {
     normalise(&clips[SFX_VOICE_FABIO], 31000.0);
@@ -381,6 +384,13 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_BANANA_THROWN: *volume = 0.5f; return SFX_MELEE;
     case EVENT_DEMON_DIES: *volume = 0.9f; return SFX_BOOK_READER_BOOM;
     case EVENT_DEMON_CASTS: *volume = 0.6f; return SFX_SPELL;
+    case EVENT_DRUMS_START: *volume = 0.8f; return SFX_PICKUP;
+    case EVENT_DRUM_BOOM: *volume = 0.7f; return SFX_DRUM_BOOM;
+    case EVENT_DRUM_BADABOOM: *volume = 0.7f; return SFX_DRUM_BADABOOM;
+    case EVENT_DRUM_TASH: *volume = 0.6f; return SFX_DRUM_TASH;
+    case EVENT_DRUM_BODOBOOOM: *volume = 0.7f; return SFX_DRUM_BODOBOOOM;
+    case EVENT_DRUM_BOING: *volume = 0.6f; return SFX_DRUM_BOING;
+    case EVENT_DRUM_DISH: *volume = 0.6f; return SFX_DRUM_DISH;
     case EVENT_SKEWER_THROWN: *volume = 0.8f; return SFX_SKEWER;
     case EVENT_HELICOPTER_BOARDS: *volume = 0.8f; return SFX_PICKUP;
     case EVENT_HELICOPTER_EXPLODES: *volume = 1.0f; return SFX_BOOK_READER_BOOM;

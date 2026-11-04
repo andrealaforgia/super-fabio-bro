@@ -81,6 +81,8 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_HELI_REST] = {"heli_rest", 0},
     [STRIP_FAB_HELI] = {"fab_heli", 3},
     [STRIP_HELI_BOOM] = {"heli_boom", 7},
+    [STRIP_DRUMS_REST] = {"drums_rest", 0},
+    [STRIP_DRUMS_PLAY] = {"drums_play", DRUM_FRAMES},
 };
 
 static pose_t make(strip_id_t strip, int frame) {
@@ -215,6 +217,11 @@ pose_t pose_demon(const enemy_t* d) {
 pose_t pose_demon_death(float age) {
   int frame = (int)(age / (DEMON_DEATH_SECONDS / 8.0f));
   return make(STRIP_DEMON_DEATH, frame > 7 ? 7 : frame);
+}
+
+pose_t pose_drums(const drum_kit_t* kit, float time) {
+  if (kit->playing <= 0.0f) return make(STRIP_DRUMS_REST, 0);
+  return make(STRIP_DRUMS_PLAY, (int)(time / DRUM_FRAME_SECONDS));
 }
 
 pose_t pose_helicopter_boom(float age) {

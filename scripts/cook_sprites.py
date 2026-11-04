@@ -37,13 +37,15 @@ GORILLA = "gorilla.jpeg"
 QBLOCK = "question_block.png"
 DEMON = "demon.jpeg"
 VEGETABLES = "vegetables.jpeg"
+DRUM_KIT = "drum_kit.png"
+DRUMMER = "drummer_frantic.png"
 HELICOPTER = "helicopter.jpeg"
 FABIO_HELICOPTER = "fabio_helicopter.jpeg"
 SKEWER = "skewer.jpeg"
 
 # kind "band": every blob in the rectangle, left to right, named in order.
 # kind "one": the rectangle is one sprite.
-# bg "white", "paper", "cutout", "sky", "magenta" and "vivid" (pure magenta only)
+# bg "white", "paper", "cutout", "light", "sky", "magenta" and "vivid" (pure magenta only)
 # are keyed out, "alpha" keeps
 # the sheet's own transparency ("cutout" also clears paper
 # seen through gaps in the pose, which "paper" keeps for bright blast cores), "none" keeps the rectangle opaque.
@@ -201,6 +203,19 @@ SPEC = [
     # frame, tilted up to the right at 45 degrees. The game turns it as it flies.
     ("one", SKEWER, "skewer", (8, 618, 132, 740), "white", "scale=0.3"),
     ("one", DEMON, "demon_fireball", (930, 640, 1000, 705), "magenta"),
+    # Fabio's drum kit: at rest (the first kit of the first sheet), then the eight frames of the third
+    # row of the frantic sheet, in which he plays it flat out. The cells are kept whole so the
+    # kit stays put from frame to frame; their bottoms sit on the kit's feet, and the scale makes
+    # kit and drummer about as tall as Fabio.
+    ("one", DRUM_KIT, "drums_rest", (14, 66, 162, 196), "light", "fixed", "scale=0.44"),
+    ("one", DRUMMER, "drums_play_0", (5, 520, 157, 686), "light", "fixed", "scale=0.44"),
+    ("one", DRUMMER, "drums_play_1", (162, 520, 314, 686), "light", "fixed", "scale=0.44"),
+    ("one", DRUMMER, "drums_play_2", (318, 520, 470, 686), "light", "fixed", "scale=0.44"),
+    ("one", DRUMMER, "drums_play_3", (474, 488, 626, 686), "light", "fixed", "scale=0.44"),
+    ("one", DRUMMER, "drums_play_4", (630, 488, 782, 686), "light", "fixed", "scale=0.44"),
+    ("one", DRUMMER, "drums_play_5", (786, 488, 938, 686), "light", "fixed", "scale=0.44"),
+    ("one", DRUMMER, "drums_play_6", (942, 488, 1094, 686), "light", "fixed", "scale=0.44"),
+    ("one", DRUMMER, "drums_play_7", (1097, 488, 1249, 686), "light", "fixed", "scale=0.44"),
     # The one helicopter. At rest it is the first "idle hovering" frame of its own
     # sheet. With Fabio in it, the three rotor-spin frames of the second row of
     # the sheet with him inside, each a cell of the same size so the rotor and the
@@ -271,6 +286,8 @@ def is_background(pixel, bg):
         return min(r, g, b) >= PAPER_MIN
     if bg == "checker":  # the baked grey chequerboard: neutral, mid-light, never white or ink
         return max(r, g, b) - min(r, g, b) <= 14 and 105 <= min(r, g, b) <= 225
+    if bg == "light":  # the drummer's pale grey sheet: neutral and bright, but not paper white
+        return max(r, g, b) - min(r, g, b) <= 10 and min(r, g, b) >= 205
     if bg == "sky":
         return (min(r, g, b) >= WHITE_MIN) or (b > r + 28 and b >= g - 6)
     if bg == "magenta":  # the gorilla's backdrop; his browns and the banana have little blue

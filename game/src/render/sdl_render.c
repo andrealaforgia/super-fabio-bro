@@ -339,6 +339,54 @@ static void draw_helicopter(const frame_t* f) {
   draw_sprite(f, (pose_t){STRIP_HELI_REST, 0}, h->x, h->y, 1.0f, false, 1.0f);
 }
 
+/* The drum kit on the grass, or Fabio flat out at it. */
+static void draw_drums(const frame_t* f) {
+  const drum_kit_t* kit = &f->world->drums;
+  if (!kit->present || kit->x < f->cam_x - 120.0f || kit->x > f->cam_x + f->view_w + 120.0f) return;
+  draw_sprite(f, pose_drums(kit, f->world->time), kit->x, kit->y + 2.0f, 1.0f, false, 1.0f); /* feet in the grass */
+  if (kit->playing <= 0.0f) return;
+  /* How much of the gig is left. */
+  float w = 56.0f, x = kit->x - w * 0.5f - f->cam_x, y = kit->y - 100.0f;
+  fill_rect(f->gfx, rect(x - 2.0f, y - 2.0f, w + 4.0f, 9.0f), 20, 20, 50, 220);
+  fill_rect(f->gfx, rect(x, y, w * (kit->playing / DRUM_SECONDS), 5.0f), 255, 200, 60, 255);
+}
+
+/* A faint glow the size of each ring, behind the kit so Fabio stays in plain view. */
+static void draw_drum_glows(const frame_t* f) {
+  size_t cursor = 0;
+  for (const drum_word_t* w; (w = pool_next_active(&f->world->drum_words, &cursor));) {
+    float t = w->age / DRUM_WORD_SECONDS;
+    float r = drum_word_radius(w->age);
+    float alpha = t < 0.45f ? 1.0f : fmaxf(0.03f, 1.0f - (t - 0.45f) / 0.55f);
+    draw_texture_centred(f, f->look->glow, w->x, w->y, 2.0f * r, 2.0f * r, 0.05f * alpha);
+  }
+}
+
+/* The words the kit shouts, eight copies of each on a ring that swells all round
+ * the kit and fades. */
+static void draw_drum_words(const frame_t* f) {
+  static const uint8_t colours[DRUM_WORDS][3] = {{255, 90, 60},  {255, 210, 60}, {90, 220, 255},
+                                                 {255, 120, 220}, {140, 255, 120}, {255, 255, 255}};
+  const pixel_font_t* font = &f->look->font;
+  size_t cursor = 0;
+  for (const drum_word_t* w; (w = pool_next_active(&f->world->drum_words, &cursor));) {
+    float t = w->age / DRUM_WORD_SECONDS;
+    float r = drum_word_radius(w->age);
+    float alpha = t < 0.45f ? 1.0f : fmaxf(0.03f, 1.0f - (t - 0.45f) / 0.55f);
+    float cx = w->x - f->cam_x;
+    const char* text = kDrumWords[w->word];
+    float scale = 1.5f + 2.0f * t;
+    float half = pixel_text_width(text, scale) * 0.5f;
+    for (int k = 0; k < 8; k++) {
+      float angle = ((float)k + 0.5f * (float)(w->word % 2)) * (PI / 4.0f);
+      float x = cx + cosf(angle) * r - half, y = w->y + sinf(angle) * r - 4.0f * scale;
+      render_pixel_text_alpha(font, f->gfx, x + scale, y + scale, text, scale, 20, 10, 40, alpha);
+      render_pixel_text_alpha(font, f->gfx, x, y, text, scale, colours[w->word][0], colours[w->word][1],
+                              colours[w->word][2], alpha);
+    }
+  }
+}
+
 /* How much fuel is left, over the helicopter, blinking red for the last seconds. */
 static void draw_fuel(const frame_t* f, const player_t* p) {
   float w = 56.0f, x = p->x - w * 0.5f - f->cam_x, y = p->y - HELICOPTER_H - 14.0f;
@@ -644,9 +692,12 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
   draw_platforms(&f);
   draw_items(&f);
   draw_helicopter(&f);
+  draw_drum_glows(&f);
+  draw_drums(&f);
   draw_enemies(&f);
-  draw_player(&f);
+  if (world->drums.playing <= 0.0f) draw_player(&f); /* at the drums he is part of the kit */
   draw_effects(&f);
+  draw_drum_words(&f);
   draw_popups(&f);
   draw_hud(&f);
   if (world->state == STATE_GAME_OVER)

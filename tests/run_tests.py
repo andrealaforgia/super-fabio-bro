@@ -12,7 +12,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 GROUPS = (
-    "level", "physics", "player", "enemy", "combat", "book_reader", "score_popups", "monk", "chef", "platforms", "gorilla", "demon", "helicopter", "bot",
+    "level", "physics", "player", "enemy", "combat", "book_reader", "score_popups", "monk", "chef", "platforms", "gorilla", "demon", "helicopter", "drums", "bot",
     "scenery", "sprites", "audio",
 )
 

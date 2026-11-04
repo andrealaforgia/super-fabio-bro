@@ -32,6 +32,13 @@ typedef enum {
   SFX_BOOK_READER_BOOM,
   SFX_SKEWER, /* a cartoon slide whistle */
   SFX_VOICE_CURSE, /* "Mannaggia Sanda!" */
+  /* The drum kit's six words, in the order of kDrumWords. */
+  SFX_DRUM_BOOM,
+  SFX_DRUM_BADABOOM,
+  SFX_DRUM_TASH,
+  SFX_DRUM_BODOBOOOM,
+  SFX_DRUM_BOING,
+  SFX_DRUM_DISH,
   SFX_COUNT
 } sfx_id_t;
 

@@ -36,20 +36,21 @@ static bool make_pools(world_t* world) {
   world->skewers = create_object_pool(sizeof(skewer_t), MAX_SKEWERS);
   world->fireballs = create_object_pool(sizeof(fireball_t), MAX_FIREBALLS);
   world->debris = create_object_pool(sizeof(debris_t), MAX_DEBRIS);
+  world->drum_words = create_object_pool(sizeof(drum_word_t), MAX_DRUM_WORDS);
   return world->enemies.objects && world->pickups.objects &&
          world->bullets.objects && world->rays.objects &&
          world->effects.objects && world->particles.objects &&
          world->bumps.objects && world->popups.objects && world->bananas.objects && world->skewers.objects &&
-         world->fireballs.objects && world->debris.objects;
+         world->fireballs.objects && world->debris.objects && world->drum_words.objects;
 }
 
-#define POOL_COUNT 12
+#define POOL_COUNT 13
 
 static object_pool_t* pools_of(world_t* world, int index) {
   object_pool_t* all[] = {&world->enemies, &world->pickups, &world->bullets,
                           &world->rays,    &world->effects, &world->particles,
                           &world->bumps,    &world->popups,  &world->bananas, &world->skewers, &world->fireballs,
-                          &world->debris};
+                          &world->debris, &world->drum_words};
   return all[index];
 }
 
@@ -68,6 +69,8 @@ void world_restart(world_t* world, uint32_t seed) {
   player_reset(&world->player, &world->level);
   world->helicopter = (helicopter_t){world->level.has_helicopter, world->level.helicopter_x,
                                      world->level.helicopter_y};
+  world->drums = (drum_kit_t){world->level.has_drums, true, world->level.drums_x, world->level.drums_y,
+                              0.0f, 0.0f, -1};
   world->state = STATE_PLAYING;
   world->view_w = 960.0f;
   world->spawning = true;
@@ -122,6 +125,7 @@ void world_update(world_t* world, const controls_t* controls, float dt) {
     helicopter_update(world, dt);
     spawner_update(world, dt);
     enemies_update(world, dt);
+    drums_update(world, dt);
   }
   combat_update(world, dt);
   items_update(world, dt);

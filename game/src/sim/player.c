@@ -46,6 +46,7 @@ static void die(world_t* world) {
 void player_hurt(world_t* world, float from_x) {
   player_t* p = &world->player;
   if (!p->alive || p->invulnerable > 0.0f || p->flying) return; /* nothing touches him up there */
+  if (world->drums.playing > 0.0f) return; /* or while he is playing the drums */
   p->hp--;
   p->invulnerable = INVULNERABLE_AFTER_HIT;
   p->hurt_timer = 0.4f;
@@ -177,6 +178,11 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
     p->dead_time += dt;
     p->vy = fminf(p->vy + GRAVITY * dt, MAX_FALL);
     p->y += p->vy * dt;
+    return;
+  }
+
+  if (world->drums.playing > 0.0f) { /* sitting at the kit: drums_update keeps him there */
+    p->vx = p->vy = 0.0f;
     return;
   }
 

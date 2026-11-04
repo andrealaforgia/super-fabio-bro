@@ -140,6 +140,17 @@ start.
   falls, unharmed (a pit below still costs a heart, as ever). The resting
   helicopter is cut from `assets/source/helicopter.jpeg`; flying and
   exploding, from `assets/source/fabio_helicopter.jpeg`.
+- Fabio's drum kit stands in every level on the open grass just ahead of where Fabio starts. Jump
+  into it (walking past does nothing) and he sits down and plays by himself
+  for 10 seconds, with no keys needed and nothing able to hurt him, his eight
+  frames flashing by every 0.05 seconds. All the while the kit shouts BOOM,
+  BADABOOM, TASH, BODOBOOOM, BOING and DISH, each with its own drum sound: a
+  word swells into a ring round the kit, out to 320 pixels, then fades, and
+  kills any enemy it touches. Then he hops out, and every new jump into the kit starts a fresh 10 seconds. The
+  kit at rest is from `assets/source/drum_kit.png`, the playing frames from
+  the third row of `assets/source/drummer_frantic.png`, and the sounds are CC0
+  drum samples from the Sonic Pi library (`assets/source/sounds`), cut and
+  mixed by `scripts/make_drum_sounds.py` into `game/src/audio/drum_sounds.c`.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

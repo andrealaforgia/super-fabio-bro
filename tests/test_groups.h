@@ -14,6 +14,7 @@ void run_platform_tests(void);
 void run_gorilla_tests(void);
 void run_demon_tests(void);
 void run_helicopter_tests(void);
+void run_drum_tests(void);
 void run_bot_tests(void);
 void run_scenery_tests(void);
 void run_sprites_tests(void);

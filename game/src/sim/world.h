@@ -33,6 +33,7 @@
 #define MAX_DEBRIS 128 /* room for a gorilla's and a chef's showers at once */
 #define BANANA_SHOWER 50
 #define MAX_FIREBALLS 8
+#define MAX_DRUM_WORDS 24
 #define POPUP_SECONDS 1.1f
 #define POPUP_RISE 70.0f /* how far the points climb before they are gone */
 
@@ -56,6 +57,19 @@
 #define HELICOPTER_SPEEDUP 1.1f /* his walking and running speeds, sideways, in it */
 #define HELICOPTER_CEILING 140.0f /* the highest his skids go: under the scoreboard */
 #define HELICOPTER_BOOM_SECONDS 0.9f /* seven frames */
+/* Fabio's drum kit. He jumps into it and plays by himself for DRUM_SECONDS, as
+ * untouchable as in the helicopter, and the kit shouts a word every
+ * DRUM_WORD_EVERY seconds: it swells into a ring DRUM_WORD_RADIUS wide over
+ * DRUM_WORD_SECONDS, then fades, and kills any enemy inside it. */
+#define DRUM_SECONDS 10.0f
+#define DRUM_W 70.0f /* the box he jumps into */
+#define DRUM_H 62.0f
+#define DRUM_FRAME_SECONDS 0.05f /* eight frames of playing, flashing by */
+#define DRUM_FRAMES 8
+#define DRUM_WORDS 6
+#define DRUM_WORD_EVERY 0.2f
+#define DRUM_WORD_SECONDS 1.2f
+#define DRUM_WORD_RADIUS 320.0f
 #define PICKUP_SIZE 24.0f /* the box a prize from a block falls and rests as */
 
 typedef enum {
@@ -93,6 +107,14 @@ typedef enum {
   EVENT_HELICOPTER_BOARDS,
   EVENT_HELICOPTER_EXPLODES,
   EVENT_SKEWER_THROWN,
+  EVENT_DRUMS_START,
+  /* The six words, in the order of kDrumWords: EVENT_DRUM_BOOM + the word. */
+  EVENT_DRUM_BOOM,
+  EVENT_DRUM_BADABOOM,
+  EVENT_DRUM_TASH,
+  EVENT_DRUM_BODOBOOOM,
+  EVENT_DRUM_BOING,
+  EVENT_DRUM_DISH,
   EVENT_KIND_COUNT
 } event_kind_t;
 
@@ -273,9 +295,27 @@ typedef struct {
   float x, y; /* middle, and the skids */
 } helicopter_t;
 
+/* Fabio's drum kit, standing on the grass. Every jump into it starts a fresh gig. */
+typedef struct {
+  bool present;
+  bool armed;     /* he has left it since the last gig, so jumping in starts another */
+  float x, y;     /* middle, and the base */
+  float playing;  /* seconds of the gig left, 0 when nobody is at it */
+  float next_word;
+  int last_word;
+} drum_kit_t;
+
+/* A word the kit has shouted: a ring growing round the kit, then fading. */
+typedef struct {
+  float x, y; /* where the kit was */
+  float age;
+  int word; /* an index into kDrumWords */
+} drum_word_t;
+
 typedef struct {
   level_t level;
   helicopter_t helicopter;
+  drum_kit_t drums;
   plank_t planks[MAX_LEVEL_PLATFORMS];
   player_t player;
   /* Everything that comes and goes lives in an engine object pool. */
@@ -292,6 +332,7 @@ typedef struct {
   object_pool_t skewers;   /* skewer_t */
   object_pool_t fireballs; /* fireball_t */
   object_pool_t debris;    /* debris_t */
+  object_pool_t drum_words; /* drum_word_t */
   event_system_ptr events; /* where the world announces what happens; may be NULL */
 
   uint32_t seed; /* the level was generated from this */
@@ -476,6 +517,14 @@ book_reader_mood_t book_reader_mood(const enemy_t* book_reader);
  * to climb, down to sink, nothing to hover, until the fuel is gone after
  * HELICOPTER_FUEL_SECONDS: then it explodes and he falls, unharmed. */
 void helicopter_update(world_t* world, float dt);
+
+/* drums.c */
+extern const char* const kDrumWords[DRUM_WORDS];
+frect_t drum_kit_rect(const drum_kit_t* kit);
+/* How far the ring of a word `age` seconds old has swollen. */
+float drum_word_radius(float age);
+/* Fabio jumps into the kit, and it plays for DRUM_SECONDS. */
+void drums_update(world_t* world, float dt);
 
 /* combat.c */
 void combat_update(world_t* world, float dt);

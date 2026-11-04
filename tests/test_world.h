@@ -59,6 +59,7 @@ static inline world_t* new_empty_world(void) {
   }
   world->level.goal_x = level_width() - 200.0f;
   world->spawning = false;
+  world->drums.present = false; /* the opening's kit would get in the way of scenes */
   world->player.x = 10.0f * TILE;
   world->player.y = (float)(GROUND_ROW * TILE);
   world->camera_x = world->player.x - 400.0f;
