@@ -35,8 +35,10 @@ typedef struct {
   int since_hazard;    /* flat columns since the last pit, pipe or stairs */
   int since_potion;    /* columns since a potion was made available */
   int since_pistol;
+  int since_bubble_gun;
   int last_decor;
   int counted_x;       /* columns already added to the since_* counters */
+  int last_drums;      /* the column of the latest drum kit */
 } generator_t;
 
 static void put(generator_t* g, int col, int row, tile_t tile) {
@@ -108,6 +110,27 @@ static void rest_helicopter(generator_t* g, int length) {
   level->helicopter_y = (float)(GROUND_ROW * TILE);
 }
 
+/* Drum kits: one at the start, then one on the open grass every DRUMS_EVERY
+ * columns or so, never on the helicopter's stretch. */
+#define DRUMS_EVERY 70
+#define DRUMS_OVERDUE 100 /* past this, the next stretch is made open grass for one */
+
+static void stand_drums_at(generator_t* g, int col) {
+  level_t* level = g->level;
+  if (level->drum_count >= MAX_DRUM_KITS) return;
+  level->drums_x[level->drum_count++] = (float)(col * TILE + TILE / 2);
+  level->drums_y = (float)(GROUND_ROW * TILE);
+  g->last_drums = col;
+}
+
+static void stand_drums(generator_t* g, int length) {
+  level_t* level = g->level;
+  if (g->x < g->last_drums + DRUMS_EVERY || length < HELICOPTER_MIN_FLAT) return;
+  float from = (float)(g->x * TILE), to = (float)((g->x + length) * TILE);
+  if (level->has_helicopter && level->helicopter_x >= from && level->helicopter_x <= to) return;
+  stand_drums_at(g, g->x + length / 2);
+}
+
 static item_kind_t roll_content(generator_t* g) {
   if (g->since_potion > 45 || rng_chance(&g->rng, 0.1f)) {
     g->since_potion = 0;
@@ -116,6 +139,10 @@ static item_kind_t roll_content(generator_t* g) {
   if (g->since_pistol > 110 || rng_chance(&g->rng, 0.04f)) {
     g->since_pistol = 0;
     return ITEM_PISTOL;
+  }
+  if (g->since_bubble_gun > 160 || rng_chance(&g->rng, 0.03f)) {
+    g->since_bubble_gun = 0;
+    return ITEM_BUBBLE_GUN;
   }
   if (rng_chance(&g->rng, 0.2f)) return ITEM_MUSHROOM;
   return ITEM_COIN;
@@ -263,9 +290,7 @@ void level_generate(level_t* level, uint32_t seed) {
   /* The opening: room to move, then a row of bricks with the pistol and a
    * potion in the first question blocks. */
   /* Fabio's drum kit stands just ahead of where he starts, on the open grass. */
-  level->has_drums = true;
-  level->drums_x = 7.0f * TILE + TILE / 2;
-  level->drums_y = (float)(GROUND_ROW * TILE);
+  stand_drums_at(g, 7);
   flat(g, 9, true);
   int left = g->x;
   for (int i = 0; i < 9; i++) ground_column(g, left + i);
@@ -275,15 +300,18 @@ void level_generate(level_t* level, uint32_t seed) {
   put(g, left + 3, row, TILE_BRICK);
   question_block(g, left + 4, row, ITEM_POTION);
   put(g, left + 5, row, TILE_BRICK);
+  question_block(g, left + 6, row, ITEM_BUBBLE_GUN);
   add_item(g, ITEM_COIN, left + 7, GROUND_ROW - 2);
   g->x += 9;
   g->since_potion = 0;
   g->since_pistol = 0;
+  g->since_bubble_gun = 0;
 
   g->counted_x = g->x;
   while (g->x < LEVEL_COLS - 52) {
     g->since_potion += g->x - g->counted_x;
     g->since_pistol += g->x - g->counted_x;
+    g->since_bubble_gun += g->x - g->counted_x;
     g->counted_x = g->x;
     if (g->since_hazard < 6) {
       flat(g, rng_range(&g->rng, 3, 6), true);
@@ -291,9 +319,11 @@ void level_generate(level_t* level, uint32_t seed) {
     }
     int roll = rng_range(&g->rng, 0, 99);
     if (g->since_potion > 60) roll = 30; /* a platform, and a potion on it */
+    if (g->x >= g->last_drums + DRUMS_OVERDUE) roll = 0; /* open grass for the drums */
     if (roll < 22) {
       int length = rng_range(&g->rng, 6, 14);
       rest_helicopter(g, length);
+      stand_drums(g, length);
       flat(g, length, true);
     } else if (roll < 50) {
       platform(g, rng_range(&g->rng, 3, 8));

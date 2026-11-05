@@ -46,7 +46,7 @@ static void die(world_t* world) {
 void player_hurt(world_t* world, float from_x) {
   player_t* p = &world->player;
   if (!p->alive || p->invulnerable > 0.0f || p->flying) return; /* nothing touches him up there */
-  if (world->drums.playing > 0.0f) return; /* or while he is playing the drums */
+  if (world_drumming(world)) return; /* or while he is playing the drums */
   p->hp--;
   p->invulnerable = INVULNERABLE_AFTER_HIT;
   p->hurt_timer = 0.4f;
@@ -105,7 +105,7 @@ static void actions(world_t* world, const controls_t* controls, float dt) {
     drink(world);
 
   /* One shot at a time, and the weapons have a pecking order: the TDD spell's
-   * blast first, then the skewers while he is in the helicopter, then the pistol. */
+   * blast first, then the skewers while he is in the helicopter, then the bubble shotgun, then the pistol. */
   bool spell = p->spell_time > 0.0f;
   if (controls_held(controls, BTN_SHOOT) && p->gun_cooldown <= 0.0f && p->drink_timer <= 0.0f) {
     if (spell) {
@@ -114,6 +114,10 @@ static void actions(world_t* world, const controls_t* controls, float dt) {
     } else if (p->flying) {
       world_fire_skewer(world);
       p->gun_cooldown = SKEWER_COOLDOWN;
+    } else if (p->bubbles > 0) {
+      p->bubbles--;
+      world_fire_bubbles(world);
+      p->gun_cooldown = BUBBLE_COOLDOWN;
     } else if (p->ammo > 0) {
       p->ammo--;
       world_fire_bullet(world);
@@ -181,7 +185,7 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
     return;
   }
 
-  if (world->drums.playing > 0.0f) { /* sitting at the kit: drums_update keeps him there */
+  if (world_drumming(world)) { /* sitting at the kit: drums_update keeps him there */
     p->vx = p->vy = 0.0f;
     return;
   }

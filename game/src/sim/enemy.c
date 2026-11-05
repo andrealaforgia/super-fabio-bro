@@ -322,6 +322,7 @@ void enemies_update(world_t* world, float dt) {
   size_t cursor = 0;
   for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
     e->anim_time += dt;
+    if (enemy_in_bubble(world, e)) continue; /* wrapped: he floats, and the bubble carries him */
     if (e->kind == ENEMY_MONK || e->kind == ENEMY_CHEF || e->kind == ENEMY_GORILLA ||
         e->kind == ENEMY_DEMON)
       e->facing = p->x < e->x ? -1 : 1; /* turns to Fabio */

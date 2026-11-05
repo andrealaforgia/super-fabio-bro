@@ -405,7 +405,7 @@ static void chef_knives(world_t* world) {
   if (!p->alive) return;
   size_t cursor = 0;
   for (const enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
-    if (e->kind != ENEMY_CHEF || !chef_knife_out(e)) continue;
+    if (e->kind != ENEMY_CHEF || !chef_knife_out(e) || enemy_in_bubble(world, e)) continue;
     float reach = (float)e->facing * CHEF_KNIFE_REACH;
     frect_t blade = {fminf(e->x, e->x + reach), e->y - 46.0f, fabsf(reach), 34.0f};
     if (frect_overlaps(inset(player_rect(p), 3.0f), blade)) player_hurt(world, e->x);
@@ -417,7 +417,7 @@ static void touch_enemies(world_t* world) {
   if (!p->alive) return;
   size_t cursor = 0;
   for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
-    if (e->kind == ENEMY_BOOK_READER) continue;
+    if (e->kind == ENEMY_BOOK_READER || enemy_in_bubble(world, e)) continue;
     if (e->kind == ENEMY_DEMON && demon_presence(e) < 1.0f) continue; /* not all there yet */
     if (!frect_overlaps(inset(player_rect(p), 3.0f), inset(enemy_rect(e), 3.0f)))
       continue;

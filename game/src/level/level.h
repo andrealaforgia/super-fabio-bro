@@ -16,6 +16,7 @@
 #define LEVEL_ROWS 17
 #define LEVEL_COLS 520
 #define GROUND_ROW 13
+#define MAX_DRUM_KITS 8
 #define MAX_LEVEL_ITEMS 512
 #define MAX_LEVEL_DECOR 256
 #define MAX_LEVEL_PLATFORMS 64
@@ -40,7 +41,8 @@ typedef enum {
   ITEM_COIN,
   ITEM_POTION,
   ITEM_PISTOL,
-  ITEM_MUSHROOM
+  ITEM_MUSHROOM,
+  ITEM_BUBBLE_GUN
 } item_kind_t;
 
 typedef enum { DECOR_PINE, DECOR_OAK, DECOR_BUSH } decor_kind_t;
@@ -81,8 +83,9 @@ typedef struct {
   int platform_count;
   bool has_helicopter;    /* the one helicopter resting on the grass */
   float helicopter_x, helicopter_y; /* middle, and the skids */
-  bool has_drums;         /* Fabio's drum kit, further on */
-  float drums_x, drums_y; /* middle, and the base */
+  int drum_count;         /* Fabio's drum kits, one now and then all along */
+  float drums_x[MAX_DRUM_KITS]; /* middles */
+  float drums_y;                /* the base of them all */
   float spawn_x, spawn_y; /* middle of the feet */
   float castle_x;         /* middle of the castle */
   float goal_x;           /* reaching it wins */

@@ -14,10 +14,15 @@ float drum_word_radius(float age) {
   return DRUM_WORD_RADIUS * (1.0f - (1.0f - t) * (1.0f - t)); /* quick at first, then easing out */
 }
 
+bool world_drumming(const world_t* world) {
+  for (int i = 0; i < world->drum_count; i++)
+    if (world->drums[i].playing > 0.0f) return true;
+  return false;
+}
+
 /* He has to jump into it: on the ground, walking past, he does nothing. */
-static void sit_down(world_t* world) {
+static void sit_down(world_t* world, drum_kit_t* kit) {
   player_t* p = &world->player;
-  drum_kit_t* kit = &world->drums;
   kit->armed = false;
   kit->playing = DRUM_SECONDS; /* a fresh ten seconds every time, never added to the last */
   kit->next_word = 0.0f;
@@ -30,16 +35,15 @@ static void sit_down(world_t* world) {
 }
 
 /* The gig is over: he hops out of the kit. */
-static void stand_up(world_t* world) {
+static void stand_up(world_t* world, drum_kit_t* kit) {
   player_t* p = &world->player;
-  world->drums.playing = 0.0f;
+  kit->playing = 0.0f;
   p->vy = -320.0f;
   p->grounded = false;
   p->invulnerable = 1.0f;
 }
 
-static void shout(world_t* world) {
-  drum_kit_t* kit = &world->drums;
+static void shout(world_t* world, drum_kit_t* kit) {
   int word = rng_range(&world->rng, 0, DRUM_WORDS - 1);
   if (word == kit->last_word) word = (word + 1) % DRUM_WORDS;
   kit->last_word = word;
@@ -63,24 +67,28 @@ static void kill_inside(world_t* world, const drum_word_t* w) {
   }
 }
 
-void drums_update(world_t* world, float dt) {
-  drum_kit_t* kit = &world->drums;
+static void play(world_t* world, drum_kit_t* kit, float dt) {
   player_t* p = &world->player;
-  bool inside = frect_overlaps(player_rect(p), drum_kit_rect(kit));
-  if (!inside) kit->armed = true; /* hopping out of it does not drop him straight back in */
-  if (kit->present && kit->armed && kit->playing <= 0.0f && p->alive && !p->flying && !p->grounded && inside)
-    sit_down(world);
+  kit->playing -= dt;
+  p->x = kit->x;
+  p->y = kit->y;
+  kit->next_word -= dt;
+  while (kit->next_word <= 0.0f && kit->playing > 0.0f) {
+    shout(world, kit);
+    kit->next_word += DRUM_WORD_EVERY;
+  }
+  if (kit->playing <= 0.0f) stand_up(world, kit);
+}
 
-  if (kit->playing > 0.0f) {
-    kit->playing -= dt;
-    p->x = kit->x;
-    p->y = kit->y;
-    kit->next_word -= dt;
-    while (kit->next_word <= 0.0f && kit->playing > 0.0f) {
-      shout(world);
-      kit->next_word += DRUM_WORD_EVERY;
-    }
-    if (kit->playing <= 0.0f) stand_up(world);
+void drums_update(world_t* world, float dt) {
+  player_t* p = &world->player;
+  for (int i = 0; i < world->drum_count; i++) {
+    drum_kit_t* kit = &world->drums[i];
+    bool inside = frect_overlaps(player_rect(p), drum_kit_rect(kit));
+    if (!inside) kit->armed = true; /* hopping out of it does not drop him straight back in */
+    if (kit->armed && !world_drumming(world) && p->alive && !p->flying && !p->grounded && inside)
+      sit_down(world, kit);
+    if (kit->playing > 0.0f) play(world, kit, dt);
   }
 
   size_t cursor = 0;

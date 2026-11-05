@@ -22,6 +22,10 @@ static void collect(world_t* world, item_kind_t kind, float x, float y) {
       p->ammo += PISTOL_AMMO;
       world_award(world, 250, x, y);
       break;
+    case ITEM_BUBBLE_GUN:
+      p->bubbles += BUBBLE_GUN_AMMO;
+      world_award(world, 250, x, y);
+      break;
     case ITEM_MUSHROOM:
       if (p->hp < PLAYER_HP) {
         p->hp++;

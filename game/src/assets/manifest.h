@@ -6,7 +6,7 @@
 #ifndef GAME_ASSETS_MANIFEST_H_
 #define GAME_ASSETS_MANIFEST_H_
 
-#define MANIFEST_MAX 320
+#define MANIFEST_MAX 480
 
 typedef struct {
   char name[40];

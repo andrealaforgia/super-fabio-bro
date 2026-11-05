@@ -83,6 +83,14 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_HELI_BOOM] = {"heli_boom", 7},
     [STRIP_DRUMS_REST] = {"drums_rest", 0},
     [STRIP_DRUMS_PLAY] = {"drums_play", DRUM_FRAMES},
+    [STRIP_FAB_BUB_IDLE] = {"fab_bub_idle", 5},
+    [STRIP_FAB_BUB_WALK] = {"fab_bub_walk", 8},
+    [STRIP_FAB_BUB_RUN] = {"fab_bub_run", 8},
+    [STRIP_FAB_BUB_JUMP] = {"fab_bub_jump", 5},
+    [STRIP_FAB_BUB_AIM] = {"fab_bub_aim", 5},
+    [STRIP_FAB_BUB_SHOOT] = {"fab_bub_shoot", 8},
+    [STRIP_BUBBLE_GUN] = {"bubble_gun_0", 0},
+    [STRIP_SOAP_BUBBLE] = {"bubble_big", 0},
 };
 
 static pose_t make(strip_id_t strip, int frame) {
@@ -104,6 +112,12 @@ pose_t pose_player(const player_t* p) {
     return make(STRIP_FAB_ATTACK, frame < 0 ? 0 : (frame > 3 ? 3 : frame));
   }
   if (p->cast_pose > 0.0f) return make(STRIP_FAB_SPELL, 0);
+  if (p->bubbles > 0) { /* the shotgun is in hand: it takes the pistol's place */
+    if (p->shoot_pose > 0.0f) return make(STRIP_FAB_BUB_SHOOT, 1 + (int)(p->anim_time * 20.0f) % 2);
+    if (!p->grounded) return make(STRIP_FAB_BUB_JUMP, p->vy < -240.0f ? 1 : (p->vy < 120.0f ? 2 : (p->vy < 520.0f ? 3 : 4)));
+    if (fabsf(p->vx) <= 12.0f) return make(STRIP_FAB_BUB_IDLE, (int)(p->anim_time * 2.5f));
+    return make(fabsf(p->vx) > 230.0f ? STRIP_FAB_BUB_RUN : STRIP_FAB_BUB_WALK, (int)p->walk_phase);
+  }
   if (p->shoot_pose > 0.12f) return make(STRIP_FAB_GUNSHOOT, 0);
   if (p->shoot_pose > 0.0f) return make(STRIP_FAB_GUNAIM, 0);
 

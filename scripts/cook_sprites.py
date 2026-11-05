@@ -42,6 +42,8 @@ DRUMMER = "drummer_frantic.png"
 HELICOPTER = "helicopter.jpeg"
 FABIO_HELICOPTER = "fabio_helicopter.jpeg"
 SKEWER = "skewer.jpeg"
+BUBBLE_GUN = "bubble_gun.png"
+FABIO_BUBBLE_GUN = "fabio_bubble_gun.png"
 
 # kind "band": every blob in the rectangle, left to right, named in order.
 # kind "one": the rectangle is one sprite.
@@ -207,6 +209,17 @@ SPEC = [
     # row of the frantic sheet, in which he plays it flat out. The cells are kept whole so the
     # kit stays put from frame to frame; their bottoms sit on the kit's feet, and the scale makes
     # kit and drummer about as tall as Fabio.
+    # The soap bubble shotgun: Fabio carrying it (his sheet's first six rows; the
+    # sheet's Fabio is a touch taller than the old ones, so he is shrunk to match),
+    # the gun itself for the pickup, and the big bubble cut round as a circle.
+    ("band", FABIO_BUBBLE_GUN, (0, 30, 640, 175), ["fab_bub_idle_%d" % i for i in range(5)], "light", "scale=0.9"),
+    ("band", FABIO_BUBBLE_GUN, (0, 195, 1254, 340), ["fab_bub_walk_%d" % i for i in range(8)], "light", "scale=0.9"),
+    ("band", FABIO_BUBBLE_GUN, (0, 360, 1254, 500), ["fab_bub_run_%d" % i for i in range(8)], "light", "scale=0.9"),
+    ("band", FABIO_BUBBLE_GUN, (0, 500, 1254, 650), ["fab_bub_jump_%d" % i for i in range(5)], "light", "scale=0.9"),
+    ("band", FABIO_BUBBLE_GUN, (0, 650, 1254, 775), ["fab_bub_aim_%d" % i for i in range(5)], "light", "scale=0.9"),
+    ("band", FABIO_BUBBLE_GUN, (0, 790, 1254, 910), ["fab_bub_shoot_%d" % i for i in range(8)], "light", "scale=0.9"),
+    ("one", BUBBLE_GUN, "bubble_gun_0", (30, 140, 170, 240), "light"),
+    ("bubble", BUBBLE_GUN, "bubble_big", (1035, 936, 1229, 1118), "none"),
     ("one", DRUM_KIT, "drums_rest", (14, 66, 162, 196), "light", "fixed", "scale=0.44"),
     ("one", DRUMMER, "drums_play_0", (5, 520, 157, 686), "light", "fixed", "scale=0.44"),
     ("one", DRUMMER, "drums_play_1", (162, 520, 314, 686), "light", "fixed", "scale=0.44"),
@@ -558,6 +571,23 @@ def baked(sprite, options):
     return sprite
 
 
+def soap_bubble(crop):
+    """A soap bubble cut round out of its cell: a clear body, a solid blue rim and
+    bright glints, so the game can draw it any size over whatever is behind."""
+    size = min(crop.size)
+    radius = size / 2.0 - 1.5
+    sprite = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    src, out = crop.convert("RGB").load(), sprite.load()
+    for y in range(size):
+        for x in range(size):
+            if (x - size / 2.0 + 0.5) ** 2 + (y - size / 2.0 + 0.5) ** 2 > radius ** 2:
+                continue
+            r, g, b = src[x, y]
+            alpha = 255 if r < 110 else (205 if min(r, g, b) > 245 else 105)
+            out[x, y] = (r, g, b, alpha)
+    return sprite
+
+
 def cook(output):
     output.mkdir(parents=True, exist_ok=True)
     sheets = {}
@@ -574,6 +604,9 @@ def cook(output):
         kind, sheet = entry[0], entry[1]
         if sheet not in sheets:
             sheets[sheet] = Image.open(SOURCE / sheet).convert("RGBA" if entry[4] == "alpha" else "RGB")
+        if kind == "bubble":
+            emit(entry[2], soap_bubble(sheets[sheet].crop(entry[3])), True)
+            continue
         if kind == "band":
             rect, names, bg = entry[2], entry[3], entry[4]
             keyed = key_background(sheets[sheet].crop(rect), bg)

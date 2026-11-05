@@ -16,7 +16,8 @@ static world_t* fresh(void) {
 }
 
 static void stand_kit_at(world_t* world, float x) {
-  world->drums = (drum_kit_t){true, true, x, GROUND, 0.0f, 0.0f, -1};
+  world->drum_count = 1;
+  world->drums[0] = (drum_kit_t){true, x, GROUND, 0.0f, 0.0f, -1};
 }
 
 /* Fabio comes down on a kit right under him. */
@@ -26,7 +27,7 @@ static world_t* playing(void) {
   world->player.y = GROUND - 120.0f;
   world->player.grounded = false;
   step(world, NULL, 0.3f);
-  CHECK(world->drums.playing > 0.0f);
+  CHECK(world->drums[0].playing > 0.0f);
   return world;
 }
 
@@ -37,37 +38,63 @@ static int live_words(const world_t* world) {
   return n;
 }
 
-static void every_level_has_a_kit_on_open_grass_near_the_start(void) {
+static void every_level_has_kits_regularly_on_open_grass_the_first_near_the_start(void) {
   for (uint32_t seed = 1; seed <= 40; seed++) {
     level_t* level = calloc(1, sizeof(*level));
     level_generate(level, seed);
-    CHECK(level->has_drums);
-    CHECK(level->drums_x > level->spawn_x && level->drums_x < level->goal_x);
+    CHECK(level->drum_count >= 4 && level->drum_count <= MAX_DRUM_KITS);
+    CHECK(level->drums_x[0] < level->spawn_x + 6.0f * TILE);
     CHECK(level->drums_y == GROUND);
-    CHECK(fabsf(level->drums_x - level->helicopter_x) > HELICOPTER_W + DRUM_W);
-    int from = (int)floorf((level->drums_x - DRUM_W * 0.5f) / TILE);
-    int to = (int)floorf((level->drums_x + DRUM_W * 0.5f) / TILE);
-    for (int col = from; col <= to; col++) {
-      CHECK(tile_is_solid(level_tile(level, col, GROUND_ROW)));
-      for (int row = GROUND_ROW - 3; row < GROUND_ROW; row++)
-        CHECK(!tile_is_solid(level_tile(level, col, row)));
+    for (int i = 0; i < level->drum_count; i++) {
+      float x = level->drums_x[i];
+      CHECK(x > level->spawn_x && x < level->goal_x);
+      if (i > 0) CHECK(x - level->drums_x[i - 1] > 40.0f * TILE && x - level->drums_x[i - 1] < 160.0f * TILE);
+      CHECK(!level->has_helicopter || fabsf(x - level->helicopter_x) > HELICOPTER_W + DRUM_W);
+      int from = (int)floorf((x - DRUM_W * 0.5f) / TILE);
+      int to = (int)floorf((x + DRUM_W * 0.5f) / TILE);
+      for (int col = from; col <= to; col++) {
+        CHECK(tile_is_solid(level_tile(level, col, GROUND_ROW)));
+        for (int row = GROUND_ROW - 3; row < GROUND_ROW; row++)
+          CHECK(!tile_is_solid(level_tile(level, col, row)));
+      }
     }
     free(level);
   }
+}
+
+static void a_new_world_has_all_its_kits_waiting(void) {
+  world_t* world = world_new(5, NULL);
+  CHECK(world->drum_count == world->level.drum_count && world->drum_count >= 4);
+  for (int i = 0; i < world->drum_count; i++) CHECK(world->drums[i].x == world->level.drums_x[i] && world->drums[i].armed);
+  CHECK(!world_drumming(world));
+  world_free(world);
+}
+
+static void any_of_the_kits_plays_when_he_jumps_into_it(void) {
+  world_t* world = fresh();
+  world->drum_count = 2;
+  world->drums[0] = (drum_kit_t){true, 100.0f, GROUND, 0.0f, 0.0f, -1};
+  world->drums[1] = (drum_kit_t){true, world->player.x, GROUND, 0.0f, 0.0f, -1};
+  world->player.y = GROUND - 120.0f;
+  world->player.grounded = false;
+  step(world, NULL, 0.3f);
+  CHECK(world->drums[0].playing == 0.0f && world->drums[1].playing > 0.0f);
+  CHECK(world_drumming(world));
+  world_free(world);
 }
 
 static void walking_past_the_kit_on_the_ground_does_nothing(void) {
   world_t* world = fresh();
   stand_kit_at(world, world->player.x + 90.0f);
   step(world, &(buttons_t){BTN_RIGHT}, 1.0f);
-  CHECK(world->drums.playing == 0.0f);
+  CHECK(world->drums[0].playing == 0.0f);
   world_free(world);
 }
 
 static void jumping_into_the_kit_sits_him_at_it_with_no_one_pressing_anything(void) {
   world_t* world = playing();
   CHECK(world_has_event(world, EVENT_DRUMS_START));
-  CHECK(world->player.x == world->drums.x);
+  CHECK(world->player.x == world->drums[0].x);
   float x = world->player.x;
   step(world, &(buttons_t){BTN_RIGHT | BTN_RUN}, 1.0f);
   CHECK(world->player.x == x);
@@ -77,29 +104,29 @@ static void jumping_into_the_kit_sits_him_at_it_with_no_one_pressing_anything(vo
 static void he_plays_for_ten_seconds_and_then_hops_out(void) {
   world_t* world = playing();
   step(world, NULL, 9.0f);
-  CHECK(world->drums.playing > 0.0f);
+  CHECK(world->drums[0].playing > 0.0f);
   step(world, NULL, 1.0f);
-  CHECK(world->drums.playing == 0.0f);
+  CHECK(world->drums[0].playing == 0.0f);
   CHECK(world->player.alive);
   CHECK(world->player.vy < 0.0f || world->player.y < GROUND);
   step(world, &(buttons_t){BTN_RIGHT}, 0.6f);
-  CHECK(world->player.x > world->drums.x);
+  CHECK(world->player.x > world->drums[0].x);
   world_free(world);
 }
 
 static void every_jump_into_the_kit_starts_a_fresh_ten_seconds(void) {
   world_t* world = playing();
   step(world, NULL, 10.2f);
-  CHECK(world->drums.playing == 0.0f); /* hopping out of it does not sit him straight back down */
+  CHECK(world->drums[0].playing == 0.0f); /* hopping out of it does not sit him straight back down */
   step(world, &(buttons_t){BTN_RIGHT}, 1.2f);
-  CHECK(world->drums.playing == 0.0f);
-  world->player.x = world->drums.x;
+  CHECK(world->drums[0].playing == 0.0f);
+  world->player.x = world->drums[0].x;
   world->player.y = GROUND - 120.0f;
   world->player.grounded = false;
   step(world, NULL, 0.3f);
-  CHECK(world->drums.playing > DRUM_SECONDS - 0.5f && world->drums.playing <= DRUM_SECONDS);
+  CHECK(world->drums[0].playing > DRUM_SECONDS - 0.5f && world->drums[0].playing <= DRUM_SECONDS);
   step(world, NULL, 4.0f);
-  CHECK(world->drums.playing > 5.0f && world->drums.playing < 6.0f);
+  CHECK(world->drums[0].playing > 5.0f && world->drums[0].playing < 6.0f);
   world_free(world);
 }
 
@@ -143,7 +170,7 @@ static void a_ring_swells_to_its_full_size_and_is_gone(void) {
 
 static void whatever_enters_a_ring_dies_and_what_stays_out_lives(void) {
   world_t* world = playing();
-  float x = world->drums.x;
+  float x = world->drums[0].x;
   spawn_zombie(world, x + 200.0f, GROUND);
   spawn_zombie(world, x + 2000.0f, GROUND);
   CHECK(world_count_enemies(world, ENEMY_ZOMBIE) == 2);
@@ -157,21 +184,23 @@ static void whatever_enters_a_ring_dies_and_what_stays_out_lives(void) {
 static void the_kit_plays_its_frames_very_quickly(void) {
   world_t* world = playing();
   int changes = 0;
-  pose_t last = pose_drums(&world->drums, 0.0f);
+  pose_t last = pose_drums(&world->drums[0], 0.0f);
   CHECK(last.strip == STRIP_DRUMS_PLAY);
   for (float t = 0.0f; t < 1.0f; t += 0.01f) {
-    pose_t now = pose_drums(&world->drums, t);
+    pose_t now = pose_drums(&world->drums[0], t);
     changes += now.frame != last.frame;
     last = now;
   }
   CHECK(changes >= 18);
-  world->drums.playing = 0.0f;
-  CHECK(pose_drums(&world->drums, 3.0f).strip == STRIP_DRUMS_REST);
+  world->drums[0].playing = 0.0f;
+  CHECK(pose_drums(&world->drums[0], 3.0f).strip == STRIP_DRUMS_REST);
   world_free(world);
 }
 
 void run_drum_tests(void) {
-  RUN(every_level_has_a_kit_on_open_grass_near_the_start);
+  RUN(every_level_has_kits_regularly_on_open_grass_the_first_near_the_start);
+  RUN(a_new_world_has_all_its_kits_waiting);
+  RUN(any_of_the_kits_plays_when_he_jumps_into_it);
   RUN(walking_past_the_kit_on_the_ground_does_nothing);
   RUN(jumping_into_the_kit_sits_him_at_it_with_no_one_pressing_anything);
   RUN(he_plays_for_ten_seconds_and_then_hops_out);

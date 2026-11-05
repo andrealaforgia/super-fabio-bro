@@ -90,6 +90,14 @@ typedef enum {
   STRIP_HELI_BOOM,
   STRIP_DRUMS_REST,
   STRIP_DRUMS_PLAY,
+  STRIP_FAB_BUB_IDLE, /* Fabio with the soap bubble shotgun */
+  STRIP_FAB_BUB_WALK,
+  STRIP_FAB_BUB_RUN,
+  STRIP_FAB_BUB_JUMP,
+  STRIP_FAB_BUB_AIM,
+  STRIP_FAB_BUB_SHOOT,
+  STRIP_BUBBLE_GUN, /* the gun on its own: the pickup */
+  STRIP_SOAP_BUBBLE, /* one round soap bubble, drawn at any size */
   STRIP_COUNT
 } strip_id_t;
 

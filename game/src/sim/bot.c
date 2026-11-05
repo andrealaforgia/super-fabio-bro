@@ -76,7 +76,7 @@ buttons_t bot_decide(const world_t* world, bot_t* bot, float dt) {
   buttons_t b = 0;
   bot_travel(world, bot, dt, &b, true);
 
-  bool armed = p->ammo > 0 || p->spell_time > 0.0f;
+  bool armed = p->ammo > 0 || p->bubbles > 0 || p->spell_time > 0.0f;
   if (armed && enemy_ahead(world, 460.0f, 70.0f)) b |= BTN_SHOOT;
   if (enemy_ahead(world, 44.0f, 70.0f)) b |= BTN_MELEE;
   /* A monk, skeleton, chef, gorilla or demon hurts to touch, and the swing takes a moment to land. */

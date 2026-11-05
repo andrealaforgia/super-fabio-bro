@@ -48,6 +48,22 @@
 #define PLAYER_HP 5
 #define POTION_SECONDS 14.0f
 #define PISTOL_AMMO 15 /* bullets each pistol adds */
+/* The soap bubble shotgun: each shot (BUBBLE_GUN_AMMO to a pickup, one every
+ * BUBBLE_COOLDOWN while the key is held) lets BUBBLES_PER_SHOT bubbles go in a
+ * loose spread. A bubble swells all the way from BUBBLE_R0 to BUBBLE_R_MAX as it
+ * flies; the first enemy it meets is wrapped in it, floats helpless and, after
+ * BUBBLE_WRAP_SECONDS, bursts with the bubble. */
+#define BUBBLE_GUN_AMMO 50
+#define BUBBLES_PER_SHOT 2
+#define BUBBLE_COOLDOWN 0.12f
+#define BUBBLE_SPEED 330.0f
+#define BUBBLE_SPREAD 14.0f /* degrees either side of level */
+#define BUBBLE_R0 5.0f
+#define BUBBLE_R_MAX 48.0f
+#define BUBBLE_GROW_SECONDS 1.6f
+#define BUBBLE_LIFE 1.8f
+#define BUBBLE_WRAP_SECONDS 1.5f
+#define BUBBLE_LIFT 28.0f /* how fast a wrapped enemy floats up, in pixels a second */
 #define SPELL_LENGTH 620.0f
 #define BULLET_SPEED 760.0f
 #define HELICOPTER_FUEL_SECONDS 30.0f
@@ -107,6 +123,9 @@ typedef enum {
   EVENT_HELICOPTER_BOARDS,
   EVENT_HELICOPTER_EXPLODES,
   EVENT_SKEWER_THROWN,
+  EVENT_BUBBLE_SHOT,
+  EVENT_BUBBLE_WRAPS,
+  EVENT_BUBBLE_POPS,
   EVENT_DRUMS_START,
   /* The six words, in the order of kDrumWords: EVENT_DRUM_BOOM + the word. */
   EVENT_DRUM_BOOM,
@@ -127,6 +146,7 @@ typedef struct {
   float invulnerable;
   float hurt_timer;
   int ammo; /* bullets left; the pistol is in hand while there are any */
+  int bubbles; /* shots left in the soap bubble shotgun, which takes the pistol's place while there are any */
   int potions;
   float spell_time; /* seconds of TDD spell left */
   float gun_cooldown;
@@ -212,6 +232,16 @@ typedef struct {
  * -SKEWER_DIVE, 10 degrees short of straight down, by the time it falls as fast as it left. */
 float skewer_tilt(const skewer_t* skewer);
 
+/* A soap bubble in flight (`victim` is -1) or wrapped round an enemy (`victim` is
+ * his slot in the enemy pool, `victim_kind` what he was, `wrapped` seconds since). */
+typedef struct {
+  float x, y, vx, vy, age, r; /* centre and radius */
+  int victim;
+  int victim_kind;
+  float wrapped;
+} bubble_t;
+#define MAX_BUBBLES 64
+
 /* A banana the gorilla threw: it spins along an arc and kills whoever it hits
  * first, but never the gorilla who threw it; Fabio only loses a heart. */
 typedef struct {
@@ -295,9 +325,8 @@ typedef struct {
   float x, y; /* middle, and the skids */
 } helicopter_t;
 
-/* Fabio's drum kit, standing on the grass. Every jump into it starts a fresh gig. */
+/* One of Fabio's drum kits, standing on the grass. Every jump into one starts a fresh gig. */
 typedef struct {
-  bool present;
   bool armed;     /* he has left it since the last gig, so jumping in starts another */
   float x, y;     /* middle, and the base */
   float playing;  /* seconds of the gig left, 0 when nobody is at it */
@@ -315,12 +344,14 @@ typedef struct {
 typedef struct {
   level_t level;
   helicopter_t helicopter;
-  drum_kit_t drums;
+  drum_kit_t drums[MAX_DRUM_KITS];
+  int drum_count;
   plank_t planks[MAX_LEVEL_PLATFORMS];
   player_t player;
   /* Everything that comes and goes lives in an engine object pool. */
   object_pool_t enemies;   /* enemy_t */
   object_pool_t pickups;   /* pickup_t */
+  object_pool_t bubbles;   /* bubble_t */
   bool item_taken[MAX_LEVEL_ITEMS];
   object_pool_t bullets;   /* bullet_t */
   object_pool_t rays;      /* ray_t */
@@ -523,7 +554,9 @@ extern const char* const kDrumWords[DRUM_WORDS];
 frect_t drum_kit_rect(const drum_kit_t* kit);
 /* How far the ring of a word `age` seconds old has swollen. */
 float drum_word_radius(float age);
-/* Fabio jumps into the kit, and it plays for DRUM_SECONDS. */
+/* Whether he is sitting at a kit. */
+bool world_drumming(const world_t* world);
+/* Fabio jumps into a kit, and it plays for DRUM_SECONDS. */
 void drums_update(world_t* world, float dt);
 
 /* combat.c */
@@ -551,5 +584,11 @@ void world_burst(world_t* world, float x, float y, int count, uint8_t r,
 void items_update(world_t* world, float dt);
 void world_bump_block(world_t* world, int col, int row);
 void world_spawn_pickup(world_t* world, item_kind_t kind, float x, float y);
+
+/* One shot of the soap bubble shotgun: BUBBLES_PER_SHOT bubbles leave the muzzle. */
+void world_fire_bubbles(world_t* world);
+void bubbles_update(world_t* world, float dt);
+/* Whether a bubble has this enemy wrapped: he floats, harmless, until it bursts. */
+bool enemy_in_bubble(const world_t* world, const enemy_t* enemy);
 
 #endif  // GAME_SIM_WORLD_H_

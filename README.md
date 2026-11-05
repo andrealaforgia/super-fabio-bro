@@ -140,7 +140,7 @@ start.
   falls, unharmed (a pit below still costs a heart, as ever). The resting
   helicopter is cut from `assets/source/helicopter.jpeg`; flying and
   exploding, from `assets/source/fabio_helicopter.jpeg`.
-- Fabio's drum kit stands in every level on the open grass just ahead of where Fabio starts. Jump
+- Fabio's drum kit stands on the open grass just ahead of where Fabio starts, and another one every 70 to 100 columns or so all along the level (never on the helicopter's grass). Jump
   into it (walking past does nothing) and he sits down and plays by himself
   for 10 seconds, with no keys needed and nothing able to hurt him, his eight
   frames flashing by every 0.05 seconds. All the while the kit shouts BOOM,
@@ -151,6 +151,17 @@ start.
   the third row of `assets/source/drummer_frantic.png`, and the sounds are CC0
   drum samples from the Sonic Pi library (`assets/source/sounds`), cut and
   mixed by `scripts/make_drum_sounds.py` into `game/src/audio/drum_sounds.c`.
+- The soap bubble shotgun comes out of a `?` block (one in the opening row, then
+  now and then along the level) and gives 50 shots, counted at the top of the
+  screen. It takes the pistol's place while it has shots (the pistol keeps its
+  bullets for after). Hold the shoot key and it lets go two bubbles every 0.12
+  seconds in a loose spread. Each bubble keeps swelling as it flies, from a speck
+  to nearly 100 pixels across, and bursts against a wall or after 1.8 seconds. The
+  first enemy a bubble touches is wrapped in it and floats up, helpless and
+  harmless to touch, and 1.5 seconds later bubble and enemy burst together (the
+  usual points). The helicopter's skewers and the TDD spell still come first.
+  Fabio's frames are cut from `assets/source/fabio_bubble_gun.png`, the gun and
+  the round bubble from `assets/source/bubble_gun.png`.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

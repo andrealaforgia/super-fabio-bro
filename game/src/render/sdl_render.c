@@ -242,6 +242,9 @@ static void draw_items(const frame_t* f) {
       case ITEM_PISTOL:
         draw_centred(f, (pose_t){STRIP_PISTOL, 0}, item->x, item->y + bob, 0.4f, 0.4f, 0.0f, false, 1.0f);
         break;
+      case ITEM_BUBBLE_GUN:
+        draw_centred(f, (pose_t){STRIP_BUBBLE_GUN, 0}, item->x, item->y + bob, 0.3f, 0.3f, 0.0f, false, 1.0f);
+        break;
       case ITEM_MUSHROOM:
         draw_centred(f, (pose_t){STRIP_MUSHROOM, 0}, item->x, item->y + bob, 0.4f, 0.4f, 0.0f, false, 1.0f);
         break;
@@ -252,8 +255,9 @@ static void draw_items(const frame_t* f) {
   for (const pickup_t* p;
        (p = pool_next_active(&f->world->pickups, &pickup_cursor));) {
     strip_id_t strip = p->kind == ITEM_POTION ? STRIP_BOTTLE
-                       : p->kind == ITEM_PISTOL ? STRIP_PISTOL : STRIP_MUSHROOM;
-    float scale = p->kind == ITEM_POTION ? 0.3f : 0.4f;
+                       : p->kind == ITEM_PISTOL ? STRIP_PISTOL
+                       : p->kind == ITEM_BUBBLE_GUN ? STRIP_BUBBLE_GUN : STRIP_MUSHROOM;
+    float scale = p->kind == ITEM_POTION || p->kind == ITEM_BUBBLE_GUN ? 0.3f : 0.4f;
     /* Standing on the block: the bottom of the picture where its box rests. */
     float feet = p->y + PICKUP_SIZE * 0.5f;
     if (p->kind == ITEM_POTION) {
@@ -340,9 +344,9 @@ static void draw_helicopter(const frame_t* f) {
 }
 
 /* The drum kit on the grass, or Fabio flat out at it. */
-static void draw_drums(const frame_t* f) {
-  const drum_kit_t* kit = &f->world->drums;
-  if (!kit->present || kit->x < f->cam_x - 120.0f || kit->x > f->cam_x + f->view_w + 120.0f) return;
+static void draw_drums(const frame_t* f, int index) {
+  const drum_kit_t* kit = &f->world->drums[index];
+  if (kit->x < f->cam_x - 120.0f || kit->x > f->cam_x + f->view_w + 120.0f) return;
   draw_sprite(f, pose_drums(kit, f->world->time), kit->x, kit->y + 2.0f, 1.0f, false, 1.0f); /* feet in the grass */
   if (kit->playing <= 0.0f) return;
   /* How much of the gig is left. */
@@ -395,6 +399,21 @@ static void draw_fuel(const frame_t* f, const player_t* p) {
   fill_rect(f->gfx, rect(x - 2.0f, y - 2.0f, w + 4.0f, 9.0f), 20, 20, 50, 220);
   fill_rect(f->gfx, rect(x, y, w * (p->fuel / HELICOPTER_FUEL_SECONDS), 5.0f), 255,
             low ? 70 : 190, low ? 60 : 60, 255);
+}
+
+/* Soap bubbles, clear over whatever is behind them, with a wobble; one wrapped
+ * round an enemy starts flickering as it is about to burst. */
+static void draw_bubbles(const frame_t* f) {
+  size_t cursor = 0;
+  for (const bubble_t* b; (b = pool_next_active(&f->world->bubbles, &cursor));) {
+    const sprite_t* sprite = look_sprite(f->look, (pose_t){STRIP_SOAP_BUBBLE, 0});
+    float wobble = 1.0f + 0.04f * sinf(f->world->time * 17.0f + b->x * 0.05f);
+    float alpha = 0.9f;
+    if (b->victim >= 0 && b->wrapped > BUBBLE_WRAP_SECONDS - 0.35f && fmodf(b->wrapped, 0.08f) < 0.04f)
+      alpha = 0.45f;
+    float w = b->r * 2.0f * wobble, h = b->r * 2.0f / wobble;
+    draw_texture_centred(f, sprite->texture, b->x, b->y, w, h, alpha);
+  }
 }
 
 static void draw_player(const frame_t* f) {
@@ -634,11 +653,13 @@ static void draw_hud(const frame_t* f) {
   shadow_text(gfx, font, x - 2.0f, 46.0f, "E TO DRINK", 1.6f, 200, 255, 200);
 
   x += 120.0f;
-  if (p->ammo > 0) {
-    const sprite_t* gun = look_sprite(f->look, (pose_t){STRIP_PISTOL, 0});
+  if (p->ammo > 0 || p->bubbles > 0) {
+    bool soap = p->bubbles > 0; /* the soap bubble shotgun is the one in hand */
+    int shots = soap ? p->bubbles : p->ammo;
+    const sprite_t* gun = look_sprite(f->look, (pose_t){soap ? STRIP_BUBBLE_GUN : STRIP_PISTOL, 0});
     render_sprite(gfx, &gun->texture, NULL, rect(x, 10.0f, 42.0f, 32.0f), &none);
-    snprintf(text, sizeof(text), "X%02d", p->ammo);
-    bool low = p->ammo <= 3;
+    snprintf(text, sizeof(text), "X%02d", shots);
+    bool low = shots <= 3;
     shadow_text(gfx, font, x + 50.0f, 12.0f, text, 3.0f, 255, low ? 110 : 255, low ? 110 : 255);
     shadow_text(gfx, font, x - 2.0f, 46.0f, "ENTER TO SHOOT", 1.6f, 220, 220, 220);
   } else {
@@ -693,9 +714,10 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
   draw_items(&f);
   draw_helicopter(&f);
   draw_drum_glows(&f);
-  draw_drums(&f);
+  for (int i = 0; i < world->drum_count; i++) draw_drums(&f, i);
   draw_enemies(&f);
-  if (world->drums.playing <= 0.0f) draw_player(&f); /* at the drums he is part of the kit */
+  draw_bubbles(&f);
+  if (!world_drumming(world)) draw_player(&f); /* at the drums he is part of the kit */
   draw_effects(&f);
   draw_drum_words(&f);
   draw_popups(&f);
