@@ -104,11 +104,14 @@ static void actions(world_t* world, const controls_t* controls, float dt) {
       p->drink_timer <= 0.0f)
     drink(world);
 
-  /* One shot at a time, and the weapons have a pecking order: the TDD spell's
+  /* One shot at a time, and the weapons have a pecking order: the lightsaber's burst, the TDD spell's
    * blast first, then the skewers while he is in the helicopter, then the bubble shotgun, then the pistol. */
   bool spell = p->spell_time > 0.0f;
   if (controls_held(controls, BTN_SHOOT) && p->gun_cooldown <= 0.0f && p->drink_timer <= 0.0f) {
-    if (spell) {
+    if (p->jedi_time > 0.0f && !p->flying) {
+      world_fire_force_burst(world);
+      p->gun_cooldown = JEDI_COOLDOWN;
+    } else if (spell) {
       world_cast_spell(world);
       p->gun_cooldown = SPELL_COOLDOWN;
     } else if (p->flying) {
@@ -203,6 +206,10 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
     if (p->melee_timer <= 0.0f) p->melee_cooldown = MELEE_COOLDOWN;
   }
   if (p->spell_time > 0.0f) p->spell_time = fmaxf(0.0f, p->spell_time - dt);
+  if (p->jedi_time > 0.0f) {
+    p->jedi_time = fmaxf(0.0f, p->jedi_time - dt);
+    if (p->jedi_time <= 0.0f) world_burst(world, p->x, p->y - 30.0f, 12, 90, 255, 120, 220.0f); /* the robes fade */
+  }
 
   float direction = (controls_held(controls, BTN_RIGHT) ? 1.0f : 0.0f) -
                     (controls_held(controls, BTN_LEFT) ? 1.0f : 0.0f);

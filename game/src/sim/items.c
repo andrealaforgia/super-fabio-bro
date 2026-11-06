@@ -26,6 +26,13 @@ static void collect(world_t* world, item_kind_t kind, float x, float y) {
       p->bubbles += BUBBLE_GUN_AMMO;
       world_award(world, 250, x, y);
       break;
+    case ITEM_LIGHTSABER:
+      p->jedi_time = JEDI_SECONDS; /* he turns into a Jedi knight, and an old one wishes him well */
+      world->greeting_left = GREETING_SECONDS;
+      world_burst(world, p->x, p->y - 30.0f, 16, 90, 255, 120, 260.0f);
+      world_award(world, 500, x, y);
+      world_emit(world, EVENT_LIGHTSABER, x);
+      return;
     case ITEM_MUSHROOM:
       if (p->hp < PLAYER_HP) {
         p->hp++;

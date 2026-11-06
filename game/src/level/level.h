@@ -42,7 +42,8 @@ typedef enum {
   ITEM_POTION,
   ITEM_PISTOL,
   ITEM_MUSHROOM,
-  ITEM_BUBBLE_GUN
+  ITEM_BUBBLE_GUN,
+  ITEM_LIGHTSABER
 } item_kind_t;
 
 typedef enum { DECOR_PINE, DECOR_OAK, DECOR_BUSH } decor_kind_t;

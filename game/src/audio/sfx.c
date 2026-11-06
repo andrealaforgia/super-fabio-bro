@@ -103,6 +103,27 @@ static double slop_dies_voice(double t, double d, rng_t* r, void* s) {
   return splat + crush;
 }
 
+/* A snap and a rising, wobbling hum: the blade lights. */
+static double saber_on_voice(double t, double d, rng_t* r, void* s) {
+  (void)d; (void)s;
+  double hum = 0.35 * sin(TAU * (90.0 + 40.0 * t) * t) + 0.25 * sin(TAU * 2.0 * (90.0 + 40.0 * t) * t) +
+               0.12 * sin(TAU * 7.0 * (90.0 + 40.0 * t) * t);
+  double wobble = 1.0 + 0.2 * sin(TAU * 11.0 * t);
+  double snap = t < 0.05 ? noise(r) * 0.6 * (1.0 - t / 0.05) : 0.0;
+  double swell = fmin(1.0, t / 0.25) * decay(fmax(0.0, t - 0.4), 5.0);
+  return snap + hum * wobble * swell;
+}
+
+/* A whoosh of noise rising and falling, and a zap sweeping down. */
+static double force_burst_voice(double t, double d, rng_t* r, void* s) {
+  (void)d;
+  double* lp = (double*)s;
+  lp[0] += 0.15 * (noise(r) - lp[0]);
+  double whoosh = lp[0] * sin(3.14159 * fmin(1.0, t / 0.3)) * 1.2;
+  double zap = 0.35 * sin(TAU * (1500.0 - 3200.0 * t) * t) * decay(t, 9.0);
+  return whoosh * decay(t, 4.0) + zap;
+}
+
 static double spell_voice(double t, double d, rng_t* r, void* s) {
   (void)d; (void)r; (void)s;
   double f = 500.0 + 1500.0 * t / 0.3 + 60.0 * sin(TAU * 30.0 * t);
@@ -364,6 +385,8 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_SPELL], 0.45, spell_voice, 3);
   ok = ok && render(&clips[SFX_SLOP_THROW], 0.5, slop_throw_voice, 27);
   ok = ok && render(&clips[SFX_SLOP_DIES], 0.9, slop_dies_voice, 28);
+  ok = ok && render(&clips[SFX_SABER_ON], 1.0, saber_on_voice, 29);
+  ok = ok && render(&clips[SFX_FORCE_BURST], 0.4, force_burst_voice, 30);
   ok = ok && render(&clips[SFX_BUBBLE_SHOT], 0.16, bubble_shot_voice, 21);
   ok = ok && render(&clips[SFX_BUBBLE_WRAP], 0.5, bubble_wrap_voice, 22);
   ok = ok && render(&clips[SFX_BUBBLE_POP], 0.3, bubble_pop_voice, 23);
@@ -441,6 +464,8 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_BUBBLE_POPS: *volume = 0.9f; return SFX_BUBBLE_POP;
     case EVENT_SLOP_THROWN: *volume = 0.7f; return SFX_SLOP_THROW;
     case EVENT_SLOP_DIES: *volume = 1.0f; return SFX_SLOP_DIES;
+    case EVENT_LIGHTSABER: *volume = 0.9f; return SFX_SABER_ON;
+    case EVENT_FORCE_BURST: *volume = 0.7f; return SFX_FORCE_BURST;
     case EVENT_SKEWER_THROWN: *volume = 0.8f; return SFX_SKEWER;
     case EVENT_HELICOPTER_BOARDS: *volume = 0.8f; return SFX_PICKUP;
     case EVENT_HELICOPTER_EXPLODES: *volume = 1.0f; return SFX_BOOK_READER_BOOM;

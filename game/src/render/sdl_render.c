@@ -242,6 +242,9 @@ static void draw_items(const frame_t* f) {
       case ITEM_PISTOL:
         draw_centred(f, (pose_t){STRIP_PISTOL, 0}, item->x, item->y + bob, 0.4f, 0.4f, 0.0f, false, 1.0f);
         break;
+      case ITEM_LIGHTSABER:
+        draw_centred(f, (pose_t){STRIP_SABER, (int)(t * 8.0f)}, item->x, item->y + bob, 1.0f, 1.0f, 0.0f, false, 1.0f);
+        break;
       case ITEM_BUBBLE_GUN:
         draw_centred(f, (pose_t){STRIP_BUBBLE_GUN, 0}, item->x, item->y + bob, 0.3f, 0.3f, 0.0f, false, 1.0f);
         break;
@@ -256,8 +259,10 @@ static void draw_items(const frame_t* f) {
        (p = pool_next_active(&f->world->pickups, &pickup_cursor));) {
     strip_id_t strip = p->kind == ITEM_POTION ? STRIP_BOTTLE
                        : p->kind == ITEM_PISTOL ? STRIP_PISTOL
-                       : p->kind == ITEM_BUBBLE_GUN ? STRIP_BUBBLE_GUN : STRIP_MUSHROOM;
-    float scale = p->kind == ITEM_POTION || p->kind == ITEM_BUBBLE_GUN ? 0.3f : 0.4f;
+                       : p->kind == ITEM_BUBBLE_GUN ? STRIP_BUBBLE_GUN
+                       : p->kind == ITEM_LIGHTSABER ? STRIP_SABER : STRIP_MUSHROOM;
+    float scale = p->kind == ITEM_POTION || p->kind == ITEM_BUBBLE_GUN ? 0.3f
+                  : p->kind == ITEM_LIGHTSABER ? 1.0f : 0.4f;
     /* Standing on the block: the bottom of the picture where its box rests. */
     float feet = p->y + PICKUP_SIZE * 0.5f;
     if (p->kind == ITEM_POTION) {
@@ -419,6 +424,39 @@ static void draw_bubbles(const frame_t* f) {
   }
 }
 
+/* The green bursts the lightsaber sends, flying flat out ahead of it. */
+static void draw_force_bursts(const frame_t* f) {
+  size_t cursor = 0;
+  for (const force_burst_t* b; (b = pool_next_active(&f->world->force_bursts, &cursor));) {
+    draw_texture_centred(f, f->look->glow, b->x, b->y, 120.0f, 120.0f, 0.35f);
+    draw_centred(f, pose_force_burst(b->age), b->x, b->y, 1.0f, 1.0f, 0.0f, b->vx < 0.0f, 1.0f);
+  }
+}
+
+/* The old knight, a pixel portrait at the top left under the scoreboard, fading in to wish Fabio
+ * well and fading away again. */
+static void draw_greeting(const frame_t* f) {
+  float alpha = greeting_alpha(f->world->greeting_left);
+  if (alpha <= 0.0f) return;
+  const pixel_font_t* font = &f->look->font;
+  const sprite_t* face = look_sprite(f->look, pose_old_knight(f->world->greeting_left));
+  float x = 14.0f, y = 104.0f;
+  draw_options_t options = {false, alpha, 0.0f, false, 0, 0, 0};
+  render_sprite(f->gfx, &face->texture, NULL, rect(x, y, (float)face->w, (float)face->h), &options);
+  const char* lines[2] = {"MAY THE FORCE BE", "WITH YOU FABIO!"};
+  float scale = 2.2f, text_w = pixel_text_width(lines[0], scale);
+  float bx = x + (float)face->w + 10.0f, by = y + 22.0f, bw = text_w + 28.0f, bh = 70.0f;
+  uint8_t a = (uint8_t)(alpha * 235.0f);
+  fill_rect(f->gfx, rect(bx - 3.0f, by - 3.0f, bw + 6.0f, bh + 6.0f), 20, 10, 40, a);
+  fill_rect(f->gfx, rect(bx, by, bw, bh), 235, 245, 225, a);
+  fill_rect(f->gfx, rect(bx + 3.0f, by + 3.0f, bw - 6.0f, bh - 6.0f), 12, 50, 40, a);
+  for (int line = 0; line < 2; line++) {
+    float ty = by + 14.0f + (float)line * 24.0f;
+    render_pixel_text_alpha(font, f->gfx, bx + 14.0f + scale, ty + scale, lines[line], scale, 0, 20, 10, alpha);
+    render_pixel_text_alpha(font, f->gfx, bx + 14.0f, ty, lines[line], scale, 150, 255, 160, alpha);
+  }
+}
+
 static void draw_player(const frame_t* f) {
   const player_t* p = &f->world->player;
   if (p->spell_time > 0.0f) {
@@ -475,6 +513,10 @@ static void draw_effects(const frame_t* f) {
       float left = fx->duration - fx->age;
       draw_sprite(f, pose_slop_effect(fx->kind, fx->age, fx->duration), fx->x, fx->y, 1.0f,
                   fx->facing < 0, left < 0.15f ? left / 0.15f : 1.0f);
+      continue;
+    }
+    if (fx->kind == FX_FORCE_HIT) {
+      draw_centred(f, pose_force_hit(fx->age, fx->duration), fx->x, fx->y, 1.2f, 1.2f, 0.0f, false, 1.0f);
       continue;
     }
     if (fx->kind == FX_HELICOPTER_BOOM) {
@@ -678,8 +720,17 @@ static void draw_hud(const frame_t* f) {
     bool low = shots <= 3;
     shadow_text(gfx, font, x + 50.0f, 12.0f, text, 3.0f, 255, low ? 110 : 255, low ? 110 : 255);
     shadow_text(gfx, font, x - 2.0f, 46.0f, "ENTER TO SHOOT", 1.6f, 220, 220, 220);
-  } else {
+  } else if (p->jedi_time <= 0.0f) { /* a knight needs no gun */
     shadow_text(gfx, font, x, 14.0f, "NO GUN", 2.4f, 150, 150, 170);
+  }
+
+  if (p->jedi_time > 0.0f) {
+    float bar_w = 220.0f, bar_x = f->view_w - bar_w - 18.0f - (p->spell_time > 0.0f ? bar_w + 30.0f : 0.0f);
+    bool blink = p->jedi_time < 3.0f && fmodf(w->time, 0.3f) < 0.15f;
+    shadow_text(gfx, font, bar_x, 8.0f, "THE FORCE", 2.4f, 140, 255, 150);
+    fill_rect(gfx, rect(bar_x - 2.0f, 30.0f, bar_w + 4.0f, 20.0f), 10, 40, 20, 255);
+    if (!blink)
+      fill_rect(gfx, rect(bar_x, 32.0f, bar_w * (p->jedi_time / JEDI_SECONDS), 16.0f), 90, 255, 110, 255);
   }
 
   if (p->spell_time > 0.0f) {
@@ -733,11 +784,13 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
   for (int i = 0; i < world->drum_count; i++) draw_drums(&f, i);
   draw_enemies(&f);
   draw_bubbles(&f);
+  draw_force_bursts(&f);
   if (!world_drumming(world)) draw_player(&f); /* at the drums he is part of the kit */
   draw_effects(&f);
   draw_drum_words(&f);
   draw_popups(&f);
   draw_hud(&f);
+  draw_greeting(&f);
   if (world->state == STATE_GAME_OVER)
     draw_banner(&f, "GAME OVER", "PRESS SPACE TO TRY AGAIN", 255, 70, 70);
   else if (world->state == STATE_WON)

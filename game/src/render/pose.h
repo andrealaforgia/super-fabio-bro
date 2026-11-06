@@ -104,6 +104,16 @@ typedef enum {
   STRIP_SLOP_BALL,
   STRIP_SLOP_SPLAT,
   STRIP_SLOP_PIECE,
+  STRIP_FAB_JEDI_IDLE, /* Fabio turned Jedi knight, with the green lightsaber */
+  STRIP_FAB_JEDI_WALK,
+  STRIP_FAB_JEDI_RUN,
+  STRIP_FAB_JEDI_JUMP,
+  STRIP_FAB_JEDI_SWING,
+  STRIP_FAB_JEDI_HURT,
+  STRIP_SABER,        /* the lightsaber on its own: the pickup */
+  STRIP_FORCE_BURST,  /* the green burst in flight */
+  STRIP_FORCE_HIT,    /* and bursting on an enemy */
+  STRIP_OLD_KNIGHT,   /* the old knight's face: mouth shut, mouth open */
   STRIP_SOAP_BUBBLE, /* one round soap bubble, drawn at any size */
   STRIP_COUNT
 } strip_id_t;
@@ -155,6 +165,11 @@ pose_t pose_demon_death(float age);
 pose_t pose_helicopter_boom(float age);
 /* The drum kit on its own, or with Fabio flat out at it: DRUM_FRAMES frames, flashing by. */
 pose_t pose_drums(const drum_kit_t* kit, float time);
+/* The green burst flying, and the sparks it leaves on an enemy (`age` of `duration`). */
+pose_t pose_force_burst(float age);
+pose_t pose_force_hit(float age, float duration);
+/* The old knight at the top left: his mouth moves while he is speaking and is shut as he fades. */
+pose_t pose_old_knight(float left);
 /* The slop monster dripping, winding up a ball over his head, and throwing it. */
 pose_t pose_slop(const enemy_t* slop);
 /* The slop effects: the monster's death (FX_SLOP_DEATH) and a ball landing, `age` of `duration`. */

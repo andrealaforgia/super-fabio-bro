@@ -35,6 +35,8 @@ typedef enum {
   SFX_BUBBLE_SHOT, /* the shotgun's soft bloop */
   SFX_BUBBLE_WRAP, /* a bubble closing round an enemy */
   SFX_BUBBLE_POP,  /* and bursting */
+  SFX_SABER_ON,    /* a lightsaber igniting: a snap, then a rising hum */
+  SFX_FORCE_BURST, /* a swinging whoosh and a green zap */
   SFX_SLOP_THROW,  /* a wet, burbling heave */
   SFX_SLOP_DIES,   /* a big wet splat and a glitchy fizz */
   /* The drum kit's six words, in the order of kDrumWords. */

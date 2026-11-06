@@ -36,6 +36,7 @@ typedef struct {
   int since_potion;    /* columns since a potion was made available */
   int since_pistol;
   int since_bubble_gun;
+  int since_saber;
   int last_decor;
   int counted_x;       /* columns already added to the since_* counters */
   int last_drums;      /* the column of the latest drum kit */
@@ -143,6 +144,10 @@ static item_kind_t roll_content(generator_t* g) {
   if (g->since_bubble_gun > 160 || rng_chance(&g->rng, 0.03f)) {
     g->since_bubble_gun = 0;
     return ITEM_BUBBLE_GUN;
+  }
+  if (g->since_saber > 150 || rng_chance(&g->rng, 0.03f)) {
+    g->since_saber = 0;
+    return ITEM_LIGHTSABER;
   }
   if (rng_chance(&g->rng, 0.2f)) return ITEM_MUSHROOM;
   return ITEM_COIN;
@@ -297,7 +302,7 @@ void level_generate(level_t* level, uint32_t seed) {
   int row = GROUND_ROW - 4;
   put(g, left + 1, row, TILE_BRICK);
   question_block(g, left + 2, row, ITEM_PISTOL);
-  put(g, left + 3, row, TILE_BRICK);
+  question_block(g, left + 3, row, ITEM_LIGHTSABER);
   question_block(g, left + 4, row, ITEM_POTION);
   put(g, left + 5, row, TILE_BRICK);
   question_block(g, left + 6, row, ITEM_BUBBLE_GUN);
@@ -306,12 +311,14 @@ void level_generate(level_t* level, uint32_t seed) {
   g->since_potion = 0;
   g->since_pistol = 0;
   g->since_bubble_gun = 0;
+  g->since_saber = 0;
 
   g->counted_x = g->x;
   while (g->x < LEVEL_COLS - 52) {
     g->since_potion += g->x - g->counted_x;
     g->since_pistol += g->x - g->counted_x;
     g->since_bubble_gun += g->x - g->counted_x;
+    g->since_saber += g->x - g->counted_x;
     g->counted_x = g->x;
     if (g->since_hazard < 6) {
       flat(g, rng_range(&g->rng, 3, 6), true);

@@ -43,6 +43,8 @@ HELICOPTER = "helicopter.jpeg"
 FABIO_HELICOPTER = "fabio_helicopter.jpeg"
 SKEWER = "skewer.jpeg"
 SLOP = "slop_monster.png"
+FABIO_JEDI = "fabio_jedi.png"
+JEDI_ITEMS = "jedi_items.png"
 BUBBLE_GUN = "bubble_gun.png"
 FABIO_BUBBLE_GUN = "fabio_bubble_gun.png"
 
@@ -264,6 +266,24 @@ SPEC = [
     ("one", SLOP, "slop_piece_3", (675, 1110, 800, 1195), "light", "scale=0.28"),
     ("one", SLOP, "slop_piece_4", (845, 1110, 985, 1195), "light", "scale=0.28"),
     ("one", SLOP, "slop_piece_5", (1025, 1110, 1150, 1195), "light", "scale=0.28"),
+    # Fabio turned Jedi knight (his sheet's first six rows, shrunk to his size), the green
+    # lightsaber, the burst it sends and its sparks, and the old knight's portrait.
+    ("band", FABIO_JEDI, (0, 30, 640, 225), ["fab_jedi_idle_0", "fab_jedi_idle_1", "fab_jedi_idle_2", "fab_jedi_idle_3", "fab_jedi_idle_4"], "light", "scale=0.85"),
+    ("band", FABIO_JEDI, (0, 260, 1254, 420), ["fab_jedi_walk_0", "fab_jedi_walk_1", "fab_jedi_walk_2", "fab_jedi_walk_3", "fab_jedi_walk_4", "fab_jedi_walk_5", "fab_jedi_walk_6", "fab_jedi_walk_7"], "light", "scale=0.85"),
+    ("band", FABIO_JEDI, (0, 460, 1254, 620), ["fab_jedi_run_0", "fab_jedi_run_1", "fab_jedi_run_2", "fab_jedi_run_3", "fab_jedi_run_4", "fab_jedi_run_5", "fab_jedi_run_6", "fab_jedi_run_7"], "light", "scale=0.85"),
+    ("band", FABIO_JEDI, (0, 640, 1254, 830), ["fab_jedi_jump_0", "fab_jedi_jump_1", "fab_jedi_jump_2", "fab_jedi_jump_3", "fab_jedi_jump_4"], "light", "scale=0.85"),
+    ("band", FABIO_JEDI, (0, 850, 1254, 1040), ["fab_jedi_swing_0", "fab_jedi_swing_1", "fab_jedi_swing_2", "fab_jedi_swing_3", "fab_jedi_swing_4", "fab_jedi_swing_5"], "light", "scale=0.85"),
+    ("band", FABIO_JEDI, (0, 1060, 390, 1220), ["fab_jedi_hurt_0", "fab_jedi_hurt_1"], "light", "scale=0.85"),
+    ("band", JEDI_ITEMS, (60, 50, 1254, 240), ["saber_0", "saber_1", "saber_2", "saber_3"], "light", "scale=0.25"),
+    ("band", JEDI_ITEMS, (40, 300, 1254, 450), ["force_burst_0", "force_burst_1", "force_burst_2", "force_burst_3", "force_burst_4", "force_burst_5"], "light", "scale=0.5"),
+    ("one", JEDI_ITEMS, "force_hit_0", (27, 500, 217, 670), "light", "scale=0.5"),
+    ("one", JEDI_ITEMS, "force_hit_1", (225, 500, 415, 670), "light", "scale=0.5"),
+    ("one", JEDI_ITEMS, "force_hit_2", (433, 500, 623, 670), "light", "scale=0.5"),
+    ("one", JEDI_ITEMS, "force_hit_3", (640, 500, 830, 670), "light", "scale=0.5"),
+    ("one", JEDI_ITEMS, "force_hit_4", (835, 500, 1025, 670), "light", "scale=0.5"),
+    ("one", JEDI_ITEMS, "force_hit_5", (1043, 500, 1233, 670), "light", "scale=0.5"),
+    ("one", JEDI_ITEMS, "old_knight_0", (350, 730, 544, 925), "light", "scale=0.6"),
+    ("one", JEDI_ITEMS, "old_knight_1", (710, 730, 904, 925), "light", "scale=0.6"),
     ("one", DRUM_KIT, "drums_rest", (14, 66, 162, 196), "light", "fixed", "scale=0.44"),
     ("one", DRUMMER, "drums_play_0", (5, 520, 157, 686), "light", "fixed", "scale=0.44"),
     ("one", DRUMMER, "drums_play_1", (162, 520, 314, 686), "light", "fixed", "scale=0.44"),

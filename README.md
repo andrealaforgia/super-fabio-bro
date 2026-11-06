@@ -164,7 +164,9 @@ start.
   the round bubble from `assets/source/bubble_gun.png`.
 - The AI slop monster (every 28 to 45 seconds, one at a time, never on top of
   another special) stands where he appears, turned towards Fabio, a hulking
-  purple and teal heap of melted generated nonsense with too many fingers and teeth.
+  purple and teal heap of melted generated nonsense with too many fingers and teeth,
+  wearing its AI on its sleeve: glowing sparkle stars, a chatbot bubble with typing dots, a network
+  of nodes and wires, a circuit chip and a `>_` prompt.
   He goes round and round: he drips, winds up a ball of slop over his head and hurls
   it at Fabio on an arc, aimed anywhere up to 90 pixels either side of him. The ball
   costs a heart, splats against walls and the ground, and hurts nobody else, unlike
@@ -172,6 +174,16 @@ start.
   pickaxe or a bubble kills him (450 points), and he tears into glitchy noise and
   bursts into a shower of thirty blobs of slop with eyes and fingers. His frames are cut
   from `assets/source/slop_monster.png`, generated with Codex to match the other sheets.
+- The green lightsaber comes out of a `?` block (one in the opening row, then now and
+  then along the level). Picking it up turns Fabio into a Jedi knight for 20 seconds (a
+  green bar, THE FORCE, shows it running out): robes, a trimmed beard and the saber in
+  hand. The shoot key swings it and sends a green burst flying ahead, one every 0.4
+  seconds, that destroys every enemy it passes through (about 570 pixels, stopped
+  by a wall). The pistol keeps its bullets meanwhile. The moment he picks it up an old
+  knight's pixel portrait fades in at the top left under the scoreboard, his mouth moving
+  as the line "MAY THE FORCE BE WITH YOU FABIO!" shows beside him, and fades away
+  after 4.5 seconds. Frames are cut from `assets/source/fabio_jedi.png` and
+  `jedi_items.png`, generated with Codex to match the other sheets.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

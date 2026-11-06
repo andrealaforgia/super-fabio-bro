@@ -97,6 +97,16 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_SLOP_BALL] = {"slop_ball", 6},
     [STRIP_SLOP_SPLAT] = {"slop_splat", 6},
     [STRIP_SLOP_PIECE] = {"slop_piece", SLOP_PIECES},
+    [STRIP_FAB_JEDI_IDLE] = {"fab_jedi_idle", 5},
+    [STRIP_FAB_JEDI_WALK] = {"fab_jedi_walk", 8},
+    [STRIP_FAB_JEDI_RUN] = {"fab_jedi_run", 8},
+    [STRIP_FAB_JEDI_JUMP] = {"fab_jedi_jump", 5},
+    [STRIP_FAB_JEDI_SWING] = {"fab_jedi_swing", 6},
+    [STRIP_FAB_JEDI_HURT] = {"fab_jedi_hurt", 2},
+    [STRIP_SABER] = {"saber", 4},
+    [STRIP_FORCE_BURST] = {"force_burst", 6},
+    [STRIP_FORCE_HIT] = {"force_hit", 6},
+    [STRIP_OLD_KNIGHT] = {"old_knight", 2},
     [STRIP_SOAP_BUBBLE] = {"bubble_big", 0},
 };
 
@@ -111,7 +121,13 @@ static pose_t make(strip_id_t strip, int frame) {
 pose_t pose_player(const player_t* p) {
   if (!p->alive) return make(STRIP_FAB_HURT, 3);
   if (p->flying) return make(STRIP_FAB_HELI, (int)(p->anim_time * 18.0f)); /* the rotor spins */
-  if (p->hurt_timer > 0.0f) return make(STRIP_FAB_HURT, 1);
+  if (p->hurt_timer > 0.0f) return p->jedi_time > 0.0f ? make(STRIP_FAB_JEDI_HURT, 0) : make(STRIP_FAB_HURT, 1);
+  if (p->jedi_time > 0.0f) { /* the knight's robes, for as long as the Force is with him */
+    if (p->shoot_pose > 0.0f) return make(STRIP_FAB_JEDI_SWING, (int)((1.0f - p->shoot_pose / 0.3f) * 6.0f));
+    if (!p->grounded) return make(STRIP_FAB_JEDI_JUMP, p->vy < -240.0f ? 1 : (p->vy < 120.0f ? 2 : (p->vy < 520.0f ? 3 : 4)));
+    if (fabsf(p->vx) <= 12.0f) return make(STRIP_FAB_JEDI_IDLE, (int)(p->anim_time * 2.5f));
+    return make(fabsf(p->vx) > 230.0f ? STRIP_FAB_JEDI_RUN : STRIP_FAB_JEDI_WALK, (int)p->walk_phase);
+  }
   if (p->drink_timer > 0.15f) return make(STRIP_FAB_DRINK, 0);
   if (p->drink_timer > 0.0f) return make(STRIP_FAB_POTION, 0);
   if (p->melee_timer > 0.0f) {
@@ -279,6 +295,7 @@ pose_t pose_effect(fx_kind_t kind) {
     case FX_CHEF_EXPLODE: return make(STRIP_CHEF_BOOM, 0);
     case FX_DEMON_DEATH: return make(STRIP_DEMON_DEATH, 0);
     case FX_HELICOPTER_BOOM: return make(STRIP_HELI_BOOM, 0);
+    case FX_FORCE_HIT: return make(STRIP_FORCE_HIT, 0);
     case FX_SLOP_DEATH: return make(STRIP_SLOP_DEATH, 0);
     case FX_SLOP_SPLAT: return make(STRIP_SLOP_SPLAT, 0);
   }
@@ -301,4 +318,16 @@ pose_t pose_slop(const enemy_t* s) {
 pose_t pose_slop_effect(fx_kind_t kind, float age, float duration) {
   strip_id_t strip = kind == FX_SLOP_DEATH ? STRIP_SLOP_DEATH : STRIP_SLOP_SPLAT;
   return make(strip, (int)(age / duration * (float)kStripSpecs[strip].frames));
+}
+
+pose_t pose_force_burst(float age) { return make(STRIP_FORCE_BURST, (int)(age * 24.0f)); }
+
+pose_t pose_force_hit(float age, float duration) {
+  return make(STRIP_FORCE_HIT, (int)(age / duration * (float)kStripSpecs[STRIP_FORCE_HIT].frames));
+}
+
+pose_t pose_old_knight(float left) {
+  float age = GREETING_SECONDS - left;
+  bool speaking = age > GREETING_FADE_IN && left > GREETING_FADE_OUT;
+  return make(STRIP_OLD_KNIGHT, speaking ? (int)(age * 7.0f) % 2 : 0);
 }

@@ -64,6 +64,20 @@
 #define BUBBLE_LIFE 1.8f
 #define BUBBLE_WRAP_SECONDS 1.5f
 #define BUBBLE_LIFT 28.0f /* how fast a wrapped enemy floats up, in pixels a second */
+/* The green lightsaber turns Fabio into a Jedi knight for JEDI_SECONDS. The shoot key swings it
+ * and sends a green burst flying ahead that destroys every enemy it passes through, until it
+ * has gone FORCE_BURST_SPEED * FORCE_BURST_LIFE or meets a wall. The old knight's face fades in
+ * at the top left to wish him well for GREETING_SECONDS: in, then still, then out. */
+#define JEDI_SECONDS 20.0f
+#define JEDI_COOLDOWN 0.4f
+#define FORCE_BURST_SPEED 640.0f
+#define FORCE_BURST_LIFE 0.9f
+#define FORCE_BURST_W 44.0f
+#define FORCE_BURST_H 70.0f
+#define GREETING_SECONDS 4.5f
+#define GREETING_FADE_IN 0.5f
+#define GREETING_FADE_OUT 0.8f
+#define MAX_FORCE_BURSTS 12
 #define SPELL_LENGTH 620.0f
 #define BULLET_SPEED 760.0f
 #define HELICOPTER_FUEL_SECONDS 30.0f
@@ -126,6 +140,8 @@ typedef enum {
   EVENT_BUBBLE_SHOT,
   EVENT_BUBBLE_WRAPS,
   EVENT_BUBBLE_POPS,
+  EVENT_LIGHTSABER,
+  EVENT_FORCE_BURST,
   EVENT_SLOP_THROWN,
   EVENT_SLOP_DIES,
   EVENT_DRUMS_START,
@@ -148,6 +164,7 @@ typedef struct {
   float invulnerable;
   float hurt_timer;
   int ammo; /* bullets left; the pistol is in hand while there are any */
+  float jedi_time; /* seconds left as a Jedi knight, with the lightsaber */
   int bubbles; /* shots left in the soap bubble shotgun, which takes the pistol's place while there are any */
   int potions;
   float spell_time; /* seconds of TDD spell left */
@@ -245,6 +262,11 @@ typedef struct {
 } bubble_t;
 #define MAX_BUBBLES 64
 
+/* A green burst from the lightsaber: flies on through everything it destroys. */
+typedef struct {
+  float x, y, vx, age; /* centre */
+} force_burst_t;
+
 /* A banana the gorilla threw: it spins along an arc and kills whoever it hits
  * first, but never the gorilla who threw it; Fabio only loses a heart. */
 typedef struct {
@@ -295,6 +317,7 @@ typedef enum {
   FX_CHEF_EXPLODE,
   FX_DEMON_DEATH,
   FX_HELICOPTER_BOOM,
+  FX_FORCE_HIT, /* a green burst meeting an enemy, 6 frames */
   FX_SLOP_DEATH, /* the slop monster tearing into noise and dripping away, 8 frames */
   FX_SLOP_SPLAT  /* a ball of slop landing, 6 frames */
 } fx_kind_t;
@@ -361,6 +384,7 @@ typedef struct {
   object_pool_t enemies;   /* enemy_t */
   object_pool_t pickups;   /* pickup_t */
   object_pool_t bubbles;   /* bubble_t */
+  object_pool_t force_bursts; /* force_burst_t */
   bool item_taken[MAX_LEVEL_ITEMS];
   object_pool_t bullets;   /* bullet_t */
   object_pool_t rays;      /* ray_t */
@@ -394,6 +418,7 @@ typedef struct {
   int monks_killed;
   int chefs_killed;
   int gorillas_killed;
+  float greeting_left; /* seconds left of the old knight's greeting at the top left, 0 for none */
   int slops_killed;
   int demons_killed;
 } world_t;
@@ -611,6 +636,12 @@ void world_spawn_pickup(world_t* world, item_kind_t kind, float x, float y);
 /* One shot of the soap bubble shotgun: BUBBLES_PER_SHOT bubbles leave the muzzle. */
 void world_fire_bubbles(world_t* world);
 void bubbles_update(world_t* world, float dt);
+/* jedi.c: the lightsaber's green bursts, and the old knight's greeting. */
+void world_fire_force_burst(world_t* world);
+void force_bursts_update(world_t* world, float dt);
+/* How solid the greeting is `left` seconds before it ends: 0 at both ends, 1 in the middle. */
+float greeting_alpha(float left);
+
 /* Whether a bubble has this enemy wrapped: he floats, harmless, until it bursts. */
 bool enemy_in_bubble(const world_t* world, const enemy_t* enemy);
 
