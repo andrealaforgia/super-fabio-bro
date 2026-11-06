@@ -19,6 +19,7 @@ void run_bubble_tests(void);
 void run_slop_tests(void);
 void run_jedi_tests(void);
 void run_warp_tests(void);
+void run_ally_tests(void);
 void run_bot_tests(void);
 void run_scenery_tests(void);
 void run_sprites_tests(void);

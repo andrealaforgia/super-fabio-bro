@@ -78,6 +78,15 @@
 #define GREETING_FADE_IN 0.5f
 #define GREETING_FADE_OUT 0.8f
 #define MAX_FORCE_BURSTS 12
+/* Fabio's three friends. A sushi dumpling brings Andrea, a Chinese dragon Alessandro and boxing
+ * gloves Giulia. Each stays ALLY_SECONDS, a few steps ahead of Fabio (each a different number),
+ * and fights by himself: Andrea strokes his belly, a wobble that kills everything round him;
+ * Alessandro and Giulia run at what comes within their reach and strike it. Nothing hurts them. */
+#define ALLY_SECONDS 30.0f
+#define ALLY_W 26.0f
+#define ALLY_H 54.0f
+#define ALLY_ARRIVE_SECONDS 0.35f
+#define MAX_ALLIES 3
 #define SPELL_LENGTH 620.0f
 #define BULLET_SPEED 760.0f
 #define HELICOPTER_FUEL_SECONDS 30.0f
@@ -139,6 +148,10 @@ typedef enum {
   EVENT_BUBBLE_SHOT,
   EVENT_BUBBLE_WRAPS,
   EVENT_BUBBLE_POPS,
+  EVENT_ALLY_ARRIVES,
+  EVENT_ALLY_BELLY,  /* Andrea strokes his belly */
+  EVENT_ALLY_KUNGFU, /* Alessandro strikes */
+  EVENT_ALLY_PUNCH,  /* Giulia punches */
   EVENT_LIGHTSABER,
   EVENT_FORCE_BURST,
   EVENT_SLOP_THROWN,
@@ -264,6 +277,20 @@ typedef struct {
 } bubble_t;
 #define MAX_BUBBLES 64
 
+typedef enum { ALLY_ANDREA, ALLY_ALESSANDRO, ALLY_GIULIA, ALLY_KIND_COUNT } ally_kind_t;
+typedef struct {
+  ally_kind_t kind;
+  float x, y, vx, vy; /* the middle of the feet */
+  int facing;
+  bool grounded;
+  float left;     /* seconds still to stay */
+  float age;      /* seconds since he arrived */
+  float attack;   /* seconds into a strike, 0 when not striking */
+  float cooldown; /* before the next strike */
+  float anim;
+  bool struck;    /* this strike has landed */
+} ally_t;
+
 /* A green burst from the lightsaber: flies on through everything it destroys. */
 typedef struct {
   float x, y, vx, age; /* centre */
@@ -319,6 +346,10 @@ typedef enum {
   FX_CHEF_EXPLODE,
   FX_DEMON_DEATH,
   FX_HELICOPTER_BOOM,
+  FX_ALLY_POOF,  /* an ally arriving or leaving, 6 frames */
+  FX_ALLY_WAVE,  /* Andrea's belly wobble, 4 frames */
+  FX_ALLY_SLASH, /* Alessandro's chi slash, 4 frames */
+  FX_ALLY_PUNCH, /* Giulia's punch burst, 4 frames */
   FX_FORCE_HIT, /* a green burst meeting an enemy, 6 frames */
   FX_SLOP_DEATH, /* the slop monster tearing into noise and dripping away, 8 frames */
   FX_SLOP_SPLAT  /* a ball of slop landing, 6 frames */
@@ -412,6 +443,7 @@ typedef struct {
   object_pool_t enemies;   /* enemy_t */
   object_pool_t pickups;   /* pickup_t */
   object_pool_t bubbles;   /* bubble_t */
+  object_pool_t allies;    /* ally_t */
   object_pool_t force_bursts; /* force_burst_t */
   bool item_taken[MAX_LEVEL_ITEMS];
   object_pool_t bullets;   /* bullet_t */
@@ -678,6 +710,16 @@ int warp_pipe_under_fabio(const world_t* world);
 float warp_fade(const world_t* world);
 /* Everything that comes and goes (enemies, bullets, effects ...) is cleared. */
 void world_clear_actors(world_t* world);
+
+/* allies.c: Fabio's friends. */
+/* Calls the ally in (or, if he is already here, keeps him another ALLY_SECONDS). */
+void world_summon_ally(world_t* world, ally_kind_t kind);
+void allies_update(world_t* world, float dt);
+/* Brings them all to Fabio's side: he has been through a pipe. */
+void allies_regroup(world_t* world);
+/* How far ahead of Fabio the ally stands, how long a strike takes. */
+float ally_offset(ally_kind_t kind);
+float ally_attack_seconds(ally_kind_t kind);
 
 /* Whether a bubble has this enemy wrapped: he floats, harmless, until it bursts. */
 bool enemy_in_bubble(const world_t* world, const enemy_t* enemy);

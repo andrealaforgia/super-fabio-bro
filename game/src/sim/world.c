@@ -38,27 +38,29 @@ static bool make_pools(world_t* world) {
   world->debris = create_object_pool(sizeof(debris_t), MAX_DEBRIS);
   world->drum_words = create_object_pool(sizeof(drum_word_t), MAX_DRUM_WORDS);
   world->bubbles = create_object_pool(sizeof(bubble_t), MAX_BUBBLES);
+  world->allies = create_object_pool(sizeof(ally_t), MAX_ALLIES);
   world->force_bursts = create_object_pool(sizeof(force_burst_t), MAX_FORCE_BURSTS);
   return world->enemies.objects && world->pickups.objects &&
          world->bullets.objects && world->rays.objects &&
          world->effects.objects && world->particles.objects &&
          world->bumps.objects && world->popups.objects && world->bananas.objects && world->skewers.objects &&
          world->fireballs.objects && world->debris.objects && world->drum_words.objects &&
-         world->bubbles.objects && world->force_bursts.objects;
+         world->bubbles.objects && world->force_bursts.objects && world->allies.objects;
 }
 
-#define POOL_COUNT 15
+#define POOL_COUNT 16
 
 static object_pool_t* pools_of(world_t* world, int index) {
   object_pool_t* all[] = {&world->enemies, &world->pickups, &world->bullets,
                           &world->rays,    &world->effects, &world->particles,
                           &world->bumps,    &world->popups,  &world->bananas, &world->skewers, &world->fireballs,
-                          &world->debris, &world->drum_words, &world->bubbles, &world->force_bursts};
+                          &world->debris, &world->drum_words, &world->bubbles, &world->force_bursts, &world->allies};
   return all[index];
 }
 
 void world_clear_actors(world_t* world) {
-  for (int i = 0; i < POOL_COUNT; i++) pool_reset(pools_of(world, i));
+  for (int i = 0; i < POOL_COUNT; i++)
+    if (pools_of(world, i) != &world->allies) pool_reset(pools_of(world, i)); /* his friends go with him */
 }
 
 void world_restart(world_t* world, uint32_t seed) {
@@ -144,6 +146,7 @@ void world_update(world_t* world, const controls_t* controls, float dt) {
     drums_update(world, controls, dt);
     bubbles_update(world, dt);
     force_bursts_update(world, dt);
+    allies_update(world, dt);
   }
   combat_update(world, dt);
   items_update(world, dt);

@@ -33,6 +33,12 @@ static void collect(world_t* world, item_kind_t kind, float x, float y) {
       world_award(world, 500, x, y);
       world_emit(world, EVENT_LIGHTSABER, x);
       return;
+    case ITEM_SUSHI:
+    case ITEM_DRAGON:
+    case ITEM_GLOVES:
+      world_summon_ally(world, kind == ITEM_SUSHI ? ALLY_ANDREA : kind == ITEM_DRAGON ? ALLY_ALESSANDRO : ALLY_GIULIA);
+      world_award(world, 300, x, y);
+      return; /* the arrival has its own fanfare */
     case ITEM_MUSHROOM:
       if (p->hp < PLAYER_HP) {
         p->hp++;

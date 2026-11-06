@@ -57,6 +57,7 @@ static void go_down(world_t* world, int pipe) {
   p->safe_x = p->x;
   p->safe_y = p->y;
   world->camera_x = 0.0f;
+  allies_regroup(world);
   float ground = (float)(GROUND_ROW * TILE);
   if (world->level.guardian == 1) spawn_gorilla(world, world->level.guardian_x, ground);
   else if (world->level.guardian == 2) spawn_slop(world, world->level.guardian_x, ground);
@@ -82,6 +83,7 @@ static void go_up(world_t* world) {
   p->grounded = true;
   p->safe_x = p->x;
   p->safe_y = p->y;
+  allies_regroup(world);
 }
 
 void warps_update(world_t* world, const controls_t* controls, float dt) {

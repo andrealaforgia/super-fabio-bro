@@ -125,6 +125,25 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_DECOR_MUSHROOM] = {"decor_mushroom", 0},
     [STRIP_DECOR_STALAGMITE] = {"decor_stalagmite", 2},
     [STRIP_DECOR_STALACTITE] = {"decor_stalactite", 5},
+    [STRIP_ALLY_ANDREA_IDLE] = {"ally_andrea_idle", 4},
+    [STRIP_ALLY_ANDREA_WALK] = {"ally_andrea_walk", 6},
+    [STRIP_ALLY_ANDREA_JUMP] = {"ally_andrea_jump", 3},
+    [STRIP_ALLY_ANDREA_ATTACK] = {"ally_andrea_attack", 6},
+    [STRIP_ALLY_ANDREA_FX] = {"ally_andrea_fx", 4},
+    [STRIP_ALLY_ALESSANDRO_IDLE] = {"ally_alessandro_idle", 4},
+    [STRIP_ALLY_ALESSANDRO_WALK] = {"ally_alessandro_walk", 6},
+    [STRIP_ALLY_ALESSANDRO_JUMP] = {"ally_alessandro_jump", 3},
+    [STRIP_ALLY_ALESSANDRO_ATTACK] = {"ally_alessandro_attack", 6},
+    [STRIP_ALLY_ALESSANDRO_FX] = {"ally_alessandro_fx", 4},
+    [STRIP_ALLY_GIULIA_IDLE] = {"ally_giulia_idle", 4},
+    [STRIP_ALLY_GIULIA_WALK] = {"ally_giulia_walk", 6},
+    [STRIP_ALLY_GIULIA_JUMP] = {"ally_giulia_jump", 3},
+    [STRIP_ALLY_GIULIA_ATTACK] = {"ally_giulia_attack", 6},
+    [STRIP_ALLY_GIULIA_FX] = {"ally_giulia_fx", 4},
+    [STRIP_ITEM_SUSHI] = {"item_sushi", 4},
+    [STRIP_ITEM_DRAGON] = {"item_dragon", 4},
+    [STRIP_ITEM_GLOVES] = {"item_gloves", 4},
+    [STRIP_ALLY_POOF] = {"ally_poof", 6},
     [STRIP_SOAP_BUBBLE] = {"bubble_big", 0},
 };
 
@@ -313,6 +332,10 @@ pose_t pose_effect(fx_kind_t kind) {
     case FX_CHEF_EXPLODE: return make(STRIP_CHEF_BOOM, 0);
     case FX_DEMON_DEATH: return make(STRIP_DEMON_DEATH, 0);
     case FX_HELICOPTER_BOOM: return make(STRIP_HELI_BOOM, 0);
+    case FX_ALLY_POOF: return make(STRIP_ALLY_POOF, 0);
+    case FX_ALLY_WAVE: return make(STRIP_ALLY_ANDREA_FX, 0);
+    case FX_ALLY_SLASH: return make(STRIP_ALLY_ALESSANDRO_FX, 0);
+    case FX_ALLY_PUNCH: return make(STRIP_ALLY_GIULIA_FX, 0);
     case FX_FORCE_HIT: return make(STRIP_FORCE_HIT, 0);
     case FX_SLOP_DEATH: return make(STRIP_SLOP_DEATH, 0);
     case FX_SLOP_SPLAT: return make(STRIP_SLOP_SPLAT, 0);
@@ -358,4 +381,24 @@ pose_t pose_ground(biome_t biome, bool fill, int col) {
   strip_id_t strip = biome == BIOME_SNOW ? STRIP_GROUND_SNOW
                      : biome == BIOME_DESERT ? STRIP_GROUND_SAND : STRIP_GROUND_CAVE;
   return make((strip_id_t)(strip + (fill ? 1 : 0)), col);
+}
+
+pose_t pose_ally(const ally_t* a) {
+  strip_id_t base = (strip_id_t)(STRIP_ALLY_ANDREA_IDLE + a->kind * 5);
+  if (a->attack > 0.0f)
+    return make((strip_id_t)(base + 3), (int)(a->attack / ally_attack_seconds(a->kind) * 6.0f));
+  if (!a->grounded) return make((strip_id_t)(base + 2), a->vy < -200.0f ? 0 : (a->vy < 200.0f ? 1 : 2));
+  if (fabsf(a->vx) > 12.0f) return make((strip_id_t)(base + 1), (int)(a->anim * 11.0f));
+  return make(base, (int)(a->anim * 3.0f));
+}
+
+pose_t pose_ally_effect(fx_kind_t kind, float age, float duration) {
+  strip_id_t strip = kind == FX_ALLY_POOF ? STRIP_ALLY_POOF
+                     : kind == FX_ALLY_WAVE ? STRIP_ALLY_ANDREA_FX
+                     : kind == FX_ALLY_SLASH ? STRIP_ALLY_ALESSANDRO_FX : STRIP_ALLY_GIULIA_FX;
+  return make(strip, (int)(age / duration * (float)kStripSpecs[strip].frames));
+}
+
+pose_t pose_ally_item(ally_kind_t kind, float time) {
+  return make((strip_id_t)(STRIP_ITEM_SUSHI + kind), (int)(time * 6.0f));
 }

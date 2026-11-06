@@ -132,6 +132,27 @@ typedef enum {
   STRIP_DECOR_MUSHROOM,
   STRIP_DECOR_STALAGMITE,
   STRIP_DECOR_STALACTITE,
+  /* Fabio's friends: five strips each, in this order, Andrea then Alessandro then Giulia
+   * (the strip of a kind is STRIP_ALLY_ANDREA_IDLE + kind * 5 + the part). */
+  STRIP_ALLY_ANDREA_IDLE,
+  STRIP_ALLY_ANDREA_WALK,
+  STRIP_ALLY_ANDREA_JUMP,
+  STRIP_ALLY_ANDREA_ATTACK,
+  STRIP_ALLY_ANDREA_FX,
+  STRIP_ALLY_ALESSANDRO_IDLE,
+  STRIP_ALLY_ALESSANDRO_WALK,
+  STRIP_ALLY_ALESSANDRO_JUMP,
+  STRIP_ALLY_ALESSANDRO_ATTACK,
+  STRIP_ALLY_ALESSANDRO_FX,
+  STRIP_ALLY_GIULIA_IDLE,
+  STRIP_ALLY_GIULIA_WALK,
+  STRIP_ALLY_GIULIA_JUMP,
+  STRIP_ALLY_GIULIA_ATTACK,
+  STRIP_ALLY_GIULIA_FX,
+  STRIP_ITEM_SUSHI, /* the three pickups */
+  STRIP_ITEM_DRAGON,
+  STRIP_ITEM_GLOVES,
+  STRIP_ALLY_POOF,
   STRIP_SOAP_BUBBLE, /* one round soap bubble, drawn at any size */
   STRIP_COUNT
 } strip_id_t;
@@ -183,6 +204,12 @@ pose_t pose_demon_death(float age);
 pose_t pose_helicopter_boom(float age);
 /* The drum kit on its own, or with Fabio flat out at it: DRUM_FRAMES frames, flashing by. */
 pose_t pose_drums(const drum_kit_t* kit, float time);
+/* A friend standing, walking, jumping or striking. */
+pose_t pose_ally(const ally_t* ally);
+/* The effects they leave: a poof, a belly wobble, a chi slash, a punch burst. */
+pose_t pose_ally_effect(fx_kind_t kind, float age, float duration);
+/* The pickup that brings an ally. */
+pose_t pose_ally_item(ally_kind_t kind, float time);
 /* A cooked decoration (kind from DECOR_PROCEDURAL up), the frame picked by `variant`. */
 pose_t pose_decor(decor_kind_t kind, int variant);
 /* The tile of a zone other than the forest, as a surface tile or the fill under it. */

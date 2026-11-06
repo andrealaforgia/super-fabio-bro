@@ -38,12 +38,12 @@ static int live_words(const world_t* world) {
   return n;
 }
 
-static void every_level_has_kits_regularly_on_open_grass_the_first_near_the_start(void) {
+static void every_level_has_kits_regularly_on_open_grass_the_first_well_into_the_level(void) {
   for (uint32_t seed = 1; seed <= 40; seed++) {
     level_t* level = calloc(1, sizeof(*level));
     level_generate(level, seed);
-    CHECK(level->drum_count >= 4 && level->drum_count <= MAX_DRUM_KITS);
-    CHECK(level->drums_x[0] < level->spawn_x + 6.0f * TILE);
+    CHECK(level->drum_count >= 3 && level->drum_count <= MAX_DRUM_KITS);
+    CHECK(level->drums_x[0] > 90.0f * TILE && level->drums_x[0] < 175.0f * TILE); /* not at the start */
     CHECK(level->drums_y == GROUND);
     for (int i = 0; i < level->drum_count; i++) {
       float x = level->drums_x[i];
@@ -64,7 +64,7 @@ static void every_level_has_kits_regularly_on_open_grass_the_first_near_the_star
 
 static void a_new_world_has_all_its_kits_waiting(void) {
   world_t* world = world_new(5, NULL);
-  CHECK(world->drum_count == world->level.drum_count && world->drum_count >= 4);
+  CHECK(world->drum_count == world->level.drum_count && world->drum_count >= 3);
   for (int i = 0; i < world->drum_count; i++) CHECK(world->drums[i].x == world->level.drums_x[i] && world->drums[i].armed);
   CHECK(!world_drumming(world));
   world_free(world);
@@ -230,7 +230,7 @@ static void the_kit_plays_its_frames_very_quickly(void) {
 }
 
 void run_drum_tests(void) {
-  RUN(every_level_has_kits_regularly_on_open_grass_the_first_near_the_start);
+  RUN(every_level_has_kits_regularly_on_open_grass_the_first_well_into_the_level);
   RUN(a_new_world_has_all_its_kits_waiting);
   RUN(any_of_the_kits_plays_when_he_jumps_into_it);
   RUN(walking_past_the_kit_on_the_ground_does_nothing);

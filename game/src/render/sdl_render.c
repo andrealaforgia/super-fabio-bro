@@ -302,6 +302,12 @@ static void draw_items(const frame_t* f) {
       case ITEM_PISTOL:
         draw_centred(f, (pose_t){STRIP_PISTOL, 0}, item->x, item->y + bob, 0.4f, 0.4f, 0.0f, false, 1.0f);
         break;
+      case ITEM_SUSHI:
+      case ITEM_DRAGON:
+      case ITEM_GLOVES:
+        draw_centred(f, pose_ally_item(item->kind == ITEM_SUSHI ? ALLY_ANDREA : item->kind == ITEM_DRAGON ? ALLY_ALESSANDRO : ALLY_GIULIA, t + item->x * 0.01f),
+                     item->x, item->y + bob, 1.0f, 1.0f, 0.0f, false, 1.0f);
+        break;
       case ITEM_LIGHTSABER:
         draw_centred(f, (pose_t){STRIP_SABER, (int)(t * 8.0f)}, item->x, item->y + bob, 1.0f, 1.0f, 0.0f, false, 1.0f);
         break;
@@ -320,9 +326,12 @@ static void draw_items(const frame_t* f) {
     strip_id_t strip = p->kind == ITEM_POTION ? STRIP_BOTTLE
                        : p->kind == ITEM_PISTOL ? STRIP_PISTOL
                        : p->kind == ITEM_BUBBLE_GUN ? STRIP_BUBBLE_GUN
-                       : p->kind == ITEM_LIGHTSABER ? STRIP_SABER : STRIP_MUSHROOM;
+                       : p->kind == ITEM_LIGHTSABER ? STRIP_SABER
+                       : p->kind == ITEM_SUSHI ? STRIP_ITEM_SUSHI
+                       : p->kind == ITEM_DRAGON ? STRIP_ITEM_DRAGON
+                       : p->kind == ITEM_GLOVES ? STRIP_ITEM_GLOVES : STRIP_MUSHROOM;
     float scale = p->kind == ITEM_POTION || p->kind == ITEM_BUBBLE_GUN ? 0.3f
-                  : p->kind == ITEM_LIGHTSABER ? 1.0f : 0.4f;
+                  : (p->kind == ITEM_LIGHTSABER || p->kind == ITEM_SUSHI || p->kind == ITEM_DRAGON || p->kind == ITEM_GLOVES) ? 1.0f : 0.4f;
     /* Standing on the block: the bottom of the picture where its box rests. */
     float feet = p->y + PICKUP_SIZE * 0.5f;
     if (p->kind == ITEM_POTION) {
@@ -571,6 +580,16 @@ static void draw_warp_hints(const frame_t* f) {
   }
 }
 
+/* Fabio's friends, solid but for fading in as they arrive and blinking as they are about to go. */
+static void draw_allies(const frame_t* f) {
+  size_t cursor = 0;
+  for (const ally_t* a; (a = pool_next_active(&f->world->allies, &cursor));) {
+    float alpha = a->age < ALLY_ARRIVE_SECONDS ? clampf(a->age / ALLY_ARRIVE_SECONDS, 0.05f, 1.0f) : 1.0f;
+    if (a->left < 1.5f && fmodf(f->world->time, 0.2f) < 0.1f) alpha = 0.4f;
+    draw_sprite(f, pose_ally(a), a->x, a->y, FABIO_SCALE, a->facing < 0, alpha);
+  }
+}
+
 static void draw_player(const frame_t* f) {
   const player_t* p = &f->world->player;
   if (p->spell_time > 0.0f) {
@@ -642,6 +661,18 @@ static void draw_effects(const frame_t* f) {
     }
     if (fx->kind == FX_FORCE_HIT) {
       draw_centred(f, pose_force_hit(fx->age, fx->duration), fx->x, fx->y, 1.2f, 1.2f, 0.0f, false, 1.0f);
+      continue;
+    }
+    if (fx->kind >= FX_ALLY_POOF && fx->kind <= FX_ALLY_PUNCH) {
+      float left = fx->duration - fx->age;
+      float lift = fx->kind == FX_ALLY_POOF ? 30.0f : 0.0f; /* the poof is centred on his middle, the rest are */
+      if (fx->kind == FX_ALLY_WAVE) { /* Andrea's belly: a warm glow swelling behind the wobble ring */
+        float grow = fx->age / fx->duration;
+        float size = 140.0f + 220.0f * grow;
+        draw_texture_centred(f, f->look->glow, fx->x, fx->y, size, size, 0.75f * (1.0f - grow));
+      }
+      draw_centred(f, pose_ally_effect(fx->kind, fx->age, fx->duration), fx->x, fx->y - lift, 1.0f, 1.0f, 0.0f,
+                   fx->facing < 0, left < 0.1f ? left / 0.1f : 1.0f);
       continue;
     }
     if (fx->kind == FX_HELICOPTER_BOOM) {
@@ -849,6 +880,26 @@ static void draw_hud(const frame_t* f) {
     shadow_text(gfx, font, x, 14.0f, "NO GUN", 2.4f, 150, 150, 170);
   }
 
+  /* A chip for each friend by his side: his picture and the time he has left. */
+  int shown = 0;
+  for (int kind = 0; kind < ALLY_KIND_COUNT; kind++) {
+    const ally_t* ally = NULL;
+    size_t cursor = 0;
+    for (const ally_t* a; (a = pool_next_active(&w->allies, &cursor));)
+      if ((int)a->kind == kind) ally = a;
+    if (!ally) continue;
+    const sprite_t* icon = look_sprite(f->look, pose_ally_item((ally_kind_t)kind, 0.0f));
+    float cx = f->view_w - 44.0f - (float)shown * 62.0f, top = 58.0f;
+    fill_rect(gfx, rect(cx - 27.0f, top - 4.0f, 54.0f, 64.0f), 20, 10, 40, 170);
+    float icon_w = (float)icon->w * 1.5f, icon_h = (float)icon->h * 1.5f; /* the pickups are small now: a bigger picture for the chip */
+    render_sprite(gfx, &icon->texture, NULL, rect(cx - icon_w * 0.5f, top + 24.0f - icon_h * 0.5f, icon_w, icon_h), &none);
+    float share = clampf(ally->left / ALLY_SECONDS, 0.0f, 1.0f);
+    fill_rect(gfx, rect(cx - 22.0f, top + 46.0f, 44.0f, 6.0f), 40, 40, 60, 255);
+    fill_rect(gfx, rect(cx - 22.0f, top + 46.0f, 44.0f * share, 6.0f), kind == ALLY_ANDREA ? 120 : (kind == ALLY_ALESSANDRO ? 255 : 255),
+              kind == ALLY_ANDREA ? 190 : (kind == ALLY_ALESSANDRO ? 200 : 90), kind == ALLY_ANDREA ? 255 : (kind == ALLY_ALESSANDRO ? 60 : 90), 255);
+    shown++;
+  }
+
   if (p->jedi_time > 0.0f) {
     float bar_w = 220.0f, bar_x = f->view_w - bar_w - 18.0f - (p->spell_time > 0.0f ? bar_w + 30.0f : 0.0f);
     bool blink = p->jedi_time < 3.0f && fmodf(w->time, 0.3f) < 0.15f;
@@ -912,6 +963,7 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
   draw_drum_glows(&f);
   for (int i = 0; i < world->drum_count; i++) draw_drums(&f, i);
   draw_enemies(&f);
+  draw_allies(&f);
   draw_bubbles(&f);
   draw_force_bursts(&f);
   if (!world_drumming(world)) draw_player(&f); /* at the drums he is part of the kit */

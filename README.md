@@ -141,7 +141,7 @@ start.
   falls, unharmed (a pit below still costs a heart, as ever). The resting
   helicopter is cut from `assets/source/helicopter.jpeg`; flying and
   exploding, from `assets/source/fabio_helicopter.jpeg`.
-- Fabio's drum kit stands on the open grass just ahead of where Fabio starts, and another one every 70 to 100 columns or so all along the level (never on the helicopter's grass). Jump
+- Fabio's drum kit first stands on the open grass about a quarter of the way into the level (past column 90, never near the start), and then another one every 70 to 100 columns or so all along the level (never on the helicopter's grass). Jump
   into it (walking past does nothing) and he sits down and plays by himself
   for 10 seconds, with no keys needed and nothing able to hurt him, his eight
   frames flashing by every 0.05 seconds. All the while the kit shouts BOOM,
@@ -203,6 +203,21 @@ start.
   or the AI slop monster). A pipe at each end leads back up, out of the pipe he went down;
   that pipe stays shut afterwards. Nothing spawns in a cave and nothing in it can
   end the run. The cave's tiles, crystals and stalactites are also in the two sheets above.
+- Fabio has three friends who turn up when he picks up the right thing (all three are in the
+  opening row of `?` blocks, and now and then along the level). A sushi dumpling brings
+  Andrea, short-black-haired, black-bearded and round-bellied; a Chinese dragon brings Alessandro, a
+  chubby, scruffy, bearded kung fu grandmaster in black glasses; a pair of boxing gloves brings
+  Giulia, a dark-haired boxer. Each arrives in a poof, stays 30 seconds (a chip at the
+  top right shows who is here and how long he has left; another pickup of the same
+  kind gives him another thirty seconds, never a twin) and fights alone, nothing able to hurt
+  him. They stand a few steps ahead of Fabio, each at his own distance (Andrea 90 pixels,
+  Alessandro 150, Giulia 210), and go round to the other side when Fabio turns. Andrea
+  strokes his bare belly now and then, and the wobble (a big golden burst with a glow, stars and
+  sparks) kills everything about 95 pixels round him. Alessandro runs at any enemy within 260 pixels and strikes it with kung fu; Giulia
+  does the same within 230 and punches. They hop over low walls and leap the holes in the ground (even the widest), turn up at Fabio's side if
+  left far behind or fallen into a pit, and go down warp pipes with him. All three are
+  cut from `assets/source/ally_andrea.png`, `ally_alessandro.png`, `ally_giulia.png` and
+  `ally_items.png`, generated with Codex to match the other sheets.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

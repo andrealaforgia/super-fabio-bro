@@ -149,6 +149,44 @@ static double warp_voice(double t, double d, rng_t* r, void* s) {
   return slide + thud;
 }
 
+/* A friend arrives: four bright notes climbing, C E G C. */
+static double ally_arrive_voice(double t, double d, rng_t* r, void* s) {
+  (void)d; (void)r; (void)s;
+  static const double kNotes[4] = {523.25, 659.25, 783.99, 1046.5};
+  int i = (int)(t / 0.09);
+  if (i > 3) i = 3;
+  double local = t - (double)i * 0.09;
+  double f = kNotes[i];
+  return 0.3 * (square(f * local, 0.5) * 0.6 + sin(TAU * f * local)) * (i < 3 ? decay(local, 6.0) : decay(local, 9.0));
+}
+
+/* Andrea's belly: a low thump, then a springy boing. */
+static double ally_belly_voice(double t, double d, rng_t* r, void* s) {
+  (void)d; (void)r; (void)s;
+  double thump = 0.7 * sin(TAU * (120.0 - 150.0 * t) * t) * decay(t, 16.0);
+  double boing = t > 0.05 ? 0.35 * sin(TAU * (420.0 - 280.0 * (t - 0.05) + 60.0 * sin(TAU * 18.0 * t)) * (t - 0.05)) * decay(t - 0.05, 7.0) : 0.0;
+  return thump + boing;
+}
+
+/* Alessandro: a rising whoosh of noise and a sharp crack. */
+static double ally_kungfu_voice(double t, double d, rng_t* r, void* s) {
+  (void)d;
+  double* lp = (double*)s;
+  lp[0] += (0.1 + 0.5 * t) * (noise(r) - lp[0]);
+  double whoosh = lp[0] * sin(3.14159 * fmin(1.0, t / 0.25)) * 1.4;
+  double crack = t > 0.16 ? noise(r) * 0.8 * decay(t - 0.16, 40.0) : 0.0;
+  double yell = 0.2 * sin(TAU * (500.0 + 500.0 * t) * t) * decay(t, 7.0);
+  return whoosh * decay(t, 5.0) + crack + yell;
+}
+
+/* Giulia: a solid thud, noise over a falling low note. */
+static double ally_punch_voice(double t, double d, rng_t* r, void* s) {
+  (void)d;
+  double* lp = (double*)s;
+  lp[0] += 0.3 * (noise(r) - lp[0]);
+  return (0.9 * lp[0] * decay(t, 28.0)) + 0.8 * sin(TAU * (160.0 - 400.0 * t) * t) * decay(t, 22.0);
+}
+
 static double spell_voice(double t, double d, rng_t* r, void* s) {
   (void)d; (void)r; (void)s;
   double f = 500.0 + 1500.0 * t / 0.3 + 60.0 * sin(TAU * 30.0 * t);
@@ -395,6 +433,10 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_GORILLA_GROWL], 0.9, gorilla_growl_voice, 31);
   ok = ok && copy_clip(&clips[SFX_VOICE_SLOP], kVoiceSlop, kVoiceSlopLength);
   ok = ok && render(&clips[SFX_WARP], 0.65, warp_voice, 32);
+  ok = ok && render(&clips[SFX_ALLY_ARRIVE], 0.55, ally_arrive_voice, 33);
+  ok = ok && render(&clips[SFX_ALLY_BELLY], 0.5, ally_belly_voice, 34);
+  ok = ok && render(&clips[SFX_ALLY_KUNGFU], 0.4, ally_kungfu_voice, 35);
+  ok = ok && render(&clips[SFX_ALLY_PUNCH], 0.2, ally_punch_voice, 36);
   ok = ok && render(&clips[SFX_BUBBLE_SHOT], 0.16, bubble_shot_voice, 21);
   ok = ok && render(&clips[SFX_BUBBLE_WRAP], 0.5, bubble_wrap_voice, 22);
   ok = ok && render(&clips[SFX_BUBBLE_POP], 0.3, bubble_pop_voice, 23);
@@ -475,6 +517,10 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_LIGHTSABER: *volume = 0.9f; return SFX_SABER_ON;
     case EVENT_FORCE_BURST: *volume = 0.7f; return SFX_FORCE_BURST;
     case EVENT_WARP: *volume = 0.8f; return SFX_WARP;
+    case EVENT_ALLY_ARRIVES: *volume = 0.9f; return SFX_ALLY_ARRIVE;
+    case EVENT_ALLY_BELLY: *volume = 1.0f; return SFX_ALLY_BELLY;
+    case EVENT_ALLY_KUNGFU: *volume = 0.9f; return SFX_ALLY_KUNGFU;
+    case EVENT_ALLY_PUNCH: *volume = 0.9f; return SFX_ALLY_PUNCH;
     case EVENT_SKEWER_THROWN: *volume = 0.8f; return SFX_SKEWER;
     case EVENT_HELICOPTER_BOARDS: *volume = 0.8f; return SFX_PICKUP;
     case EVENT_HELICOPTER_EXPLODES: *volume = 1.0f; return SFX_BOOK_READER_BOOM;
