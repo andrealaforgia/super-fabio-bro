@@ -116,7 +116,8 @@ start.
   sent up out of a pit ahead of Fabio.
 - Every 15 to 23 seconds a gorilla turns up ahead of you, one at a time. He
   stands where he appears, always turned towards Fabio, and goes round and
-  round: he stands, roars, beats his chest and throws a banana. The banana
+  round: he stands, roars (a deep, rattling growl sounds as the roar begins), beats his chest
+  and throws a banana. The banana
   spins along an arc aimed roughly at Fabio (anywhere up to 90 pixels either
   side of him, so he can often dodge it) and costs him a heart, like any hit, but
   kills any zombie, bug or monk it hits first on the way; only the gorilla who
@@ -167,7 +168,8 @@ start.
   purple and teal heap of melted generated nonsense with too many fingers and teeth,
   wearing its AI on its sleeve: glowing sparkle stars, a chatbot bubble with typing dots, a network
   of nodes and wires, a circuit chip and a `>_` prompt.
-  He goes round and round: he drips, winds up a ball of slop over his head and hurls
+  He goes round and round: he says "Certainly! Here is some slop." in a recorded robot voice
+  (`scripts/make_voice_slop.py`), drips, winds up a ball of slop over his head and hurls
   it at Fabio on an arc, aimed anywhere up to 90 pixels either side of him. The ball
   costs a heart, splats against walls and the ground, and hurts nobody else, unlike
   the gorilla's banana. Walking into him hurts; a stomp, a bullet, the TDD ray, the

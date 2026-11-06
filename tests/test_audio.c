@@ -4,6 +4,7 @@
 #include "sfx.h"
 #include "test_groups.h"
 #include "test_support.h"
+#include "test_world.h"
 
 static double peak(const sample_t* clip) {
   int p = 0;
@@ -63,11 +64,20 @@ static void every_game_event_has_a_sound(void) {
   }
 }
 
+static void zombies_make_no_sound_of_their_own_and_the_gorilla_growls(void) {
+  float volume;
+  CHECK(sfx_for_event(EVENT_GORILLA_GROWLS, &volume) == SFX_GORILLA_GROWL);
+  world_t* world = world_new(1, recording_events());
+  spawn_zombie(world, world->player.x + 400.0f, world->player.y);
+  CHECK(test_event_total == 0); /* turning up used to groan "I don't test" */
+  world_free(world);
+}
+
 static void explosions_are_louder_than_the_rest_of_the_noise(void) {
-  float zombie = 0.0f, groan = 0.0f;
+  float zombie = 0.0f, bloop = 0.0f;
   sfx_for_event(EVENT_ZOMBIE_DIES, &zombie);
-  sfx_for_event(EVENT_GROAN, &groan);
-  CHECK(zombie > groan);
+  sfx_for_event(EVENT_BUBBLE_SHOT, &bloop);
+  CHECK(zombie > bloop);
 }
 
 static void the_mixer_plays_a_built_clip_to_the_end(void) {
@@ -115,8 +125,10 @@ static void the_spoken_lines_are_loud_and_long_enough_to_be_understood(void) {
   CHECK(sfx_build(clips));
   CHECK(peak(&clips[SFX_VOICE_FABIO]) > 28000);
   CHECK(clips[SFX_VOICE_FABIO].length > MIXER_RATE);
-  CHECK(peak(&clips[SFX_GROAN]) > 25000);
-  CHECK(clips[SFX_GROAN].length > MIXER_RATE * 3 / 2);
+  CHECK(peak(&clips[SFX_VOICE_SLOP]) > 25000);
+  CHECK(clips[SFX_VOICE_SLOP].length > MIXER_RATE * 3 / 2);
+  CHECK(peak(&clips[SFX_GORILLA_GROWL]) > 25000);
+  CHECK(clips[SFX_GORILLA_GROWL].length > MIXER_RATE / 2);
   /* The words are spread over the clip, not squeezed into its start. */
   const sample_t* voice = &clips[SFX_VOICE_FABIO];
   int late = 0;
@@ -143,6 +155,7 @@ void run_audio_tests(void) {
   RUN(the_spoken_lines_are_loud_and_long_enough_to_be_understood);
   RUN(every_sound_effect_is_built_audible_and_short);
   RUN(every_game_event_has_a_sound);
+  RUN(zombies_make_no_sound_of_their_own_and_the_gorilla_growls);
   RUN(an_item_coming_out_of_a_block_climbs_three_times_then_twinkles);
   RUN(explosions_are_louder_than_the_rest_of_the_noise);
   RUN(the_mixer_plays_a_built_clip_to_the_end);

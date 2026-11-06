@@ -52,7 +52,6 @@ void spawn_zombie(world_t* world, float x, float y) {
   e->anim_time = rng_float(&world->rng) * 3.0f;
   e->hop_cooldown = 0.5f;
   e->phase_seed = rng_float(&world->rng) * 6.28f;
-  world_emit(world, EVENT_GROAN, x);
 }
 
 void spawn_bug(world_t* world, int variant, float x, float y) {
@@ -170,9 +169,22 @@ gorilla_act_t gorilla_act(const enemy_t* g, float* into) {
   return (gorilla_act_t)act;
 }
 
+/* Whether the time `mark` into a cycle of length `cycle` went by during this frame. */
+static bool passed(float anim_time, float dt, float cycle, float mark) {
+  float before = fmodf(anim_time - dt, cycle), now = fmodf(anim_time, cycle);
+  return before < now ? (before < mark && now >= mark) : (before < mark || now >= mark);
+}
+
+static bool heard_from_screen(const world_t* world, const enemy_t* e) {
+  return world->player.alive && e->x > world->camera_x && e->x < world->camera_x + world->view_w;
+}
+
 /* The banana leaves his hand the moment the throw reaches GORILLA_RELEASE,
  * whenever he is on screen: a throw is never shown without its banana. */
 static void gorilla_throws(world_t* world, enemy_t* g, float dt) {
+  /* He growls as the roar begins, while he is on screen. */
+  if (passed(g->anim_time, dt, GORILLA_CYCLE, GORILLA_STAND_SECONDS) && heard_from_screen(world, g))
+    world_emit(world, EVENT_GORILLA_GROWLS, g->x);
   float before = fmodf(g->anim_time - dt, GORILLA_CYCLE);
   float now = fmodf(g->anim_time, GORILLA_CYCLE);
   float release = GORILLA_CYCLE - GORILLA_THROW_SECONDS + GORILLA_RELEASE;
@@ -214,6 +226,9 @@ slop_act_t slop_act(const enemy_t* s, float* into) {
 /* The ball leaves his hand the moment the throw reaches SLOP_RELEASE, whenever he
  * is on screen: a throw is never shown without its ball. */
 static void slop_throws(world_t* world, enemy_t* s, float dt) {
+  /* His robot voice starts the round, while he is on screen. */
+  if (passed(s->anim_time, dt, SLOP_CYCLE, 0.02f) && heard_from_screen(world, s))
+    world_emit(world, EVENT_SLOP_SPEAKS, s->x);
   float before = fmodf(s->anim_time - dt, SLOP_CYCLE);
   float now = fmodf(s->anim_time, SLOP_CYCLE);
   float release = SLOP_CYCLE - SLOP_THROW_SECONDS + SLOP_RELEASE;

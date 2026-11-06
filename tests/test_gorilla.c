@@ -23,6 +23,25 @@ static banana_t* first_banana(world_t* world) {
   return pool_next_active(&world->bananas, &cursor);
 }
 
+static void the_gorilla_growls_as_his_roar_begins_once_a_round_and_only_in_view(void) {
+  world_t* world = fresh();
+  world->player.x = 8 * TILE;
+  world->player.invulnerable = 1e9f;
+  spawn_gorilla(world, world->player.x + 400.0f, world->player.y);
+  step(world, NULL, GORILLA_STAND_SECONDS - 0.1f);
+  CHECK(!world_has_event(world, EVENT_GORILLA_GROWLS));
+  step(world, NULL, 0.2f);
+  CHECK(world_has_event(world, EVENT_GORILLA_GROWLS));
+  world_free(world);
+
+  world = fresh();
+  world->player.x = 8 * TILE;
+  spawn_gorilla(world, world->player.x + 2000.0f, world->player.y); /* far off screen */
+  step(world, NULL, GORILLA_STAND_SECONDS + 0.5f);
+  CHECK(!world_has_event(world, EVENT_GORILLA_GROWLS));
+  world_free(world);
+}
+
 static void the_gorilla_stands_where_he_appeared(void) {
   world_t* world = fresh();
   world->player.x = 5 * TILE;
@@ -364,6 +383,7 @@ static void a_burst_gorilla_showers_harmless_bananas_every_way(void) {
 }
 
 void run_gorilla_tests(void) {
+  RUN(the_gorilla_growls_as_his_roar_begins_once_a_round_and_only_in_view);
   RUN(the_gorilla_stands_where_he_appeared);
   RUN(he_turns_to_face_fabio_as_fabio_moves);
   RUN(he_stands_roars_beats_his_chest_and_throws_in_turn);

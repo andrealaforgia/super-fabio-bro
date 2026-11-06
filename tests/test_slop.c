@@ -75,6 +75,23 @@ static void a_ball_of_slop_leaves_his_hand_at_the_release_and_never_without_a_ba
   world_free(world);
 }
 
+static void he_says_his_line_at_the_start_of_each_round_and_only_in_view(void) {
+  world_t* world = fresh();
+  world->player.x = 8 * TILE;
+  world->player.invulnerable = 1e9f;
+  spawn_slop(world, world->player.x + 400.0f, GROUND);
+  step(world, NULL, 0.1f);
+  CHECK(world_has_event(world, EVENT_SLOP_SPEAKS));
+  world_free(world);
+
+  world = fresh();
+  world->player.x = 8 * TILE;
+  spawn_slop(world, world->player.x + 2000.0f, GROUND); /* far off screen */
+  step(world, NULL, SLOP_CYCLE + 0.5f);
+  CHECK(!world_has_event(world, EVENT_SLOP_SPEAKS));
+  world_free(world);
+}
+
 static void the_ball_costs_a_heart_and_splats(void) {
   world_t* world = fresh();
   banana_t* b = pool_acquire(&world->bananas, NULL);
@@ -171,6 +188,7 @@ static void the_slop_monster_has_his_sounds_and_every_frame(void) {
   float volume;
   CHECK(sfx_for_event(EVENT_SLOP_THROWN, &volume) == SFX_SLOP_THROW);
   CHECK(sfx_for_event(EVENT_SLOP_DIES, &volume) == SFX_SLOP_DIES);
+  CHECK(sfx_for_event(EVENT_SLOP_SPEAKS, &volume) == SFX_VOICE_SLOP);
   CHECK(kStripSpecs[STRIP_SLOP_DEATH].frames == 8 && kStripSpecs[STRIP_SLOP_BALL].frames == 6);
   CHECK(pose_slop_effect(FX_SLOP_DEATH, 0.79f, 0.8f).frame == 7);
   CHECK(pose_slop_effect(FX_SLOP_SPLAT, 0.0f, 0.6f).strip == STRIP_SLOP_SPLAT);
@@ -180,6 +198,7 @@ void run_slop_tests(void) {
   RUN(the_slop_monster_stands_where_he_appears_turned_to_fabio);
   RUN(he_drips_winds_up_and_throws_in_turn);
   RUN(a_ball_of_slop_leaves_his_hand_at_the_release_and_never_without_a_ball);
+  RUN(he_says_his_line_at_the_start_of_each_round_and_only_in_view);
   RUN(the_ball_costs_a_heart_and_splats);
   RUN(slop_hurts_nobody_but_fabio);
   RUN(a_ball_splats_against_a_wall);

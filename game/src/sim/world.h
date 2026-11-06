@@ -123,7 +123,6 @@ typedef enum {
   EVENT_BUMP,
   EVENT_STOMP,
   EVENT_BLOCK_OPENS, /* a block opens and an item comes up out of it */
-  EVENT_GROAN,
   EVENT_DEATH,
   EVENT_WIN,
   EVENT_HEAL,
@@ -143,6 +142,8 @@ typedef enum {
   EVENT_LIGHTSABER,
   EVENT_FORCE_BURST,
   EVENT_SLOP_THROWN,
+  EVENT_SLOP_SPEAKS,   /* his robot voice: "Certainly! Here is some slop." */
+  EVENT_GORILLA_GROWLS, /* as his roar begins */
   EVENT_SLOP_DIES,
   EVENT_DRUMS_START,
   /* The six words, in the order of kDrumWords: EVENT_DRUM_BOOM + the word. */

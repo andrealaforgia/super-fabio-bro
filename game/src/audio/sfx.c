@@ -8,6 +8,7 @@
 #include "rng.h"
 #include "drum_sounds.h"
 #include "voice_curse.h"
+#include "voice_slop.h"
 
 #define TAU 6.28318530718
 
@@ -122,6 +123,21 @@ static double force_burst_voice(double t, double d, rng_t* r, void* s) {
   double whoosh = lp[0] * sin(3.14159 * fmin(1.0, t / 0.3)) * 1.2;
   double zap = 0.35 * sin(TAU * (1500.0 - 3200.0 * t) * t) * decay(t, 9.0);
   return whoosh * decay(t, 4.0) + zap;
+}
+
+/* A gorilla's growl: a deep sawtooth that rattles (a fast tremolo), with a rough hiss over it, dipping
+ * in pitch as it goes, swelling in and trailing away. */
+static double gorilla_growl_voice(double t, double d, rng_t* r, void* s) {
+  (void)d;
+  double* lp = (double*)s; /* [0] the roughness, [1] the low-passed voice */
+  double pitch = 78.0 - 22.0 * t;
+  double phase = pitch * t;
+  double saw = 2.0 * (phase - floor(phase + 0.5));
+  double rattle = 0.55 + 0.45 * sin(TAU * (24.0 + 6.0 * t) * t);
+  lp[0] += 0.12 * (noise(r) - lp[0]);
+  lp[1] += 0.18 * (saw * rattle - lp[1]);
+  double envelope = fmin(1.0, t / 0.08) * (t < 0.55 ? 1.0 : decay(t - 0.55, 5.0));
+  return (1.1 * lp[1] + 0.9 * lp[0] * rattle) * envelope;
 }
 
 static double spell_voice(double t, double d, rng_t* r, void* s) {
@@ -338,26 +354,6 @@ static double speech_voice(double t, double d, rng_t* r, void* s) {
   return speak(kSpeech, (int)(sizeof(kSpeech) / sizeof(kSpeech[0])), t, r);
 }
 
-/* "I don't test..." in a low, rasping, dragging zombie voice. */
-static const phoneme_t kZombie[] = {
-    {800, 1250, 2500, 0.15, 98, 104, 0.25, 1.0}, /* a of I */
-    {300, 2200, 2900, 0.10, 104, 96, 0.25, 0.9}, /* ee of I */
-    {250, 1100, 2200, 0.05, 90, 90, 0.0, 0.4},   /* d */
-    {500, 900, 2500, 0.22, 96, 88, 0.25, 1.0},   /* o */
-    {250, 1300, 2200, 0.10, 90, 88, 0.1, 0.6},   /* n */
-    {3000, 4200, 5200, 0.04, 0, 0, 1.0, 0.7},    /* t */
-    {530, 1840, 2480, 0.15, 96, 92, 0.25, 1.0},  /* e */
-    {4500, 5500, 6500, 0.12, 0, 0, 1.0, 0.8},    /* s */
-    {3000, 4200, 5200, 0.05, 0, 0, 1.0, 0.7},    /* t */
-    {400, 1000, 2400, 0.08, 0, 0, 0.0, 0.0},     /* pause */
-    {600, 1100, 2400, 0.50, 90, 55, 0.35, 0.7},  /* ...uhh */
-};
-
-static double zombie_voice(double t, double d, rng_t* r, void* s) {
-  (void)d; (void)s;
-  return speak(kZombie, (int)(sizeof(kZombie) / sizeof(kZombie[0])), t, r);
-}
-
 /* Brings a clip's loudest sample up to `peak`: speech comes out quiet. */
 static void normalise(sample_t* clip, double peak) {
   int16_t* data = (int16_t*)clip->data;
@@ -387,6 +383,8 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_SLOP_DIES], 0.9, slop_dies_voice, 28);
   ok = ok && render(&clips[SFX_SABER_ON], 1.0, saber_on_voice, 29);
   ok = ok && render(&clips[SFX_FORCE_BURST], 0.4, force_burst_voice, 30);
+  ok = ok && render(&clips[SFX_GORILLA_GROWL], 0.9, gorilla_growl_voice, 31);
+  ok = ok && copy_clip(&clips[SFX_VOICE_SLOP], kVoiceSlop, kVoiceSlopLength);
   ok = ok && render(&clips[SFX_BUBBLE_SHOT], 0.16, bubble_shot_voice, 21);
   ok = ok && render(&clips[SFX_BUBBLE_WRAP], 0.5, bubble_wrap_voice, 22);
   ok = ok && render(&clips[SFX_BUBBLE_POP], 0.3, bubble_pop_voice, 23);
@@ -401,7 +399,6 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_BUMP], 0.15, bump_voice, 11);
   ok = ok && render(&clips[SFX_STOMP], 0.2, stomp_voice, 12);
   ok = ok && render(&clips[SFX_BLOCK], 0.68, block_voice, 13);
-  ok = ok && render(&clips[SFX_GROAN], 1.7, zombie_voice, 14);
   ok = ok && render(&clips[SFX_DEATH], 1.2, death_voice, 15);
   ok = ok && render(&clips[SFX_WIN], 1.5, win_voice, 16);
   ok = ok && render(&clips[SFX_HEAL], 0.35, heal_voice, 17);
@@ -412,7 +409,7 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_BOOK_READER_BOOM], 1.1, book_reader_boom_voice, 19);
   if (ok) {
     normalise(&clips[SFX_VOICE_FABIO], 31000.0);
-    normalise(&clips[SFX_GROAN], 28000.0);
+    normalise(&clips[SFX_GORILLA_GROWL], 30000.0);
   }
   if (!ok) sfx_free(clips);
   return ok;
@@ -441,7 +438,6 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_BUMP: return SFX_BUMP;
     case EVENT_STOMP: return SFX_STOMP;
     case EVENT_BLOCK_OPENS: *volume = 0.6f; return SFX_BLOCK;
-    case EVENT_GROAN: *volume = 0.6f; return SFX_GROAN;
     case EVENT_DEATH: return SFX_DEATH;
     case EVENT_WIN: return SFX_WIN;
     case EVENT_HEAL: return SFX_HEAL;
@@ -462,6 +458,8 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_BUBBLE_SHOT: *volume = 0.35f; return SFX_BUBBLE_SHOT;
     case EVENT_BUBBLE_WRAPS: *volume = 0.7f; return SFX_BUBBLE_WRAP;
     case EVENT_BUBBLE_POPS: *volume = 0.9f; return SFX_BUBBLE_POP;
+    case EVENT_SLOP_SPEAKS: *volume = 0.9f; return SFX_VOICE_SLOP;
+    case EVENT_GORILLA_GROWLS: *volume = 1.0f; return SFX_GORILLA_GROWL;
     case EVENT_SLOP_THROWN: *volume = 0.7f; return SFX_SLOP_THROW;
     case EVENT_SLOP_DIES: *volume = 1.0f; return SFX_SLOP_DIES;
     case EVENT_LIGHTSABER: *volume = 0.9f; return SFX_SABER_ON;

@@ -24,7 +24,6 @@ typedef enum {
   SFX_BUMP,
   SFX_STOMP,
   SFX_BLOCK,
-  SFX_GROAN,
   SFX_DEATH,
   SFX_WIN,
   SFX_HEAL,
@@ -37,6 +36,8 @@ typedef enum {
   SFX_BUBBLE_POP,  /* and bursting */
   SFX_SABER_ON,    /* a lightsaber igniting: a snap, then a rising hum */
   SFX_FORCE_BURST, /* a swinging whoosh and a green zap */
+  SFX_VOICE_SLOP,  /* "Certainly! Here is some slop." in a robot voice */
+  SFX_GORILLA_GROWL, /* a low, rattling growl */
   SFX_SLOP_THROW,  /* a wet, burbling heave */
   SFX_SLOP_DIES,   /* a big wet splat and a glitchy fizz */
   /* The drum kit's six words, in the order of kDrumWords. */
