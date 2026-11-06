@@ -97,6 +97,13 @@ typedef enum {
   STRIP_FAB_BUB_AIM,
   STRIP_FAB_BUB_SHOOT,
   STRIP_BUBBLE_GUN, /* the gun on its own: the pickup */
+  STRIP_SLOP_IDLE, /* the AI slop monster */
+  STRIP_SLOP_WINDUP,
+  STRIP_SLOP_THROW,
+  STRIP_SLOP_DEATH,
+  STRIP_SLOP_BALL,
+  STRIP_SLOP_SPLAT,
+  STRIP_SLOP_PIECE,
   STRIP_SOAP_BUBBLE, /* one round soap bubble, drawn at any size */
   STRIP_COUNT
 } strip_id_t;
@@ -148,6 +155,10 @@ pose_t pose_demon_death(float age);
 pose_t pose_helicopter_boom(float age);
 /* The drum kit on its own, or with Fabio flat out at it: DRUM_FRAMES frames, flashing by. */
 pose_t pose_drums(const drum_kit_t* kit, float time);
+/* The slop monster dripping, winding up a ball over his head, and throwing it. */
+pose_t pose_slop(const enemy_t* slop);
+/* The slop effects: the monster's death (FX_SLOP_DEATH) and a ball landing, `age` of `duration`. */
+pose_t pose_slop_effect(fx_kind_t kind, float age, float duration);
 
 /* The "?" blocks all turn round together, then rest facing out, by world time. */
 #define QBLOCK_SPIN_SECONDS 1.0f

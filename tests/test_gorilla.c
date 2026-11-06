@@ -166,7 +166,7 @@ static void under_a_block_he_still_gets_the_banana_away(void) {
 static void banana_at_fabio(world_t* world) {
   const player_t* p = &world->player;
   banana_t* b = pool_acquire(&world->bananas, NULL);
-  *b = (banana_t){p->x + 60.0f, p->y - PLAYER_H * 0.5f, -400.0f, 0.0f, 0.0f, -1};
+  *b = (banana_t){p->x + 60.0f, p->y - PLAYER_H * 0.5f, -400.0f, 0.0f, 0.0f, -1, false};
 }
 
 static void a_banana_costs_fabio_one_heart(void) {

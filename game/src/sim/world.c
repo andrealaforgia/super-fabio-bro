@@ -83,6 +83,7 @@ void world_restart(world_t* world, uint32_t seed) {
   world->monk_timer = 18.0f / SPAWN_PACE;
   world->chef_timer = 24.0f / SPAWN_PACE;
   world->gorilla_timer = 30.0f / SPAWN_PACE;
+  world->slop_timer = 34.0f / SPAWN_PACE;
   world->camera_x = 0.0f;
   platforms_reset(world);
 }
@@ -128,7 +129,7 @@ void world_update(world_t* world, const controls_t* controls, float dt) {
     helicopter_update(world, dt);
     spawner_update(world, dt);
     enemies_update(world, dt);
-    drums_update(world, dt);
+    drums_update(world, controls, dt);
     bubbles_update(world, dt);
   }
   combat_update(world, dt);

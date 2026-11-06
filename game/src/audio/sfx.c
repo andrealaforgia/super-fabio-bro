@@ -84,6 +84,25 @@ static double bubble_pop_voice(double t, double d, rng_t* r, void* s) {
   return (0.9 * lp[0] * decay(t, 45.0) + 0.5 * sin(TAU * (1100.0 - 3500.0 * t) * t) * decay(t, 22.0));
 }
 
+/* A gloopy heave: a low wobbling bloop with a wet hiss on top. */
+static double slop_throw_voice(double t, double d, rng_t* r, void* s) {
+  (void)d;
+  double* lp = (double*)s;
+  lp[0] += 0.25 * (noise(r) - lp[0]);
+  double wobble = 1.0 + 0.4 * sin(TAU * 22.0 * t);
+  return (0.5 * sin(TAU * (150.0 + 500.0 * t) * wobble * t) + 0.5 * lp[0]) * decay(t, 6.0);
+}
+
+/* A wet splat, then a glitchy bit-crushed fizz as the monster tears into noise. */
+static double slop_dies_voice(double t, double d, rng_t* r, void* s) {
+  (void)d;
+  double* lp = (double*)s;
+  lp[0] += 0.3 * (noise(r) - lp[0]);
+  double splat = (0.9 * lp[0] + 0.6 * sin(TAU * (240.0 - 300.0 * t) * t)) * decay(t, 7.0);
+  double crush = floor(noise(r) * 4.0) / 4.0 * 0.3 * (t > 0.15 ? decay(t - 0.15, 4.0) : 0.0);
+  return splat + crush;
+}
+
 static double spell_voice(double t, double d, rng_t* r, void* s) {
   (void)d; (void)r; (void)s;
   double f = 500.0 + 1500.0 * t / 0.3 + 60.0 * sin(TAU * 30.0 * t);
@@ -343,6 +362,8 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_JUMP], 0.22, jump_voice, 1);
   ok = ok && render(&clips[SFX_SHOOT], 0.22, shoot_voice, 2);
   ok = ok && render(&clips[SFX_SPELL], 0.45, spell_voice, 3);
+  ok = ok && render(&clips[SFX_SLOP_THROW], 0.5, slop_throw_voice, 27);
+  ok = ok && render(&clips[SFX_SLOP_DIES], 0.9, slop_dies_voice, 28);
   ok = ok && render(&clips[SFX_BUBBLE_SHOT], 0.16, bubble_shot_voice, 21);
   ok = ok && render(&clips[SFX_BUBBLE_WRAP], 0.5, bubble_wrap_voice, 22);
   ok = ok && render(&clips[SFX_BUBBLE_POP], 0.3, bubble_pop_voice, 23);
@@ -418,6 +439,8 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_BUBBLE_SHOT: *volume = 0.35f; return SFX_BUBBLE_SHOT;
     case EVENT_BUBBLE_WRAPS: *volume = 0.7f; return SFX_BUBBLE_WRAP;
     case EVENT_BUBBLE_POPS: *volume = 0.9f; return SFX_BUBBLE_POP;
+    case EVENT_SLOP_THROWN: *volume = 0.7f; return SFX_SLOP_THROW;
+    case EVENT_SLOP_DIES: *volume = 1.0f; return SFX_SLOP_DIES;
     case EVENT_SKEWER_THROWN: *volume = 0.8f; return SFX_SKEWER;
     case EVENT_HELICOPTER_BOARDS: *volume = 0.8f; return SFX_PICKUP;
     case EVENT_HELICOPTER_EXPLODES: *volume = 1.0f; return SFX_BOOK_READER_BOOM;

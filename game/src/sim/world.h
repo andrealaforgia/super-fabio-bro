@@ -126,6 +126,8 @@ typedef enum {
   EVENT_BUBBLE_SHOT,
   EVENT_BUBBLE_WRAPS,
   EVENT_BUBBLE_POPS,
+  EVENT_SLOP_THROWN,
+  EVENT_SLOP_DIES,
   EVENT_DRUMS_START,
   /* The six words, in the order of kDrumWords: EVENT_DRUM_BOOM + the word. */
   EVENT_DRUM_BOOM,
@@ -176,7 +178,8 @@ typedef enum {
   ENEMY_MONK,
   ENEMY_CHEF,
   ENEMY_GORILLA,
-  ENEMY_DEMON
+  ENEMY_DEMON,
+  ENEMY_SLOP
 } enemy_kind_t;
 
 typedef enum {
@@ -247,12 +250,16 @@ typedef struct {
 typedef struct {
   float x, y, vx, vy, age; /* centre */
   int thrower;             /* the gorilla's slot in the enemy pool */
+  bool slop;               /* a ball of AI slop from the slop monster: it hurts Fabio and
+                            * splats against anything, but hits no other enemy */
 } banana_t;
 
 /* Harmless pieces flung every way out of a burst character: bananas out of the
  * gorilla, vegetables out of the chef. They go through everything, spin, slow
  * down and fade out over their `life`, growing to `grow` times their size. */
-typedef enum { DEBRIS_BANANA, DEBRIS_VEGETABLE } debris_kind_t;
+typedef enum { DEBRIS_BANANA, DEBRIS_VEGETABLE, DEBRIS_SLOP } debris_kind_t;
+#define SLOP_PIECES 6 /* the different blobs of a burst slop monster */
+#define SLOP_SHOWER 30
 #define VEGETABLE_KINDS 16
 #define VEGETABLE_SHOWER 50
 #define VEGETABLE_GROWTH 2.5f
@@ -287,7 +294,9 @@ typedef enum {
   FX_SKELETON_VANISH,
   FX_CHEF_EXPLODE,
   FX_DEMON_DEATH,
-  FX_HELICOPTER_BOOM
+  FX_HELICOPTER_BOOM,
+  FX_SLOP_DEATH, /* the slop monster tearing into noise and dripping away, 8 frames */
+  FX_SLOP_SPLAT  /* a ball of slop landing, 6 frames */
 } fx_kind_t;
 
 typedef struct {
@@ -373,7 +382,7 @@ typedef struct {
   float state_time;
   float camera_x;
   float view_w; /* the window's width in world units; set by the caller */
-  float zombie_timer, bug_timer, book_reader_timer, monk_timer, chef_timer, gorilla_timer;
+  float zombie_timer, bug_timer, book_reader_timer, monk_timer, chef_timer, gorilla_timer, slop_timer;
   float arrival_wait, special_wait; /* until the next arrival, and the next special one */
   bool spawning;
 
@@ -385,6 +394,7 @@ typedef struct {
   int monks_killed;
   int chefs_killed;
   int gorillas_killed;
+  int slops_killed;
   int demons_killed;
 } world_t;
 
@@ -500,6 +510,19 @@ bool chef_knife_out(const enemy_t* chef);
  * whenever he is on screen. Touching him hurts like a zombie; a stomp, a
  * bullet, the ray or the pickaxe kills him. One at a time. */
 #define GORILLA_MAX 1
+/* The AI slop monster stands where he appears, turned towards Fabio, and goes round
+ * and round: he stands dripping, winds up a ball of slop over his head, and hurls
+ * it at Fabio (anywhere BANANA_MISS either side of him) like the gorilla's banana. The
+ * ball splats against whatever it meets, and costs Fabio a heart. */
+#define SLOP_MAX 1
+#define SLOP_STAND_SECONDS 1.5f
+#define SLOP_WINDUP_SECONDS 0.64f /* four frames */
+#define SLOP_THROW_SECONDS 0.6f   /* four frames */
+#define SLOP_RELEASE 0.3f         /* into the throw, the ball leaves his hand */
+#define SLOP_CYCLE (SLOP_STAND_SECONDS + SLOP_WINDUP_SECONDS + SLOP_THROW_SECONDS)
+typedef enum { SLOP_STANDING, SLOP_WINDING_UP, SLOP_THROWING } slop_act_t;
+slop_act_t slop_act(const enemy_t* slop, float* into);
+void spawn_slop(world_t* world, float x, float y);
 #define GORILLA_STAND_SECONDS 1.4f
 #define GORILLA_ROAR_SECONDS 0.64f  /* four frames */
 #define GORILLA_BEAT_SECONDS 0.72f  /* two frames, back and forth */
@@ -557,7 +580,7 @@ float drum_word_radius(float age);
 /* Whether he is sitting at a kit. */
 bool world_drumming(const world_t* world);
 /* Fabio jumps into a kit, and it plays for DRUM_SECONDS. */
-void drums_update(world_t* world, float dt);
+void drums_update(world_t* world, const controls_t* controls, float dt);
 
 /* combat.c */
 void combat_update(world_t* world, float dt);

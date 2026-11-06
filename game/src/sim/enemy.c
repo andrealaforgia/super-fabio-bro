@@ -18,6 +18,8 @@
 #define DEMON_H 60.0f
 #define GORILLA_W 55.0f
 #define GORILLA_H 77.0f
+#define SLOP_W 62.0f
+#define SLOP_H 66.0f
 
 static const struct {
   float w, h, speed;
@@ -181,6 +183,47 @@ static void gorilla_throws(world_t* world, enemy_t* g, float dt) {
   if (crossed && p->alive && on_screen) world_throw_banana(world, g);
 }
 
+void spawn_slop(world_t* world, float x, float y) {
+  enemy_t* e = pool_acquire(&world->enemies, NULL);
+  if (!e) return;
+  *e = (enemy_t){0};
+  e->kind = ENEMY_SLOP;
+  e->x = x;
+  e->y = y;
+  e->w = SLOP_W;
+  e->h = SLOP_H;
+  e->facing = world->player.x < x ? -1 : 1;
+  e->anim_time = 0.0f; /* he starts out standing */
+}
+
+slop_act_t slop_act(const enemy_t* s, float* into) {
+  float t = fmodf(s->anim_time, SLOP_CYCLE);
+  if (t < SLOP_STAND_SECONDS) {
+    if (into) *into = t;
+    return SLOP_STANDING;
+  }
+  t -= SLOP_STAND_SECONDS;
+  if (t < SLOP_WINDUP_SECONDS) {
+    if (into) *into = t;
+    return SLOP_WINDING_UP;
+  }
+  if (into) *into = t - SLOP_WINDUP_SECONDS;
+  return SLOP_THROWING;
+}
+
+/* The ball leaves his hand the moment the throw reaches SLOP_RELEASE, whenever he
+ * is on screen: a throw is never shown without its ball. */
+static void slop_throws(world_t* world, enemy_t* s, float dt) {
+  float before = fmodf(s->anim_time - dt, SLOP_CYCLE);
+  float now = fmodf(s->anim_time, SLOP_CYCLE);
+  float release = SLOP_CYCLE - SLOP_THROW_SECONDS + SLOP_RELEASE;
+  bool crossed = before < now ? (before < release && now >= release)
+                              : (before < release || now >= release);
+  const player_t* p = &world->player;
+  bool on_screen = s->x > world->camera_x && s->x < world->camera_x + world->view_w;
+  if (crossed && p->alive && on_screen) world_throw_banana(world, s);
+}
+
 void spawn_demon(world_t* world, float x, float y) {
   enemy_t* e = pool_acquire(&world->enemies, NULL);
   if (!e) return;
@@ -324,12 +367,15 @@ void enemies_update(world_t* world, float dt) {
     e->anim_time += dt;
     if (enemy_in_bubble(world, e)) continue; /* wrapped: he floats, and the bubble carries him */
     if (e->kind == ENEMY_MONK || e->kind == ENEMY_CHEF || e->kind == ENEMY_GORILLA ||
-        e->kind == ENEMY_DEMON)
+        e->kind == ENEMY_DEMON || e->kind == ENEMY_SLOP)
       e->facing = p->x < e->x ? -1 : 1; /* turns to Fabio */
     if (e->kind == ENEMY_CHEF) chef_watch_fabio(e, p, dt);
     if (e->kind == ENEMY_GORILLA) {
       stand_in_place(world, e, dt);
       gorilla_throws(world, e, dt);
+    } else if (e->kind == ENEMY_SLOP) {
+      stand_in_place(world, e, dt);
+      slop_throws(world, e, dt);
     } else if (e->kind == ENEMY_DEMON) {
       stand_in_place(world, e, dt);
       demon_casts(world, e, dt);
@@ -530,6 +576,19 @@ static bool gorilla_arrives(world_t* world, float progress) {
   return false;
 }
 
+static bool slop_arrives(world_t* world, float progress) {
+  (void)progress;
+  float x, y;
+  if (world_count_enemies(world, ENEMY_SLOP) < SLOP_MAX &&
+      pick_spawn_point(world, true, 1.0f, SLOP_W, SLOP_H, &x, &y) && clear_of_characters(world, x)) {
+    spawn_slop(world, x, y);
+    world->slop_timer = (28.0f + rng_float(&world->rng) * 17.0f) / SPAWN_PACE;
+    return true;
+  }
+  world->slop_timer = 1.0f;
+  return false;
+}
+
 static bool book_reader_arrives(world_t* world, float progress) {
   (void)progress;
   float x, y, exit_x;
@@ -586,6 +645,7 @@ void spawner_update(world_t* world, float dt) {
       {&world->monk_timer, monk_arrives, true},
       {&world->chef_timer, chef_arrives, true},
       {&world->gorilla_timer, gorilla_arrives, true},
+      {&world->slop_timer, slop_arrives, true},
   };
   const int count = (int)(sizeof(kinds) / sizeof(kinds[0]));
   for (int i = 0; i < count; i++) *kinds[i].timer -= dt;

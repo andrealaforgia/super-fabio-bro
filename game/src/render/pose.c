@@ -90,6 +90,13 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_FAB_BUB_AIM] = {"fab_bub_aim", 5},
     [STRIP_FAB_BUB_SHOOT] = {"fab_bub_shoot", 8},
     [STRIP_BUBBLE_GUN] = {"bubble_gun_0", 0},
+    [STRIP_SLOP_IDLE] = {"slop_idle", 4},
+    [STRIP_SLOP_WINDUP] = {"slop_windup", 4},
+    [STRIP_SLOP_THROW] = {"slop_throw", 4},
+    [STRIP_SLOP_DEATH] = {"slop_death", 8},
+    [STRIP_SLOP_BALL] = {"slop_ball", 6},
+    [STRIP_SLOP_SPLAT] = {"slop_splat", 6},
+    [STRIP_SLOP_PIECE] = {"slop_piece", SLOP_PIECES},
     [STRIP_SOAP_BUBBLE] = {"bubble_big", 0},
 };
 
@@ -272,6 +279,26 @@ pose_t pose_effect(fx_kind_t kind) {
     case FX_CHEF_EXPLODE: return make(STRIP_CHEF_BOOM, 0);
     case FX_DEMON_DEATH: return make(STRIP_DEMON_DEATH, 0);
     case FX_HELICOPTER_BOOM: return make(STRIP_HELI_BOOM, 0);
+    case FX_SLOP_DEATH: return make(STRIP_SLOP_DEATH, 0);
+    case FX_SLOP_SPLAT: return make(STRIP_SLOP_SPLAT, 0);
   }
   return make(STRIP_FX_SMOKE, 0);
+}
+
+pose_t pose_slop(const enemy_t* s) {
+  float into;
+  switch (slop_act(s, &into)) {
+    case SLOP_WINDING_UP: return make(STRIP_SLOP_WINDUP, (int)(into / (SLOP_WINDUP_SECONDS / 4.0f)));
+    case SLOP_THROWING: {
+      int frame = (int)(into / (SLOP_RELEASE / 2.0f)); /* the release is the third frame */
+      return make(STRIP_SLOP_THROW, frame > 3 ? 3 : frame);
+    }
+    case SLOP_STANDING: break;
+  }
+  return make(STRIP_SLOP_IDLE, (int)(s->anim_time * 4.0f));
+}
+
+pose_t pose_slop_effect(fx_kind_t kind, float age, float duration) {
+  strip_id_t strip = kind == FX_SLOP_DEATH ? STRIP_SLOP_DEATH : STRIP_SLOP_SPLAT;
+  return make(strip, (int)(age / duration * (float)kStripSpecs[strip].frames));
 }

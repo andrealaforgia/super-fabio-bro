@@ -43,6 +43,22 @@ static void stand_up(world_t* world, drum_kit_t* kit) {
   p->invulnerable = 1.0f;
 }
 
+/* A tap of left, right or jump gets him up from the kit before his ten seconds are out:
+ * left and right step out that way, jump hops out. Held keys do not count, so
+ * running in with a key down does not throw him straight out again. */
+static bool wants_out(world_t* world, const controls_t* controls) {
+  player_t* p = &world->player;
+  if (controls_pressed(controls, BTN_JUMP)) {
+    p->vy = -JUMP_SPEED * 0.6f;
+    return true;
+  }
+  bool left = controls_pressed(controls, BTN_LEFT), right = controls_pressed(controls, BTN_RIGHT);
+  if (!left && !right) return false;
+  p->facing = right ? 1 : -1;
+  p->vx = (float)p->facing * WALK_SPEED;
+  return true;
+}
+
 static void shout(world_t* world, drum_kit_t* kit) {
   int word = rng_range(&world->rng, 0, DRUM_WORDS - 1);
   if (word == kit->last_word) word = (word + 1) % DRUM_WORDS;
@@ -80,7 +96,7 @@ static void play(world_t* world, drum_kit_t* kit, float dt) {
   if (kit->playing <= 0.0f) stand_up(world, kit);
 }
 
-void drums_update(world_t* world, float dt) {
+void drums_update(world_t* world, const controls_t* controls, float dt) {
   player_t* p = &world->player;
   for (int i = 0; i < world->drum_count; i++) {
     drum_kit_t* kit = &world->drums[i];
@@ -88,7 +104,15 @@ void drums_update(world_t* world, float dt) {
     if (!inside) kit->armed = true; /* hopping out of it does not drop him straight back in */
     if (kit->armed && !world_drumming(world) && p->alive && !p->flying && !p->grounded && inside)
       sit_down(world, kit);
-    if (kit->playing > 0.0f) play(world, kit, dt);
+    if (kit->playing > 0.0f) {
+      play(world, kit, dt);
+      if (kit->playing > 0.0f && p->alive && wants_out(world, controls)) {
+        float vx = p->vx, vy = p->vy;
+        stand_up(world, kit); /* the usual hop, then what he asked for */
+        if (vx != 0.0f) p->vx = vx, p->vy = 0.0f, p->grounded = true;
+        if (vy != 0.0f) p->vy = vy;
+      }
+    }
   }
 
   size_t cursor = 0;

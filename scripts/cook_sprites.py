@@ -42,6 +42,7 @@ DRUMMER = "drummer_frantic.png"
 HELICOPTER = "helicopter.jpeg"
 FABIO_HELICOPTER = "fabio_helicopter.jpeg"
 SKEWER = "skewer.jpeg"
+SLOP = "slop_monster.png"
 BUBBLE_GUN = "bubble_gun.png"
 FABIO_BUBBLE_GUN = "fabio_bubble_gun.png"
 
@@ -220,6 +221,49 @@ SPEC = [
     ("band", FABIO_BUBBLE_GUN, (0, 790, 1254, 910), ["fab_bub_shoot_%d" % i for i in range(8)], "light", "scale=0.9"),
     ("one", BUBBLE_GUN, "bubble_gun_0", (30, 140, 170, 240), "light"),
     ("bubble", BUBBLE_GUN, "bubble_big", (1035, 936, 1229, 1118), "none"),
+    # The AI slop monster, who throws slop: idle, windup, throw, hurt, death, the slop ball in
+    # flight and splatting, and the pieces he bursts into. "main" keeps only the biggest blob.
+    ("one", SLOP, "slop_idle_0", (150, 0, 392, 170), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_idle_1", (410, 0, 650, 170), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_idle_2", (675, 0, 930, 170), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_idle_3", (945, 0, 1200, 170), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_windup_0", (165, 175, 390, 352), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_windup_1", (425, 175, 635, 352), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_windup_2", (665, 175, 875, 352), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_windup_3", (940, 175, 1165, 352), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_throw_0", (150, 355, 370, 540), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_throw_1", (395, 355, 655, 540), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_throw_2", (655, 355, 975, 540), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_throw_3", (925, 355, 1212, 540), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_hurt_0", (125, 548, 385, 708), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_hurt_1", (430, 548, 650, 708), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_hurt_2", (690, 548, 950, 708), "light", "main", "scale=0.45"),
+    ("one", SLOP, "slop_death_0", (55, 712, 245, 885), "light", "scale=0.45"),
+    ("one", SLOP, "slop_death_1", (246, 712, 395, 885), "light", "scale=0.45"),
+    ("one", SLOP, "slop_death_2", (396, 712, 535, 885), "light", "scale=0.45"),
+    ("one", SLOP, "slop_death_3", (536, 712, 675, 885), "light", "scale=0.45"),
+    ("one", SLOP, "slop_death_4", (678, 712, 820, 885), "light", "scale=0.45"),
+    ("one", SLOP, "slop_death_5", (822, 712, 960, 885), "light", "scale=0.45"),
+    ("one", SLOP, "slop_death_6", (970, 712, 1090, 885), "light", "scale=0.45"),
+    ("one", SLOP, "slop_death_7", (1100, 712, 1225, 885), "light", "scale=0.45"),
+    ("one", SLOP, "slop_ball_0", (160, 898, 285, 1002), "light", "scale=0.3"),
+    ("one", SLOP, "slop_ball_1", (325, 898, 450, 1002), "light", "scale=0.3"),
+    ("one", SLOP, "slop_ball_2", (495, 898, 620, 1002), "light", "scale=0.3"),
+    ("one", SLOP, "slop_ball_3", (668, 898, 790, 1002), "light", "scale=0.3"),
+    ("one", SLOP, "slop_ball_4", (845, 898, 960, 1002), "light", "scale=0.3"),
+    ("one", SLOP, "slop_ball_5", (1010, 898, 1145, 1002), "light", "scale=0.3"),
+    ("one", SLOP, "slop_splat_0", (180, 1000, 290, 1100), "light", "scale=0.45"),
+    ("one", SLOP, "slop_splat_1", (330, 1000, 465, 1100), "light", "scale=0.45"),
+    ("one", SLOP, "slop_splat_2", (480, 1000, 650, 1100), "light", "scale=0.45"),
+    ("one", SLOP, "slop_splat_3", (660, 1000, 830, 1100), "light", "scale=0.45"),
+    ("one", SLOP, "slop_splat_4", (845, 1000, 995, 1100), "light", "scale=0.45"),
+    ("one", SLOP, "slop_splat_5", (1015, 1000, 1160, 1100), "light", "scale=0.45"),
+    ("one", SLOP, "slop_piece_0", (160, 1110, 275, 1195), "light", "scale=0.28"),
+    ("one", SLOP, "slop_piece_1", (335, 1110, 455, 1195), "light", "scale=0.28"),
+    ("one", SLOP, "slop_piece_2", (500, 1110, 630, 1195), "light", "scale=0.28"),
+    ("one", SLOP, "slop_piece_3", (675, 1110, 800, 1195), "light", "scale=0.28"),
+    ("one", SLOP, "slop_piece_4", (845, 1110, 985, 1195), "light", "scale=0.28"),
+    ("one", SLOP, "slop_piece_5", (1025, 1110, 1150, 1195), "light", "scale=0.28"),
     ("one", DRUM_KIT, "drums_rest", (14, 66, 162, 196), "light", "fixed", "scale=0.44"),
     ("one", DRUMMER, "drums_play_0", (5, 520, 157, 686), "light", "fixed", "scale=0.44"),
     ("one", DRUMMER, "drums_play_1", (162, 520, 314, 686), "light", "fixed", "scale=0.44"),
@@ -625,7 +669,10 @@ def cook(output):
         else:
             name, rect, bg = entry[2], entry[3], entry[4]
             keyed = key_background(sheets[sheet].crop(rect), bg)
-            sprite = keyed if "fixed" in entry[5:] else tight(keyed)
+            if "main" in entry[5:]:
+                sprite = tight(keyed, max(blobs(keyed), key=len))
+            else:
+                sprite = keyed if "fixed" in entry[5:] else tight(keyed)
             if sprite is None:
                 sys.exit("%s is empty" % name)
             if "clean" in entry[5:]:

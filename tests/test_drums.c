@@ -91,13 +91,13 @@ static void walking_past_the_kit_on_the_ground_does_nothing(void) {
   world_free(world);
 }
 
-static void jumping_into_the_kit_sits_him_at_it_with_no_one_pressing_anything(void) {
+static void jumping_into_the_kit_sits_him_at_it_and_run_or_shoot_do_not_get_him_up(void) {
   world_t* world = playing();
   CHECK(world_has_event(world, EVENT_DRUMS_START));
   CHECK(world->player.x == world->drums[0].x);
   float x = world->player.x;
-  step(world, &(buttons_t){BTN_RIGHT | BTN_RUN}, 1.0f);
-  CHECK(world->player.x == x);
+  step(world, &(buttons_t){BTN_RUN | BTN_SHOOT}, 1.0f);
+  CHECK(world->player.x == x && world->drums[0].playing > 0.0f);
   world_free(world);
 }
 
@@ -111,6 +111,38 @@ static void he_plays_for_ten_seconds_and_then_hops_out(void) {
   CHECK(world->player.vy < 0.0f || world->player.y < GROUND);
   step(world, &(buttons_t){BTN_RIGHT}, 0.6f);
   CHECK(world->player.x > world->drums[0].x);
+  world_free(world);
+}
+
+static void tapping_left_right_or_jump_gets_him_out_of_the_kit_early(void) {
+  world_t* world = playing();
+  step(world, &(buttons_t){BTN_RIGHT}, 0.02f);
+  CHECK(world->drums[0].playing == 0.0f);
+  step(world, &(buttons_t){BTN_RIGHT}, 0.5f);
+  CHECK(world->player.x > world->drums[0].x + 20.0f && world->player.alive);
+  world_free(world);
+
+  world = playing();
+  step(world, &(buttons_t){BTN_LEFT}, 0.5f);
+  CHECK(world->drums[0].playing == 0.0f && world->player.x < world->drums[0].x - 20.0f);
+  world_free(world);
+
+  world = playing();
+  step(world, &(buttons_t){BTN_JUMP}, 0.1f);
+  CHECK(world->drums[0].playing == 0.0f && world->player.y < GROUND - 10.0f);
+  world_free(world);
+}
+
+static void space_held_from_the_jump_in_does_not_throw_him_straight_back_out(void) {
+  world_t* world = fresh();
+  stand_kit_at(world, world->player.x);
+  world->player.y = GROUND - 120.0f;
+  world->player.grounded = false;
+  world->player.coyote = 0.0f; /* too late for a jump in mid-air */
+  step(world, &(buttons_t){BTN_JUMP}, 0.01f); /* the tap happens up in the air, before the kit */
+  CHECK(world->drums[0].playing == 0.0f);
+  step(world, &(buttons_t){BTN_JUMP}, 0.3f); /* still held as he comes down into it */
+  CHECK(world->drums[0].playing > 0.0f);
   world_free(world);
 }
 
@@ -202,8 +234,10 @@ void run_drum_tests(void) {
   RUN(a_new_world_has_all_its_kits_waiting);
   RUN(any_of_the_kits_plays_when_he_jumps_into_it);
   RUN(walking_past_the_kit_on_the_ground_does_nothing);
-  RUN(jumping_into_the_kit_sits_him_at_it_with_no_one_pressing_anything);
+  RUN(jumping_into_the_kit_sits_him_at_it_and_run_or_shoot_do_not_get_him_up);
   RUN(he_plays_for_ten_seconds_and_then_hops_out);
+  RUN(tapping_left_right_or_jump_gets_him_out_of_the_kit_early);
+  RUN(space_held_from_the_jump_in_does_not_throw_him_straight_back_out);
   RUN(every_jump_into_the_kit_starts_a_fresh_ten_seconds);
   RUN(nothing_hurts_him_while_he_plays);
   RUN(all_six_words_are_shouted_with_their_sounds);

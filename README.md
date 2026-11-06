@@ -146,7 +146,7 @@ start.
   frames flashing by every 0.05 seconds. All the while the kit shouts BOOM,
   BADABOOM, TASH, BODOBOOOM, BOING and DISH, each with its own drum sound: a
   word swells into a ring round the kit, out to 320 pixels, then fades, and
-  kills any enemy it touches. Then he hops out, and every new jump into the kit starts a fresh 10 seconds. The
+  kills any enemy it touches. Tap left, right or jump to get up early (left and right step out that way, jump hops out). Otherwise he hops out when the time is up, and every new jump into the kit starts a fresh 10 seconds. The
   kit at rest is from `assets/source/drum_kit.png`, the playing frames from
   the third row of `assets/source/drummer_frantic.png`, and the sounds are CC0
   drum samples from the Sonic Pi library (`assets/source/sounds`), cut and
@@ -162,6 +162,16 @@ start.
   usual points). The helicopter's skewers and the TDD spell still come first.
   Fabio's frames are cut from `assets/source/fabio_bubble_gun.png`, the gun and
   the round bubble from `assets/source/bubble_gun.png`.
+- The AI slop monster (every 28 to 45 seconds, one at a time, never on top of
+  another special) stands where he appears, turned towards Fabio, a hulking
+  purple and teal heap of melted generated nonsense with too many fingers and teeth.
+  He goes round and round: he drips, winds up a ball of slop over his head and hurls
+  it at Fabio on an arc, aimed anywhere up to 90 pixels either side of him. The ball
+  costs a heart, splats against walls and the ground, and hurts nobody else, unlike
+  the gorilla's banana. Walking into him hurts; a stomp, a bullet, the TDD ray, the
+  pickaxe or a bubble kills him (450 points), and he tears into glitchy noise and
+  bursts into a shower of thirty blobs of slop with eyes and fingers. His frames are cut
+  from `assets/source/slop_monster.png`, generated with Codex to match the other sheets.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

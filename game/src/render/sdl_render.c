@@ -296,6 +296,9 @@ static void draw_enemies(const frame_t* f) {
     if (e->kind == ENEMY_DEMON) {
       /* Drawn facing right: turned to face Fabio. */
       draw_sprite(f, pose_demon(e), e->x, e->y, DEMON_SCALE, e->facing < 0, demon_presence(e));
+    } else if (e->kind == ENEMY_SLOP) {
+      /* Drawn facing right: turned to face Fabio; his frames are cooked at the size he is drawn. */
+      draw_sprite(f, pose_slop(e), e->x, e->y, 1.0f, e->facing < 0, 1.0f);
     } else if (e->kind == ENEMY_GORILLA) {
       /* Drawn facing right: turned to face Fabio. */
       draw_sprite(f, pose_gorilla(e), e->x, e->y, GORILLA_SCALE, e->facing < 0, 1.0f);
@@ -468,6 +471,12 @@ static void draw_effects(const frame_t* f) {
   for (const effect_t* fx;
        (fx = pool_next_active(&f->world->effects, &effect_cursor));) {
     float life = fx->age / fx->duration;
+    if (fx->kind == FX_SLOP_DEATH || fx->kind == FX_SLOP_SPLAT) {
+      float left = fx->duration - fx->age;
+      draw_sprite(f, pose_slop_effect(fx->kind, fx->age, fx->duration), fx->x, fx->y, 1.0f,
+                  fx->facing < 0, left < 0.15f ? left / 0.15f : 1.0f);
+      continue;
+    }
     if (fx->kind == FX_HELICOPTER_BOOM) {
       draw_centred(f, pose_helicopter_boom(fx->age), fx->x, fx->y - HELICOPTER_H * 0.5f, 1.0f, 1.0f,
                    0.0f, false, 1.0f);
@@ -555,16 +564,23 @@ static void draw_effects(const frame_t* f) {
   }
   /* Bananas spin end over end the way they fly. */
   size_t banana_cursor = 0;
-  for (const banana_t* b; (b = pool_next_active(&f->world->bananas, &banana_cursor));)
+  for (const banana_t* b; (b = pool_next_active(&f->world->bananas, &banana_cursor));) {
+    if (b->slop) { /* a wobbling ball of slop, not a spinning banana */
+      draw_centred(f, (pose_t){STRIP_SLOP_BALL, (int)(b->age * 14.0f)}, b->x, b->y, 1.0f, 1.0f, 0.0f,
+                   b->vx < 0.0f, 1.0f);
+      continue;
+    }
     draw_centred(f, (pose_t){STRIP_BANANA, 0}, b->x, b->y, BANANA_SCALE, BANANA_SCALE,
                  b->age * (b->vx < 0.0f ? -900.0f : 900.0f), false, 1.0f);
+  }
   /* The pieces of a burst gorilla or chef spin, swell and fade away. */
   size_t debris_cursor = 0;
   for (const debris_t* d; (d = pool_next_active(&f->world->debris, &debris_cursor));) {
     float life = d->age / d->life;
-    bool vegetable = d->kind == DEBRIS_VEGETABLE;
-    pose_t pose = vegetable ? (pose_t){STRIP_VEGETABLE, d->variant} : (pose_t){STRIP_BANANA, 0};
-    float scale = (vegetable ? VEGETABLE_SCALE : BANANA_SCALE) * (1.0f + (d->grow - 1.0f) * life);
+    bool vegetable = d->kind == DEBRIS_VEGETABLE, slop = d->kind == DEBRIS_SLOP;
+    pose_t pose = slop ? (pose_t){STRIP_SLOP_PIECE, d->variant}
+                       : vegetable ? (pose_t){STRIP_VEGETABLE, d->variant} : (pose_t){STRIP_BANANA, 0};
+    float scale = (slop ? 1.0f : vegetable ? VEGETABLE_SCALE : BANANA_SCALE) * (1.0f + (d->grow - 1.0f) * life);
     draw_centred(f, pose, d->x, d->y, scale, scale, d->age * d->spin, false, 1.0f - life);
   }
   /* The demon's fireballs flicker and pulse as they fly. */

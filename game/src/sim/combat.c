@@ -49,7 +49,7 @@ void world_fling(world_t* world, debris_kind_t kind, float x, float y, int count
     float speed = 140.0f + rng_float(&world->rng) * 300.0f;
     bool vegetable = kind == DEBRIS_VEGETABLE;
     *d = (debris_t){kind,
-                    n % VEGETABLE_KINDS, /* every kind of vegetable, in turn */
+                    n % (kind == DEBRIS_SLOP ? SLOP_PIECES : VEGETABLE_KINDS), /* every kind in turn */
                     x,
                     y,
                     cosf(angle) * speed,
@@ -117,6 +117,15 @@ void world_kill_enemy(world_t* world, enemy_t* e, bool by_spell) {
     world_award(world, 500, cx, e->y - e->h);
     world->demons_killed++;
     world_emit(world, EVENT_DEMON_DIES, cx);
+  } else if (e->kind == ENEMY_SLOP) {
+    /* He tears into rainbow noise and bursts into a shower of slop. */
+    world_add_effect(world, FX_SLOP_DEATH, cx, e->y, 0.8f, e->facing);
+    world_fling(world, DEBRIS_SLOP, cx, cy, SLOP_SHOWER);
+    world_burst(world, cx, cy, 16, 200, 60, 220, 300.0f);
+    world_burst(world, cx, cy, 10, 70, 220, 190, 260.0f);
+    world_award(world, 450, cx, e->y - e->h);
+    world->slops_killed++;
+    world_emit(world, EVENT_SLOP_DIES, cx);
   } else if (e->kind == ENEMY_GORILLA) {
     /* He goes down in a cloud of fur and a shower of bananas. */
     world_add_effect(world, FX_SMOKE, cx, e->y, 0.6f, e->facing);
@@ -298,8 +307,9 @@ void world_throw_banana(world_t* world, const enemy_t* g) {
   while (pick < 2 && !clear_start(world, from[pick][0], from[pick][1], tx, ty)) pick++;
   float x = from[pick][0], y = from[pick][1], vx, vy;
   aim_banana(x, y, tx, ty, &vx, &vy);
-  *banana = (banana_t){x, y, vx, vy, 0.0f, (int)pool_index_of(&world->enemies, g)};
-  world_emit(world, EVENT_BANANA_THROWN, x);
+  bool slop = g->kind == ENEMY_SLOP;
+  *banana = (banana_t){x, y, vx, vy, 0.0f, (int)pool_index_of(&world->enemies, g), slop};
+  world_emit(world, slop ? EVENT_SLOP_THROWN : EVENT_BANANA_THROWN, x);
 }
 
 void world_cast_fireball(world_t* world, const enemy_t* d) {
@@ -335,7 +345,12 @@ static void update_fireballs(world_t* world, float dt) {
 }
 
 static void splat_banana(world_t* world, banana_t* banana) {
-  world_burst(world, banana->x, banana->y, 8, 250, 220, 60, 160.0f);
+  if (banana->slop) {
+    world_add_effect(world, FX_SLOP_SPLAT, banana->x, banana->y + 10.0f, 0.6f, 1);
+    world_burst(world, banana->x, banana->y, 8, 210, 70, 230, 160.0f);
+  } else {
+    world_burst(world, banana->x, banana->y, 8, 250, 220, 60, 160.0f);
+  }
   pool_release_object(&world->bananas, banana);
 }
 
@@ -364,6 +379,7 @@ static void update_bananas(world_t* world, float dt) {
       splat_banana(world, b);
       continue;
     }
+    if (b->slop) continue; /* slop hurts Fabio and nobody else */
     size_t target_cursor = 0;
     for (enemy_t* e; (e = pool_next_active(&world->enemies, &target_cursor));) {
       if ((int)pool_index_of(&world->enemies, e) == b->thrower) continue;
