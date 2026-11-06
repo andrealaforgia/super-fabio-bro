@@ -107,6 +107,24 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_FORCE_BURST] = {"force_burst", 6},
     [STRIP_FORCE_HIT] = {"force_hit", 6},
     [STRIP_OLD_KNIGHT] = {"old_knight", 2},
+    [STRIP_GROUND_SNOW] = {"ground_snow", 4},
+    [STRIP_FILL_SNOW] = {"fill_snow", 4},
+    [STRIP_GROUND_SAND] = {"ground_sand", 4},
+    [STRIP_FILL_SAND] = {"fill_sand", 4},
+    [STRIP_GROUND_CAVE] = {"ground_cave", 4},
+    [STRIP_FILL_CAVE] = {"fill_cave", 4},
+    [STRIP_DECOR_SNOW_PINE] = {"decor_snow_pine", 3},
+    [STRIP_DECOR_SNOWMAN] = {"decor_snowman", 0},
+    [STRIP_DECOR_ICE] = {"decor_ice", 0},
+    [STRIP_DECOR_FROST_BUSH] = {"decor_frost_bush", 0},
+    [STRIP_DECOR_CACTUS] = {"decor_cactus", 3},
+    [STRIP_DECOR_DEAD_TREE] = {"decor_dead_tree", 0},
+    [STRIP_DECOR_SKULL] = {"decor_skull", 0},
+    [STRIP_DECOR_BOULDER] = {"decor_boulder", 0},
+    [STRIP_DECOR_CRYSTAL] = {"decor_crystal", 3},
+    [STRIP_DECOR_MUSHROOM] = {"decor_mushroom", 0},
+    [STRIP_DECOR_STALAGMITE] = {"decor_stalagmite", 2},
+    [STRIP_DECOR_STALACTITE] = {"decor_stalactite", 5},
     [STRIP_SOAP_BUBBLE] = {"bubble_big", 0},
 };
 
@@ -330,4 +348,14 @@ pose_t pose_old_knight(float left) {
   float age = GREETING_SECONDS - left;
   bool speaking = age > GREETING_FADE_IN && left > GREETING_FADE_OUT;
   return make(STRIP_OLD_KNIGHT, speaking ? (int)(age * 7.0f) % 2 : 0);
+}
+
+pose_t pose_decor(decor_kind_t kind, int variant) {
+  return make((strip_id_t)(STRIP_DECOR_SNOW_PINE + (kind - DECOR_SNOW_PINE)), variant);
+}
+
+pose_t pose_ground(biome_t biome, bool fill, int col) {
+  strip_id_t strip = biome == BIOME_SNOW ? STRIP_GROUND_SNOW
+                     : biome == BIOME_DESERT ? STRIP_GROUND_SAND : STRIP_GROUND_CAVE;
+  return make((strip_id_t)(strip + (fill ? 1 : 0)), col);
 }

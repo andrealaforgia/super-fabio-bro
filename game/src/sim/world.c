@@ -57,6 +57,10 @@ static object_pool_t* pools_of(world_t* world, int index) {
   return all[index];
 }
 
+void world_clear_actors(world_t* world) {
+  for (int i = 0; i < POOL_COUNT; i++) pool_reset(pools_of(world, i));
+}
+
 void world_restart(world_t* world, uint32_t seed) {
   world_t fresh;  /* everything but the pools and the events starts from zero */
   memset(&fresh, 0, sizeof(fresh));
@@ -110,7 +114,7 @@ void world_free(world_t* world) {
 static void follow_camera(world_t* world, float dt) {
   const player_t* p = &world->player;
   float target = p->x - world->view_w * 0.42f + (float)p->facing * world->view_w * 0.06f;
-  target = clampf(target, 0.0f, fmaxf(0.0f, level_width() - world->view_w));
+  target = clampf(target, 0.0f, fmaxf(0.0f, level_pixel_width(&world->level) - world->view_w));
   float blend = 1.0f - expf(-6.0f * dt);
   world->camera_x += (target - world->camera_x) * blend;
 }
@@ -125,6 +129,12 @@ void world_update(world_t* world, const controls_t* controls, float dt) {
     return;
   }
 
+  if (world->warp.phase != WARP_NONE) { /* down a pipe, or out of one: the world waits */
+    warps_update(world, controls, dt);
+    follow_camera(world, dt);
+    return;
+  }
+  warps_update(world, controls, dt);
   platforms_update(world);
   player_update(world, controls, dt);
   if (world->state == STATE_PLAYING) {

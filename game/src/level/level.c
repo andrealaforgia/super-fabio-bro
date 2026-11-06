@@ -20,6 +20,14 @@ bool level_solid_at(const level_t* level, float x, float y) {
 }
 
 float level_width(void) { return (float)(LEVEL_COLS * TILE); }
+float level_pixel_width(const level_t* level) {
+  return (float)((level->cols > 0 ? level->cols : LEVEL_COLS) * TILE);
+}
+
+biome_t level_biome_at(const level_t* level, int col) {
+  if (level->cave) return BIOME_CAVE;
+  return col >= SNOW_COL ? BIOME_SNOW : (col >= DESERT_COL ? BIOME_DESERT : BIOME_FOREST);
+}
 float level_height(void) { return (float)(LEVEL_ROWS * TILE); }
 
 void platform_position(const platform_def_t* plank, float time, float* x, float* y) {
@@ -40,6 +48,7 @@ typedef struct {
   int last_decor;
   int counted_x;       /* columns already added to the since_* counters */
   int last_drums;      /* the column of the latest drum kit */
+  int last_warp;       /* the column of the latest warp pipe */
 } generator_t;
 
 static void put(generator_t* g, int col, int row, tile_t tile) {
@@ -61,6 +70,7 @@ static void add_decor(generator_t* g, decor_kind_t kind, int col) {
   if (level->decor_count >= MAX_LEVEL_DECOR) return;
   decor_t* decor = &level->decor[level->decor_count++];
   decor->kind = kind;
+  decor->variant = 0;
   decor->x = (float)(col * TILE + TILE / 2);
   decor->y = (float)(GROUND_ROW * TILE);
   g->last_decor = col;
@@ -85,8 +95,16 @@ static void flat(generator_t* g, int length, bool scenery) {
     ground_column(g, g->x);
     if (scenery && g->x - g->last_decor >= 4 && rng_chance(&g->rng, 0.22f)) {
       int roll = rng_range(&g->rng, 0, 9);
-      add_decor(g, roll < 5 ? DECOR_PINE : (roll < 8 ? DECOR_OAK : DECOR_BUSH),
-                g->x);
+      biome_t biome = level_biome_at(g->level, g->x);
+      if (biome == BIOME_DESERT) {
+        add_decor(g, roll < 5 ? DECOR_CACTUS : (roll < 7 ? DECOR_DEAD_TREE : (roll < 9 ? DECOR_BOULDER : DECOR_SKULL)), g->x);
+        g->level->decor[g->level->decor_count - 1].variant = rng_range(&g->rng, 0, 2);
+      } else if (biome == BIOME_SNOW) {
+        add_decor(g, roll < 4 ? DECOR_SNOW_PINE : (roll < 6 ? DECOR_ICE : (roll < 8 ? DECOR_FROST_BUSH : DECOR_SNOWMAN)), g->x);
+        g->level->decor[g->level->decor_count - 1].variant = rng_range(&g->rng, 0, 2);
+      } else {
+        add_decor(g, roll < 5 ? DECOR_PINE : (roll < 8 ? DECOR_OAK : DECOR_BUSH), g->x);
+      }
     }
     if (scenery && rng_chance(&g->rng, 0.05f)) {
       int arc = rng_range(&g->rng, 3, 5);
@@ -114,6 +132,7 @@ static void rest_helicopter(generator_t* g, int length) {
 /* Drum kits: one at the start, then one on the open grass every DRUMS_EVERY
  * columns or so, never on the helicopter's stretch. */
 #define DRUMS_EVERY 70
+#define WARP_OVERDUE 90 /* columns without a warp pipe, after which the next hazard is one */
 #define DRUMS_OVERDUE 100 /* past this, the next stretch is made open grass for one */
 
 static void stand_drums_at(generator_t* g, int col) {
@@ -209,6 +228,13 @@ static void pipe(generator_t* g) {
     add_item(g, ITEM_COIN, g->x, GROUND_ROW - height - 1);
     add_item(g, ITEM_COIN, g->x + 1, GROUND_ROW - height - 1);
   }
+  /* Every pipe is a warp pipe: down it, and under it, there is a cave. */
+  if (g->level->warp_count < MAX_WARPS) {
+    g->level->warp_col[g->level->warp_count] = g->x;
+    g->level->warp_row[g->level->warp_count] = GROUND_ROW - height;
+    g->level->warp_count++;
+  }
+  g->last_warp = g->x;
   g->x += 2;
   g->since_hazard = 0;
 }
@@ -289,6 +315,7 @@ void level_generate(level_t* level, uint32_t seed) {
   g->last_decor = -10;
   g->since_hazard = 100;
 
+  level->cols = LEVEL_COLS;
   level->spawn_x = 3.0f * TILE;
   level->spawn_y = (float)(GROUND_ROW * TILE);
 
@@ -312,6 +339,7 @@ void level_generate(level_t* level, uint32_t seed) {
   g->since_pistol = 0;
   g->since_bubble_gun = 0;
   g->since_saber = 0;
+  pipe(g); /* a warp pipe to try, just past the opening */
 
   g->counted_x = g->x;
   while (g->x < LEVEL_COLS - 52) {
@@ -327,6 +355,7 @@ void level_generate(level_t* level, uint32_t seed) {
     int roll = rng_range(&g->rng, 0, 99);
     if (g->since_potion > 60) roll = 30; /* a platform, and a potion on it */
     if (g->x >= g->last_drums + DRUMS_OVERDUE) roll = 0; /* open grass for the drums */
+    else if (g->x >= g->last_warp + WARP_OVERDUE) roll = 80; /* a pipe, when it has been too long */
     if (roll < 22) {
       int length = rng_range(&g->rng, 6, 14);
       rest_helicopter(g, length);
@@ -349,4 +378,85 @@ void level_generate(level_t* level, uint32_t seed) {
     }
   }
   castle(g);
+}
+
+/* A pipe in the cave: two wide, `height` tall, standing on the cave floor. */
+static void cave_pipe(generator_t* g, int col, int height) {
+  for (int dx = 0; dx < 2; dx++)
+    for (int h = 1; h <= height; h++) {
+      bool top = h == height;
+      put(g, col + dx, GROUND_ROW - h,
+          top ? (dx ? TILE_PIPE_TOP_R : TILE_PIPE_TOP_L) : (dx ? TILE_PIPE_BODY_R : TILE_PIPE_BODY_L));
+    }
+  g->level->warp_col[g->level->warp_count] = col;
+  g->level->warp_row[g->level->warp_count] = GROUND_ROW - height;
+  g->level->warp_count++;
+}
+
+static void cave_decor(generator_t* g, decor_kind_t kind, int col, int variant, float y) {
+  add_decor(g, kind, col);
+  decor_t* d = &g->level->decor[g->level->decor_count - 1];
+  d->variant = variant;
+  d->y = y;
+}
+
+void level_generate_cave(level_t* level, uint32_t seed, int index) {
+  memset(level, 0, sizeof(*level));
+  generator_t gen;
+  memset(&gen, 0, sizeof(gen));
+  generator_t* g = &gen;
+  g->level = level;
+  rng_seed(&g->rng, seed * 2654435761u + (uint32_t)index * 40503u + 17u);
+  g->last_decor = -10;
+  level->cave = true;
+  level->cols = CAVE_COLS;
+  /* Nothing ever wins in a cave: the goal is out of reach. */
+  level->castle_x = level->goal_x = 1.0e7f;
+
+  /* Solid rock beyond the cave, a floor, a three-row ceiling and a wall at each end. */
+  for (int col = 0; col < LEVEL_COLS; col++)
+    for (int row = 0; row < LEVEL_ROWS; row++) put(g, col, row, TILE_ROCK);
+  for (int col = 2; col < CAVE_COLS - 2; col++) {
+    for (int row = 3; row < GROUND_ROW; row++) put(g, col, row, TILE_EMPTY);
+    put(g, col, GROUND_ROW, TILE_GRASS);
+  }
+  level->spawn_x = 5.0f * TILE; /* on the left pipe, where he arrives */
+  level->spawn_y = (float)((GROUND_ROW - 2) * TILE);
+  cave_pipe(g, 4, 2);
+  cave_pipe(g, CAVE_COLS - 7, 2);
+
+  /* Treasure: three prize blocks, one of them a rare weapon, coin trails and a high gold ledge. */
+  int row = GROUND_ROW - 4;
+  question_block(g, 13, row, rng_chance(&g->rng, 0.5f) ? ITEM_LIGHTSABER : ITEM_BUBBLE_GUN);
+  put(g, 14, row, TILE_BRICK);
+  question_block(g, 15, row, ITEM_POTION);
+  put(g, 16, row, TILE_BRICK);
+  question_block(g, 17, row, rng_chance(&g->rng, 0.5f) ? ITEM_PISTOL : ITEM_MUSHROOM);
+  for (int arc = 0; arc < 3; arc++) {
+    int start = 9 + arc * 11;
+    for (int c = 0; c < 7; c++) add_item(g, ITEM_COIN, start + c, GROUND_ROW - 2 - (c == 0 || c == 6 ? 0 : (c == 3 ? 3 : 1)));
+  }
+  for (int c = 0; c < 9; c++) {
+    put(g, 24 + c, GROUND_ROW - 7, TILE_GOLD);
+    add_item(g, ITEM_COIN, 24 + c, GROUND_ROW - 8);
+  }
+  for (int step = 0; step < 3; step++) { /* a stone stair up to the ledge */
+    for (int h = 1; h <= step + 1; h++) put(g, 21 + step, GROUND_ROW - h, TILE_STONE);
+  }
+
+  /* A guardian stands over the treasure. */
+  level->guardian = rng_chance(&g->rng, 0.5f) ? 1 : 2;
+  level->guardian_x = (float)(33 * TILE + TILE / 2);
+
+  /* Crystals and mushrooms on the floor, stalactites from the ceiling. */
+  for (int col = 8; col < CAVE_COLS - 8; col += 3) {
+    if (rng_chance(&g->rng, 0.5f)) {
+      int roll = rng_range(&g->rng, 0, 9);
+      cave_decor(g, roll < 5 ? DECOR_CRYSTAL : (roll < 8 ? DECOR_MUSHROOM : DECOR_STALAGMITE), col,
+                 rng_range(&g->rng, 0, 2), (float)(GROUND_ROW * TILE));
+    }
+  }
+  for (int col = 3; col < CAVE_COLS - 3; col += 2)
+    if (rng_chance(&g->rng, 0.7f))
+      cave_decor(g, DECOR_STALACTITE, col, rng_range(&g->rng, 0, 4), (float)(3 * TILE));
 }

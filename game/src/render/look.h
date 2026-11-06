@@ -22,6 +22,7 @@ typedef struct {
 typedef struct {
   sprite_t* frames[STRIP_COUNT];
   texture_t sky;
+  texture_t zone_sky[BIOME_COUNT]; /* the forest one is `sky` itself */
   texture_t layers[MOUNTAIN_LAYERS];
   texture_t clouds[CLOUD_VARIANTS];
   texture_t trees[3]; /* indexed by decor_kind_t */

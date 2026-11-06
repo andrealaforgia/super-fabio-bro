@@ -114,6 +114,24 @@ typedef enum {
   STRIP_FORCE_BURST,  /* the green burst in flight */
   STRIP_FORCE_HIT,    /* and bursting on an enemy */
   STRIP_OLD_KNIGHT,   /* the old knight's face: mouth shut, mouth open */
+  STRIP_GROUND_SNOW, /* the surface tile of each zone: four variants */
+  STRIP_FILL_SNOW,   /* and the earth under it */
+  STRIP_GROUND_SAND,
+  STRIP_FILL_SAND,
+  STRIP_GROUND_CAVE,
+  STRIP_FILL_CAVE,
+  STRIP_DECOR_SNOW_PINE, /* the zones' decorations, in decor_kind_t order from DECOR_SNOW_PINE */
+  STRIP_DECOR_SNOWMAN,
+  STRIP_DECOR_ICE,
+  STRIP_DECOR_FROST_BUSH,
+  STRIP_DECOR_CACTUS,
+  STRIP_DECOR_DEAD_TREE,
+  STRIP_DECOR_SKULL,
+  STRIP_DECOR_BOULDER,
+  STRIP_DECOR_CRYSTAL,
+  STRIP_DECOR_MUSHROOM,
+  STRIP_DECOR_STALAGMITE,
+  STRIP_DECOR_STALACTITE,
   STRIP_SOAP_BUBBLE, /* one round soap bubble, drawn at any size */
   STRIP_COUNT
 } strip_id_t;
@@ -165,6 +183,10 @@ pose_t pose_demon_death(float age);
 pose_t pose_helicopter_boom(float age);
 /* The drum kit on its own, or with Fabio flat out at it: DRUM_FRAMES frames, flashing by. */
 pose_t pose_drums(const drum_kit_t* kit, float time);
+/* A cooked decoration (kind from DECOR_PROCEDURAL up), the frame picked by `variant`. */
+pose_t pose_decor(decor_kind_t kind, int variant);
+/* The tile of a zone other than the forest, as a surface tile or the fill under it. */
+pose_t pose_ground(biome_t biome, bool fill, int col);
 /* The green burst flying, and the sparks it leaves on an enemy (`age` of `duration`). */
 pose_t pose_force_burst(float age);
 pose_t pose_force_hit(float age, float duration);

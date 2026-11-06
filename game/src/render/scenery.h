@@ -36,6 +36,8 @@ uint32_t image_at(const image_t* image, int x, int y);
 
 /* A 1 x h strip, deep blue at the top to pale at the horizon. */
 bool scenery_sky(image_t* image, int h);
+/* The same strip for a scenery zone: amber for the desert, pale for the snow, dark for the cave. */
+bool scenery_sky_zone(image_t* image, int h, biome_t biome);
 
 /* How one run looks: a time of day tinting the sky, the mountains and the
  * clouds (multiplied into their colours), and where along the backdrop the

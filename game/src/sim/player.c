@@ -47,6 +47,7 @@ void player_hurt(world_t* world, float from_x) {
   player_t* p = &world->player;
   if (!p->alive || p->invulnerable > 0.0f || p->flying) return; /* nothing touches him up there */
   if (world_drumming(world)) return; /* or while he is playing the drums */
+  if (world->warp.phase != WARP_NONE) return; /* or going down a pipe */
   p->hp--;
   p->invulnerable = INVULNERABLE_AFTER_HIT;
   p->hurt_timer = 0.4f;
@@ -188,6 +189,10 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
     return;
   }
 
+  if (world->warp.phase != WARP_NONE) { /* sinking into a pipe, or rising out of one */
+    p->vx = p->vy = 0.0f;
+    return;
+  }
   if (world_drumming(world)) { /* sitting at the kit: drums_update keeps him there */
     p->vx = p->vy = 0.0f;
     return;
@@ -218,13 +223,17 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
   if (p->hurt_timer <= 0.0f) {
     if (direction != 0.0f) {
       float accel = p->grounded ? 2400.0f : 1500.0f;
+      /* The snow zone is icy: he slides, slow to get going and slow to stop. */
+      if (p->grounded && level_biome_at(&world->level, (int)(p->x / TILE)) == BIOME_SNOW) accel *= 0.3f;
       /* Turning round on the spot is quicker than speeding up. */
       if ((direction > 0.0f) != (p->vx > 0.0f) && fabsf(p->vx) > 10.0f)
         accel *= 1.8f;
       p->vx = approachf(p->vx, direction * top_speed, accel * dt);
       if (p->melee_timer <= 0.0f) p->facing = direction > 0.0f ? 1 : -1;
     } else {
-      p->vx = approachf(p->vx, 0.0f, (p->grounded ? 2800.0f : 500.0f) * dt);
+      float brake = p->grounded ? 2800.0f : 500.0f;
+      if (p->grounded && level_biome_at(&world->level, (int)(p->x / TILE)) == BIOME_SNOW) brake *= 0.15f;
+      p->vx = approachf(p->vx, 0.0f, brake * dt);
     }
   }
 

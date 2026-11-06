@@ -92,6 +92,8 @@ bool look_load(look_t* look, graphics_context_ptr gfx, const char* sprite_dir) {
 
   image_t image;
   if (scenery_sky(&image, 128)) look->sky = from_image(gfx, &image, true, false);
+  for (int zone = BIOME_DESERT; zone < BIOME_COUNT; zone++)
+    if (scenery_sky_zone(&image, 128, (biome_t)zone)) look->zone_sky[zone] = from_image(gfx, &image, true, false);
   for (int layer = 0; layer < MOUNTAIN_LAYERS; layer++)
     if (scenery_layer(&image, layer))
       look->layers[layer] = from_image(gfx, &image, false, false);
@@ -116,6 +118,7 @@ void look_free(look_t* look) {
     free(look->frames[id]);
   }
   free_texture(&look->sky);
+  for (int zone = BIOME_DESERT; zone < BIOME_COUNT; zone++) free_texture(&look->zone_sky[zone]);
   for (int i = 0; i < MOUNTAIN_LAYERS; i++) free_texture(&look->layers[i]);
   for (int i = 0; i < CLOUD_VARIANTS; i++) free_texture(&look->clouds[i]);
   for (int i = 0; i < 3; i++) free_texture(&look->trees[i]);

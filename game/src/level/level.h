@@ -20,6 +20,10 @@
 #define MAX_LEVEL_ITEMS 512
 #define MAX_LEVEL_DECOR 256
 #define MAX_LEVEL_PLATFORMS 64
+#define MAX_WARPS 12
+#define CAVE_COLS 48
+#define DESERT_COL 150 /* where the desert begins, and */
+#define SNOW_COL 310   /* the snow, in the main level */
 
 typedef enum {
   TILE_EMPTY = 0,
@@ -46,7 +50,31 @@ typedef enum {
   ITEM_LIGHTSABER
 } item_kind_t;
 
-typedef enum { DECOR_PINE, DECOR_OAK, DECOR_BUSH } decor_kind_t;
+/* The scenery zones: the level runs from forest through desert into snow before the
+ * castle, and a secret cave sits under the warp pipes. */
+typedef enum { BIOME_FOREST, BIOME_DESERT, BIOME_SNOW, BIOME_CAVE, BIOME_COUNT } biome_t;
+
+/* The first three are drawn procedurally (look.trees); the rest are cooked sprites, one strip
+ * per kind with `variant` picking the frame. */
+typedef enum {
+  DECOR_PINE,
+  DECOR_OAK,
+  DECOR_BUSH,
+  DECOR_SNOW_PINE,
+  DECOR_SNOWMAN,
+  DECOR_ICE,
+  DECOR_FROST_BUSH,
+  DECOR_CACTUS,
+  DECOR_DEAD_TREE,
+  DECOR_SKULL,
+  DECOR_BOULDER,
+  DECOR_CRYSTAL,
+  DECOR_MUSHROOM,
+  DECOR_STALAGMITE,
+  DECOR_STALACTITE, /* hangs from the ceiling: `y` is where it attaches, not a base */
+  DECOR_KIND_COUNT
+} decor_kind_t;
+#define DECOR_PROCEDURAL 3
 
 typedef struct {
   item_kind_t kind;
@@ -55,7 +83,8 @@ typedef struct {
 
 typedef struct {
   decor_kind_t kind;
-  float x, y; /* middle of the base */
+  int variant; /* which frame of its strip, for the cooked kinds */
+  float x, y;  /* middle of the base */
 } decor_t;
 
 /* Planks that carry Fabio: a slider swings left and right across a pit, a lift
@@ -87,6 +116,13 @@ typedef struct {
   int drum_count;         /* Fabio's drum kits, one now and then all along */
   float drums_x[MAX_DRUM_KITS]; /* middles */
   float drums_y;                /* the base of them all */
+  int cols;               /* columns in use: LEVEL_COLS, or CAVE_COLS in a cave */
+  bool cave;              /* a secret cave under a warp pipe, not the main level */
+  int warp_count;         /* warp pipes: Fabio presses down on one to go through */
+  int warp_col[MAX_WARPS]; /* the left column of each */
+  int warp_row[MAX_WARPS]; /* and its top row: he stands on the cap */
+  int guardian;           /* in a cave: 0 none, 1 a gorilla, 2 the slop monster */
+  float guardian_x;
   float spawn_x, spawn_y; /* middle of the feet */
   float castle_x;         /* middle of the castle */
   float goal_x;           /* reaching it wins */
@@ -97,11 +133,18 @@ bool tile_is_solid(tile_t tile);
 tile_t level_tile(const level_t* level, int col, int row);
 bool level_solid_at(const level_t* level, float x, float y);
 float level_width(void);
+/* The width of this level in pixels: the main level's, or the cave's. */
+float level_pixel_width(const level_t* level);
+/* Which zone column `col` is in; the whole of a cave is BIOME_CAVE. */
+biome_t level_biome_at(const level_t* level, int col);
 float level_height(void);
 
 /* Where the middle of the top of a plank is `time` seconds into the level. */
 void platform_position(const platform_def_t* plank, float time, float* x, float* y);
 
 void level_generate(level_t* level, uint32_t seed);
+/* The secret cave under the warp pipe `index`: a treasure room with a guardian and
+ * a pipe at each end that leads back up. Always the same for the same seed. */
+void level_generate_cave(level_t* level, uint32_t seed, int index);
 
 #endif  // GAME_LEVEL_LEVEL_H_

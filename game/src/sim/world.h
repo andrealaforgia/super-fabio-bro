@@ -142,6 +142,7 @@ typedef enum {
   EVENT_LIGHTSABER,
   EVENT_FORCE_BURST,
   EVENT_SLOP_THROWN,
+  EVENT_WARP,
   EVENT_SLOP_SPEAKS,   /* his robot voice: "Certainly! Here is some slop." */
   EVENT_GORILLA_GROWLS, /* as his roar begins */
   EVENT_SLOP_DIES,
@@ -374,8 +375,34 @@ typedef struct {
   int word; /* an index into kDrumWords */
 } drum_word_t;
 
+/* Warp pipes. Standing on the cap of one and tapping down, Fabio sinks into it
+ * (WARP_SINK_SECONDS), the world swaps to the cave under it (or back to the level above)
+ * behind a fade, and he rises out of the pipe at the other end (WARP_RISE_SECONDS).
+ * What the main level looked like is kept in the stash while he is in a cave. */
+#define WARP_SINK_SECONDS 0.55f
+#define WARP_RISE_SECONDS 0.55f
+typedef enum { WARP_NONE, WARP_SINKING, WARP_RISING } warp_phase_t;
+typedef struct {
+  warp_phase_t phase;
+  float t;  /* seconds into the phase */
+  int pipe; /* the pipe he went into, an index into the level's warps */
+} warp_t;
 typedef struct {
   level_t level;
+  bool item_taken[MAX_LEVEL_ITEMS];
+  helicopter_t helicopter;
+  drum_kit_t drums[MAX_DRUM_KITS];
+  int drum_count;
+  float camera_x;
+  bool spawning;
+} warp_stash_t;
+
+typedef struct {
+  level_t level;
+  warp_t warp;
+  warp_stash_t stash;           /* the main level, while he is in a cave */
+  bool warp_used[MAX_WARPS];    /* pipes of the main level that have been gone down */
+  int warp_from;                /* the main level's pipe the cave hangs under */
   helicopter_t helicopter;
   drum_kit_t drums[MAX_DRUM_KITS];
   int drum_count;
@@ -642,6 +669,15 @@ void world_fire_force_burst(world_t* world);
 void force_bursts_update(world_t* world, float dt);
 /* How solid the greeting is `left` seconds before it ends: 0 at both ends, 1 in the middle. */
 float greeting_alpha(float left);
+
+/* warps.c: the warp pipes. */
+void warps_update(world_t* world, const controls_t* controls, float dt);
+/* The pipe Fabio stands on the cap of, or -1. */
+int warp_pipe_under_fabio(const world_t* world);
+/* How black the screen is as the warp goes through: 0 clear, 1 black. */
+float warp_fade(const world_t* world);
+/* Everything that comes and goes (enemies, bullets, effects ...) is cleared. */
+void world_clear_actors(world_t* world);
 
 /* Whether a bubble has this enemy wrapped: he floats, harmless, until it bursts. */
 bool enemy_in_bubble(const world_t* world, const enemy_t* enemy);

@@ -140,6 +140,15 @@ static double gorilla_growl_voice(double t, double d, rng_t* r, void* s) {
   return (1.1 * lp[1] + 0.9 * lp[0] * rattle) * envelope;
 }
 
+/* A pipe: a falling square-wave slide with a wobble, ending in a soft thud. */
+static double warp_voice(double t, double d, rng_t* r, void* s) {
+  (void)d; (void)r; (void)s;
+  double f = 620.0 - 520.0 * t + 40.0 * sin(TAU * 20.0 * t);
+  double slide = 0.3 * square(f * t, 0.5) * (t < 0.5 ? 1.0 : decay(t - 0.5, 14.0));
+  double thud = t > 0.45 ? 0.4 * sin(TAU * 90.0 * (t - 0.45)) * decay(t - 0.45, 18.0) : 0.0;
+  return slide + thud;
+}
+
 static double spell_voice(double t, double d, rng_t* r, void* s) {
   (void)d; (void)r; (void)s;
   double f = 500.0 + 1500.0 * t / 0.3 + 60.0 * sin(TAU * 30.0 * t);
@@ -385,6 +394,7 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_FORCE_BURST], 0.4, force_burst_voice, 30);
   ok = ok && render(&clips[SFX_GORILLA_GROWL], 0.9, gorilla_growl_voice, 31);
   ok = ok && copy_clip(&clips[SFX_VOICE_SLOP], kVoiceSlop, kVoiceSlopLength);
+  ok = ok && render(&clips[SFX_WARP], 0.65, warp_voice, 32);
   ok = ok && render(&clips[SFX_BUBBLE_SHOT], 0.16, bubble_shot_voice, 21);
   ok = ok && render(&clips[SFX_BUBBLE_WRAP], 0.5, bubble_wrap_voice, 22);
   ok = ok && render(&clips[SFX_BUBBLE_POP], 0.3, bubble_pop_voice, 23);
@@ -464,6 +474,7 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_SLOP_DIES: *volume = 1.0f; return SFX_SLOP_DIES;
     case EVENT_LIGHTSABER: *volume = 0.9f; return SFX_SABER_ON;
     case EVENT_FORCE_BURST: *volume = 0.7f; return SFX_FORCE_BURST;
+    case EVENT_WARP: *volume = 0.8f; return SFX_WARP;
     case EVENT_SKEWER_THROWN: *volume = 0.8f; return SFX_SKEWER;
     case EVENT_HELICOPTER_BOARDS: *volume = 0.8f; return SFX_PICKUP;
     case EVENT_HELICOPTER_EXPLODES: *volume = 1.0f; return SFX_BOOK_READER_BOOM;

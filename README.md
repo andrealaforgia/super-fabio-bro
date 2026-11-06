@@ -186,6 +186,23 @@ start.
   as the line "MAY THE FORCE BE WITH YOU FABIO!" shows beside him, and fades away
   after 4.5 seconds. Frames are cut from `assets/source/fabio_jedi.png` and
   `jedi_items.png`, generated with Codex to match the other sheets.
+- The level changes scenery as it goes: forest for the first 150 columns, then desert, then
+  snow up to the castle. Each zone has its own ground (sand over sandstone, snow over
+  frozen earth), its own decorations (cacti, a dead tree, a bleached skull and boulders; snowy
+  pines, a snowman, ice crystals), its own sky and weather (amber with sand blowing
+  across, pale with snow falling), blending into one another as the screen crosses the
+  border. The snow zone is icy: Fabio is slow to get going and slow to stop there. The
+  ground tiles and decorations are cut from `assets/source/biome_ground.png` and
+  `biome_decor.png`, generated with Codex to match the other sheets.
+- Every pipe is a warp pipe, marked by a green arrow and a glow. Stand on the cap and tap
+  down: Fabio sinks into the pipe, the screen fades, and he rises out of a secret cave
+  under it. Every cave is a closed treasure room (always the same for the same pipe
+  and seed): three prize blocks (a lightsaber or the bubble gun, a potion, and a pistol or
+  a mushroom), trails of coins and a high gold ledge reached by a stone stair, crystals,
+  glowing mushrooms and stalactites, and a guardian standing over it all (a gorilla
+  or the AI slop monster). A pipe at each end leads back up, out of the pipe he went down;
+  that pipe stays shut afterwards. Nothing spawns in a cave and nothing in it can
+  end the run. The cave's tiles, crystals and stalactites are also in the two sheets above.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

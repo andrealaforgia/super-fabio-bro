@@ -74,15 +74,50 @@ static void draw_texture_centred(const frame_t* f, texture_t texture, float cx,
            rect(cx - w * 0.5f - f->cam_x, cy - h * 0.5f, w, h), &options);
 }
 
+/* How much of each zone is in view: the middle column of the screen against where the zones
+ * begin, blended over 24 columns. The desert stays under the snow while the snow fades in. */
+typedef struct {
+  float desert, snow, cave;
+} zone_mix_t;
+
+static zone_mix_t zone_mix(const frame_t* f) {
+  zone_mix_t m = {0.0f, 0.0f, 0.0f};
+  if (f->world->level.cave) {
+    m.cave = 1.0f;
+    return m;
+  }
+  float col = (f->cam_x + f->view_w * 0.5f) / (float)TILE;
+  m.desert = clampf((col - (float)(DESERT_COL - 12)) / 24.0f, 0.0f, 1.0f);
+  m.snow = clampf((col - (float)(SNOW_COL - 12)) / 24.0f, 0.0f, 1.0f);
+  return m;
+}
+
+static void blend_tint(const uint8_t base[3], const uint8_t desert[3], const uint8_t snow[3],
+                       const uint8_t cave[3], zone_mix_t m, uint8_t out[3]) {
+  for (int c = 0; c < 3; c++) {
+    float v = lerpf((float)base[c], (float)desert[c], m.desert);
+    v = lerpf(v, (float)snow[c], m.snow);
+    out[c] = (uint8_t)lerpf(v, (float)cave[c], m.cave);
+  }
+}
+
 static void draw_backdrop(const frame_t* f) {
   /* Every run has its own time of day and its own stretch of mountains. */
   scenery_theme_t theme = scenery_theme(f->world->seed);
+  zone_mix_t mix = zone_mix(f);
   draw_options_t sky = {false, 1.0f, 0.0f, true, theme.sky[0], theme.sky[1], theme.sky[2]};
   render_sprite(f->gfx, &f->look->sky, NULL, rect(0, 0, f->view_w, VIEW_HEIGHT), &sky);
+  /* The desert's amber sky, then the snow's pale one, then the cave's dark: each fades in over the last. */
+  const float zone_alpha[BIOME_COUNT] = {0.0f, mix.desert, mix.snow, mix.cave};
+  for (int zone = BIOME_DESERT; zone < BIOME_COUNT; zone++) {
+    if (zone_alpha[zone] <= 0.0f) continue;
+    draw_options_t fade = {false, zone_alpha[zone], 0.0f, false, 0, 0, 0};
+    render_sprite(f->gfx, &f->look->zone_sky[zone], NULL, rect(0, 0, f->view_w, VIEW_HEIGHT), &fade);
+  }
 
-  /* Clouds drift slowly with the camera. */
+  /* Clouds drift slowly with the camera (none down in the cave). */
   float period = 3200.0f;
-  for (int i = 0; i < 9; i++) {
+  for (int i = 0; i < 9 && mix.cave < 0.5f; i++) {
     float base = (float)i * 420.0f + (float)((i * 97) % 130);
     float x = fmodf(base + theme.scroll * period - f->cam_x * 0.12f - f->world->time * 6.0f, period);
     if (x < -300.0f) x += period;
@@ -94,12 +129,20 @@ static void draw_backdrop(const frame_t* f) {
              rect(x, y, (float)cloud.width * scale, (float)cloud.height * scale), &tint);
   }
 
+  /* The mountains turn to mesas in the desert, icy peaks in the snow and dark rock in the cave. */
+  static const uint8_t kDesert[MOUNTAIN_LAYERS][3] = {{255, 225, 170}, {240, 200, 140}, {215, 170, 110}};
+  static const uint8_t kSnow[MOUNTAIN_LAYERS][3] = {{235, 245, 255}, {225, 238, 252}, {205, 228, 245}};
+  static const uint8_t kCave[MOUNTAIN_LAYERS][3] = {{90, 60, 150}, {70, 46, 120}, {52, 34, 96}};
   static const float factor[MOUNTAIN_LAYERS] = {0.08f, 0.2f, 0.38f};
   float span = (float)(LAYER_W * SCENERY_PIXEL);
   for (int layer = 0; layer < MOUNTAIN_LAYERS; layer++) {
     float offset = fmodf(f->cam_x * factor[layer] + theme.scroll * span, span);
-    draw_options_t tint = {false, 1.0f, 0.0f, true, theme.layer[layer][0],
-                           theme.layer[layer][1], theme.layer[layer][2]};
+    uint8_t c[3];
+    blend_tint(theme.layer[layer], kDesert[layer], kSnow[layer], kCave[layer], mix, c);
+    /* No pine forest on the horizon in the desert: the nearest ridge fades out there. */
+    float alpha = layer == MOUNTAIN_LAYERS - 1 ? 1.0f - mix.desert * (1.0f - mix.snow) : 1.0f;
+    if (alpha < 0.01f) continue; /* (an alpha of exactly 0 would mean opaque) */
+    draw_options_t tint = {false, alpha, 0.0f, true, c[0], c[1], c[2]};
     for (float x = -offset; x < f->view_w; x += span)
       render_sprite(f->gfx, &f->look->layers[layer], NULL,
                rect(x, 0, span, (float)(LAYER_H * SCENERY_PIXEL)), &tint);
@@ -110,6 +153,15 @@ static void draw_decor(const frame_t* f) {
   const level_t* level = &f->world->level;
   for (int i = 0; i < level->decor_count; i++) {
     const decor_t* d = &level->decor[i];
+    if (d->kind >= DECOR_PROCEDURAL) { /* a cooked sprite: standing, or hanging from the ceiling */
+      const sprite_t* s = look_sprite(f->look, pose_decor(d->kind, d->variant));
+      if (d->x + (float)s->w < f->cam_x || d->x - (float)s->w > f->cam_x + f->view_w) continue;
+      if (d->kind == DECOR_STALACTITE)
+        render_sprite(f->gfx, &s->texture, NULL, rect(d->x - (float)s->w * 0.5f - f->cam_x, d->y - 2.0f, (float)s->w, (float)s->h), NULL);
+      else
+        draw_sprite(f, pose_decor(d->kind, d->variant), d->x, d->y + 2.0f, 1.0f, false, 1.0f);
+      continue;
+    }
     texture_t tree = f->look->trees[d->kind];
     float scale = d->kind == DECOR_BUSH ? 2.4f : 2.6f;
     float w = (float)tree.width * scale, h = (float)tree.height * scale;
@@ -119,7 +171,7 @@ static void draw_decor(const frame_t* f) {
   }
   float cw = 64.0f * 3.6f;
   float cx = level->castle_x;
-  if (cx + cw > f->cam_x && cx - cw < f->cam_x + f->view_w)
+  if (!level->cave && cx + cw > f->cam_x && cx - cw < f->cam_x + f->view_w)
     render_sprite(f->gfx, &f->look->castle, NULL,
              rect(cx - cw * 0.5f - f->cam_x, (float)(GROUND_ROW * TILE) - cw + 2.0f, cw, cw),
              NULL);
@@ -158,7 +210,12 @@ static void draw_tiles(const frame_t* f) {
       float x = (float)(col * TILE);
       float y = (float)(row * TILE) + bump_offset(f->world, col, row);
       switch (tile) {
-        case TILE_GRASS: {
+        case TILE_GRASS:
+          if (level_biome_at(level, col) != BIOME_FOREST) { /* sand, snow or cave rock on top */
+            draw_tile_pose(f, pose_ground(level_biome_at(level, col), false, col), x, y);
+            break;
+          }
+          {
           const sprite_t* grass = look_sprite(f->look, (pose_t){STRIP_GROUND_GRASS, 0});
           const sprite_t* dirt = look_sprite(f->look, (pose_t){STRIP_GROUND_DIRT, 0});
           rect_t gsrc = {(col % 3) * 40, 0, 40, grass->h};
@@ -167,9 +224,12 @@ static void draw_tiles(const frame_t* f) {
                    rect(x - f->cam_x - 0.4f, y + 10.0f, TILE + 0.8f, 22.4f), NULL);
           render_sprite(f->gfx, &grass->texture, &gsrc,
                    rect(x - f->cam_x - 0.4f, y - 1.0f, TILE + 0.8f, 16.0f), NULL);
+          }
           break;
-        }
-        case TILE_ROCK: draw_tile_sprite(f, STRIP_GROUND_ROCK, x, y); break;
+        case TILE_ROCK:
+          if (level_biome_at(level, col) != BIOME_FOREST) draw_tile_pose(f, pose_ground(level_biome_at(level, col), true, col + row), x, y);
+          else draw_tile_sprite(f, STRIP_GROUND_ROCK, x, y);
+          break;
         case TILE_BRICK: draw_tile_sprite(f, STRIP_TILE_BRICK, x, y); break;
         case TILE_QBLOCK: draw_tile_pose(f, pose_question_block(f->world->time, col, row), x, y); break;
         case TILE_USED: draw_tile_sprite(f, STRIP_TILE_SOLID, x, y); break;
@@ -457,6 +517,60 @@ static void draw_greeting(const frame_t* f) {
   }
 }
 
+/* Weather of the zone: snow falling in the snow zone, wind-blown sand in the desert, and glowing
+ * motes drifting up in the cave. All of it is drawn from the time, so nothing is stored. */
+static void draw_weather(const frame_t* f) {
+  zone_mix_t mix = zone_mix(f);
+  float t = f->world->time;
+  for (int i = 0; i < 90 && mix.snow > 0.0f; i++) {
+    float x = fmodf((float)i * 137.5f + sinf(t * 0.7f + (float)i) * 18.0f + t * 22.0f, f->view_w);
+    float y = fmodf((float)i * 53.7f + t * (42.0f + (float)(i % 5) * 14.0f), (float)VIEW_HEIGHT);
+    float size = 2.0f + (float)(i % 3);
+    fill_rect(f->gfx, rect(x, y, size, size), 255, 255, 255, (uint8_t)(210.0f * mix.snow * (1.0f - mix.cave)));
+  }
+  for (int i = 0; i < 36 && mix.desert > 0.0f && mix.snow < 1.0f; i++) {
+    float speed = 260.0f + (float)(i % 4) * 90.0f;
+    float x = fmodf((float)i * 211.0f + t * speed, f->view_w + 80.0f) - 40.0f;
+    float y = 120.0f + fmodf((float)i * 97.3f, 420.0f);
+    float len = 14.0f + (float)(i % 3) * 8.0f;
+    fill_rect(f->gfx, rect(x, y, len, 2.0f), 240, 200, 130, (uint8_t)(120.0f * mix.desert * (1.0f - mix.snow)));
+  }
+  for (int i = 0; i < 50 && mix.cave > 0.0f; i++) {
+    float x = fmodf((float)i * 173.3f + sinf(t * 0.6f + (float)i * 1.7f) * 30.0f, f->view_w);
+    float y = (float)VIEW_HEIGHT - fmodf((float)i * 61.1f + t * (14.0f + (float)(i % 4) * 8.0f), (float)VIEW_HEIGHT);
+    bool pink = i % 3 == 0;
+    fill_rect(f->gfx, rect(x, y, 3.0f, 3.0f), pink ? 255 : 90, pink ? 120 : 230, pink ? 220 : 255,
+              (uint8_t)(150.0f + 90.0f * sinf(t * 3.0f + (float)i)));
+  }
+}
+
+/* A green arrow bobs over every warp pipe that has not been used, with a glow round its mouth. */
+static void draw_warp_hints(const frame_t* f) {
+  const level_t* level = &f->world->level;
+  float t = f->world->time;
+  for (int i = 0; i < level->warp_count; i++) {
+    if (!level->cave && f->world->warp_used[i]) continue;
+    if (f->world->warp.phase != WARP_NONE && f->world->warp.pipe == i) continue;
+    float cx = (float)(level->warp_col[i] * TILE + TILE) - f->cam_x;
+    if (cx < -60.0f || cx > f->view_w + 60.0f) continue;
+    float top = (float)(level->warp_row[i] * TILE);
+    draw_texture_centred(f, f->look->glow, cx + f->cam_x, top, 90.0f, 50.0f, 0.35f + 0.15f * sinf(t * 4.0f));
+    float bob = sinf(t * 5.0f + (float)i) * 4.0f;
+    float ay = top - 86.0f + bob; /* clear of his head as he stands on the cap */
+    static const char* kArrow[6] = {"#######", ".#####.", ".#####.", "..###..", "..###..", "...#..."};
+    for (int row = 0; row < 6; row++)
+      for (int col = 0; col < 7; col++)
+        if (kArrow[row][col] == '#') {
+          fill_rect(f->gfx, rect(cx - 17.5f + (float)col * 5.0f - 2.0f, ay + (float)row * 5.0f - 2.0f, 9.0f, 9.0f), 10, 30, 10, 255);
+        }
+    for (int row = 0; row < 6; row++)
+      for (int col = 0; col < 7; col++)
+        if (kArrow[row][col] == '#')
+          fill_rect(f->gfx, rect(cx - 17.5f + (float)col * 5.0f - 1.0f, ay + (float)row * 5.0f - 1.0f, 7.0f, 7.0f),
+                    row < 2 ? 190 : 90, 255, row < 2 ? 190 : 110, 255);
+  }
+}
+
 static void draw_player(const frame_t* f) {
   const player_t* p = &f->world->player;
   if (p->spell_time > 0.0f) {
@@ -482,8 +596,19 @@ static void draw_player(const frame_t* f) {
   bool flip = p->facing < 0;
   float left = flip ? p->x - (w - ax) : p->x - ax;
   draw_options_t options = {flip, alpha, lean, false, 0, 0, 0};
-  render_sprite(f->gfx, &sprite->texture, NULL,
-           rect(left - f->cam_x, p->y - h + bounce, w, h), &options);
+  /* Into a pipe he sinks, out of one he rises: only the part above the cap shows. */
+  float sink = 0.0f;
+  if (f->world->warp.phase == WARP_SINKING) sink = clampf(f->world->warp.t / WARP_SINK_SECONDS, 0.0f, 1.0f) * h;
+  else if (f->world->warp.phase == WARP_RISING) sink = clampf(1.0f - f->world->warp.t / WARP_RISE_SECONDS, 0.0f, 1.0f) * h;
+  if (sink > 0.0f) {
+    rect_t src = {0, 0, sprite->w, (int)((float)sprite->h * (1.0f - sink / h))};
+    if (src.h > 0)
+      render_sprite(f->gfx, &sprite->texture, &src,
+                    rect(left - f->cam_x, p->y - h + sink, w, h - sink), &options);
+  } else {
+    render_sprite(f->gfx, &sprite->texture, NULL,
+             rect(left - f->cam_x, p->y - h + bounce, w, h), &options);
+  }
   if (p->flying && p->alive) draw_fuel(f, p);
 }
 
@@ -743,10 +868,13 @@ static void draw_hud(const frame_t* f) {
                90, 200, 255, 255);
   }
 
+  if (w->level.cave) /* down a pipe: say so instead of the progress to the castle */
+    centred_text(gfx, font, f->view_w * 0.5f, 104.0f, "SECRET CAVE", 3.0f, 190, 140, 255);
+
   /* Progress to the castle. */
   float track_w = fminf(360.0f, f->view_w * 0.3f);
   float track_x = (f->view_w - track_w) * 0.5f - 60.0f;
-  if (track_x > 780.0f) {
+  if (track_x > 780.0f && !w->level.cave) {
     fill_rect(gfx, rect(track_x, 56.0f, track_w, 4.0f), 255, 255, 255, 160);
     float at = track_x + track_w * world_progress(w);
     fill_rect(gfx, rect(at - 4.0f, 48.0f, 8.0f, 16.0f), 255, 60, 60, 255);
@@ -778,6 +906,7 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
   draw_decor(&f);
   draw_tiles(&f);
   draw_platforms(&f);
+  draw_warp_hints(&f);
   draw_items(&f);
   draw_helicopter(&f);
   draw_drum_glows(&f);
@@ -788,9 +917,12 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
   if (!world_drumming(world)) draw_player(&f); /* at the drums he is part of the kit */
   draw_effects(&f);
   draw_drum_words(&f);
+  draw_weather(&f);
   draw_popups(&f);
   draw_hud(&f);
   draw_greeting(&f);
+  float fade = warp_fade(world); /* black while the world swaps under a pipe */
+  if (fade > 0.0f) fill_rect(gfx, rect(0.0f, 0.0f, f.view_w, (float)VIEW_HEIGHT), 0, 0, 0, (uint8_t)(255.0f * fade));
   if (world->state == STATE_GAME_OVER)
     draw_banner(&f, "GAME OVER", "PRESS SPACE TO TRY AGAIN", 255, 70, 70);
   else if (world->state == STATE_WON)

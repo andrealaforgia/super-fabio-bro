@@ -34,6 +34,7 @@ typedef enum {
   SFX_BUBBLE_SHOT, /* the shotgun's soft bloop */
   SFX_BUBBLE_WRAP, /* a bubble closing round an enemy */
   SFX_BUBBLE_POP,  /* and bursting */
+  SFX_WARP,        /* down (or up) a pipe: a sliding boing */
   SFX_SABER_ON,    /* a lightsaber igniting: a snap, then a rising hum */
   SFX_FORCE_BURST, /* a swinging whoosh and a green zap */
   SFX_VOICE_SLOP,  /* "Certainly! Here is some slop." in a robot voice */

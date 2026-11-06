@@ -42,11 +42,26 @@ static uint32_t mix(uint32_t a, uint32_t b, float t) {
                (int)(ab + (bb - ab) * t), 255);
 }
 
-bool scenery_sky(image_t* image, int h) {
+bool scenery_sky(image_t* image, int h) { return scenery_sky_zone(image, h, BIOME_FOREST); }
+
+bool scenery_sky_zone(image_t* image, int h, biome_t biome) {
   if (!image_create(image, 1, h)) return false;
   uint32_t top = PIXEL(52, 120, 214, 255);
   uint32_t middle = PIXEL(96, 168, 236, 255);
   uint32_t horizon = PIXEL(190, 224, 246, 255);
+  if (biome == BIOME_DESERT) { /* a hot sky: deep amber at the top, pale gold at the horizon */
+    top = PIXEL(214, 110, 60, 255);
+    middle = PIXEL(244, 170, 90, 255);
+    horizon = PIXEL(255, 226, 150, 255);
+  } else if (biome == BIOME_SNOW) { /* a cold, pale sky */
+    top = PIXEL(120, 150, 196, 255);
+    middle = PIXEL(168, 196, 226, 255);
+    horizon = PIXEL(228, 240, 250, 255);
+  } else if (biome == BIOME_CAVE) { /* the dark of the cave, a glow of violet at the bottom */
+    top = PIXEL(10, 6, 24, 255);
+    middle = PIXEL(26, 14, 52, 255);
+    horizon = PIXEL(58, 30, 92, 255);
+  }
   for (int y = 0; y < h; y++) {
     float t = (float)y / (float)(h - 1);
     image->pixels[y] = t < 0.6f ? mix(top, middle, t / 0.6f)
