@@ -227,7 +227,7 @@ static void the_friends_have_their_poses_and_their_sounds(void) {
   a->grounded = true;
   a->attack = 0.2f;
   CHECK(pose_ally(a).strip == STRIP_ALLY_ALESSANDRO_ATTACK);
-  ally_t g = {ALLY_GIULIA, 0, 0, 0, 0, 1, true, 5.0f, 1.0f, 0.0f, 0.0f, 0.0f, false};
+  ally_t g = {ALLY_GIULIA, 0, 0, 0, 0, 1, true, 5.0f, 1.0f, 0.0f, 0.0f, 0.0f, false, -1};
   CHECK(pose_ally(&g).strip == STRIP_ALLY_GIULIA_IDLE);
   CHECK(pose_ally_item(ALLY_ANDREA, 0.0f).strip == STRIP_ITEM_SUSHI && pose_ally_item(ALLY_GIULIA, 0.0f).strip == STRIP_ITEM_GLOVES);
   CHECK(pose_ally_effect(FX_ALLY_PUNCH, 0.1f, 0.35f).strip == STRIP_ALLY_GIULIA_FX);

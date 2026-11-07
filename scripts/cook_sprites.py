@@ -56,6 +56,10 @@ FABIO_BUBBLE_GUN = "fabio_bubble_gun.png"
 FABIO_PARACHUTE = "fabio_parachute.png"
 CITY_PROPS = "city_props.png"
 THAI_SHOP = "thai_shop.png"
+BULL = "bull.png"
+LANDMARKS_TALL = "landmarks_tall.png"
+LANDMARKS_WIDE = "landmarks_wide.png"
+COLOSSO = "colosso.png"
 
 # kind "band": every blob in the rectangle, left to right, named in order.
 # kind "one": the rectangle is one sprite.
@@ -271,6 +275,36 @@ SPEC = [
     ("one", CITY_PROPS, "city_vase_2", (740, 978, 964, 1092), "light", "scale=0.3"),
     ("one", CITY_PROPS, "city_fountain_0", (382, 1082, 548, 1192), "light", "scale=0.6"),
     ("one", CITY_PROPS, "city_fountain_1", (652, 1082, 818, 1192), "light", "scale=0.6"),
+    # The Bullring bull: running, the statue, coming alive, dust.
+    ("one", BULL, "bull_run_0", (205, 90, 465, 215), "light", "scale=0.72"),
+    ("one", BULL, "bull_run_1", (475, 90, 715, 215), "light", "scale=0.72"),
+    ("one", BULL, "bull_run_2", (730, 90, 970, 215), "light", "scale=0.72"),
+    ("one", BULL, "bull_run_3", (985, 90, 1230, 215), "light", "scale=0.72"),
+    ("one", BULL, "bull_run_4", (220, 262, 445, 392), "light", "scale=0.72"),
+    ("one", BULL, "bull_run_5", (465, 262, 705, 392), "light", "scale=0.72"),
+    ("one", BULL, "bull_run_6", (720, 262, 965, 392), "light", "scale=0.72"),
+    ("one", BULL, "bull_run_7", (975, 262, 1230, 392), "light", "scale=0.72"),
+    ("one", BULL, "bull_statue_0", (235, 462, 580, 665), "light", "scale=0.42"),
+    ("one", BULL, "bull_appear_0", (200, 712, 410, 895), "light", "scale=0.72"),
+    ("one", BULL, "bull_appear_1", (425, 725, 655, 895), "light", "scale=0.72"),
+    ("one", BULL, "bull_appear_2", (655, 700, 925, 895), "light", "scale=0.72"),
+    ("one", BULL, "bull_appear_3", (930, 745, 1235, 895), "light", "scale=0.72"),
+    ("one", BULL, "bull_dust_0", (180, 955, 325, 1100), "light", "scale=0.6"),
+    ("one", BULL, "bull_dust_1", (380, 975, 570, 1100), "light", "scale=0.6"),
+    ("one", BULL, "bull_dust_2", (620, 950, 930, 1105), "light", "scale=0.6"),
+    ("one", BULL, "bull_dust_3", (980, 1000, 1195, 1100), "light", "scale=0.6"),
+    # The cities' landmarks, drawn to size by the renderer.
+    ("one", LANDMARKS_TALL, "lm_bigben_0", (110, 500, 242, 972), "light", "scale=0.75"),
+    ("one", LANDMARKS_TALL, "lm_rotunda_0", (322, 512, 478, 972), "light", "scale=0.75"),
+    ("one", COLOSSO, "lm_colosso_0", (520, 525, 748, 1018), "light", "scale=0.7"),
+    ("one", LANDMARKS_TALL, "lm_pod_0", (788, 850, 960, 972), "light"),
+    ("one", LANDMARKS_TALL, "lm_hub_0", (1000, 820, 1156, 972), "light"),
+    ("one", LANDMARKS_WIDE, "lm_duomo_0", (460, 80, 805, 362), "light"),
+    ("one", LANDMARKS_WIDE, "lm_castello_0", (452, 485, 810, 625), "light"),
+    ("one", LANDMARKS_WIDE, "lm_abbey_0", (520, 712, 745, 870), "light"),
+    ("one", LANDMARKS_WIDE, "lm_tin_0", (175, 1015, 298, 1120), "light"),
+    ("one", LANDMARKS_WIDE, "lm_bus_0", (515, 1015, 722, 1127), "light"),
+    ("one", LANDMARKS_WIDE, "lm_tram_0", (918, 1005, 1130, 1128), "light"),
     # The Thai massage shops: the masseuses at their windows, the neon sign, a lantern, a flower box.
     ("one", THAI_SHOP, "thai_window_0", (38, 60, 220, 266), "light", "fixed", "scale=0.5"),
     ("one", THAI_SHOP, "thai_window_1", (245, 60, 427, 266), "light", "fixed", "scale=0.5"),

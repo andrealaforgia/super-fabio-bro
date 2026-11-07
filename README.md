@@ -195,17 +195,33 @@ start.
   after 4.5 seconds. Frames are cut from `assets/source/fabio_jedi.png` and
   `jedi_items.png`, generated with Codex to match the other sheets.
 - The level changes scenery as it goes: forest for the first 150 columns, then desert, then
-  snow, then the city of Sulmona, up to the castle. Each zone has its own ground (sand over sandstone, snow over
+  snow, then six cities (London, Reading, Birmingham, Milano, Barletta and Sulmona), up to the castle. Each zone has its own ground (sand over sandstone, snow over
   frozen earth), its own decorations (cacti, a dead tree, a bleached skull and boulders; snowy
   pines, a snowman, ice crystals), its own sky and weather (amber with sand blowing
   across, pale with snow falling), blending into one another as the screen crosses the
   border. The snow zone is icy: Fabio is slow to get going and slow to stop there. The
   ground tiles and decorations are cut from `assets/source/biome_ground.png` and
   `biome_decor.png`, generated with Codex to match the other sheets.
-- Past the snow, just before the castle, is the city of Sulmona, about 130 columns of paved
-  street under an evening sky. A big sign, "Welcome to Sulmona!", stands at the entrance.
-  Along the street are apartment blocks, hotels (with a HOTEL sign on the roof), Thai
-  massage shops, an ordinary shop, and parked cars (their roofs can be stood on). The
+- Past the snow, just before the castle, come six cities in a row, about 550 columns of paved
+  street under an evening sky: London, Reading, Birmingham, Milano, Barletta and, last,
+  Sulmona. Each has its own "Welcome to ...!" sign at the entrance (with the Union Flag or
+  the Italian tricolour) and its own symbols (cooked from `assets/source/landmarks_tall.png`, `landmarks_wide.png` and `bull.png`, generated with Codex), with ledges Fabio can jump
+  onto for coins and a friend's pickup. London has Big Ben (climb a double-decker bus to its
+  gallery) and the London Eye. Reading has the Abbey Gateway and a giant Huntley and Palmers
+  biscuit tin. Birmingham has the Rotunda and the Bullring bull: walk up to the bronze statue and it comes alive in a golden flash, rears, then charges off the other way from the way Fabio faces, at 620 pixels a second, trampling every enemy in its path (it never hurts him); the statue sleeps again once he has walked 700 pixels away. Milano has the Duomo (a
+  yellow tram gets him up to its terraces and spires). Barletta has the Colosso (stand on his pedestal) and the Swabian castle. Sulmona has what follows below.
+  The London Eye turns once in 42 seconds. Its twelve glass capsules are planks that stay level
+  as they go round: jump on one at the bottom and it carries you up the side of the wheel
+  and over the top, and from the capsule at three o'clock you can step across onto the
+  viewing deck, which has a potion, coins and a friend's pickup. Fabio's friends ride along: when he
+  is on a capsule, a balcony or a roof, any friend with him hops up beside him, and friends
+  stand on the planks he leaves them on too.
+  Along the streets are apartment blocks, hotels (with a HOTEL sign on the roof), Thai
+  massage shops, ordinary shops, and seven kinds of specialist shop, with English signs in the UK cities
+  (ICE CREAM, BARBER, RESTAURANT, SUPERMARKET, GARAGE, FLORIST, COBBLER) and Italian ones only in Milano and Barletta (Sulmona has none) (a gelateria with a cone on
+  a bracket, a barbiere with a turning pole, a ristorante with tables outside, a
+  supermercato with trolleys, an officina with a car on the ramp, a fioreria with buckets
+  of flowers, a calzolaio with a giant boot), and parked cars (their roofs can be stood on). The
   buildings are drawn in code: balconies with railings, flower boxes and windows, roofs with
   chimneys, aerials and water tanks. Everything Fabio can stand on is a one-way plank, solid
   from above only, so he can jump up through it: every balcony (a floor is 96 pixels, a

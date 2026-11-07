@@ -50,6 +50,21 @@ static void place_beside_fabio(const world_t* world, ally_t* a) {
   if (level_solid_at(&world->level, a->x, p->y - 10.0f)) a->x = p->x;
   a->y = p->y;
   a->vx = a->vy = 0.0f;
+  a->platform = -1;
+}
+
+/* Fabio is up on a balcony, a roof or a capsule and his friend is not: he hops up beside him. */
+static void join_on_plank(world_t* world, ally_t* a) {
+  const player_t* p = &world->player;
+  const platform_def_t* def = &world->level.platforms[p->platform];
+  const plank_t* plank = &world->planks[p->platform];
+  float half = def->w * 0.5f - 12.0f;
+  a->x = clampf(p->x + (float)p->facing * fminf(kAlly[a->kind].offset * 0.3f, half), plank->x - half, plank->x + half);
+  a->y = plank->top;
+  a->vx = a->vy = 0.0f;
+  a->grounded = true;
+  a->platform = p->platform;
+  world_burst(world, a->x, a->y - 28.0f, 6, 255, 240, 160, 160.0f);
 }
 
 void world_summon_ally(world_t* world, ally_kind_t kind) {
@@ -63,7 +78,7 @@ void world_summon_ally(world_t* world, ally_kind_t kind) {
   }
   ally_t* a = pool_acquire(&world->allies, NULL);
   if (!a) return;
-  *a = (ally_t){kind, 0, 0, 0, 0, world->player.facing, false, ALLY_SECONDS, 0.0f, 0.0f, 0.0f, 0.0f, false};
+  *a = (ally_t){kind, 0, 0, 0, 0, world->player.facing, false, ALLY_SECONDS, 0.0f, 0.0f, 0.0f, 0.0f, false, -1};
   place_beside_fabio(world, a);
   world_add_effect(world, FX_ALLY_POOF, a->x, a->y, 0.5f, 1);
   world_burst(world, a->x, a->y - 28.0f, 10, 255, 240, 160, 200.0f);
@@ -128,6 +143,15 @@ void allies_update(world_t* world, float dt) {
       facing = prey->x < a->x ? -1 : 1;
       if (kAlly[a->kind].chase > 0.0f) target = prey->x - (float)facing * kAlly[a->kind].reach * 0.55f;
     }
+    if (here && p->platform >= 0 && a->platform != p->platform && p->grounded) {
+      join_on_plank(world, a);
+      target = a->x;
+    } else if (a->platform >= 0 && a->platform == p->platform) { /* up there, he keeps to the plank */
+      const platform_def_t* def = &world->level.platforms[a->platform];
+      const plank_t* plank = &world->planks[a->platform];
+      float half = def->w * 0.5f - 12.0f;
+      target = clampf(target, plank->x - half, plank->x + half);
+    }
     if (a->attack > 0.0f) target = a->x; /* he stands still while he strikes */
     float dx = target - a->x;
     float want = clampf(dx * 5.0f, -RUN_SPEED * 1.2f, RUN_SPEED * 1.2f);
@@ -144,8 +168,11 @@ void allies_update(world_t* world, float dt) {
         a->grounded = false;
       }
     }
+    platforms_carry_body(world, &a->x, &a->y, &a->platform);
+    float feet_before = a->y;
     move_result_t move = physics_move(&world->level, &a->x, &a->y, &a->vx, &a->vy, ALLY_W, ALLY_H, dt);
     a->grounded = move.grounded;
+    platforms_land_body(world, &a->x, &a->y, &a->vy, &a->grounded, &a->platform, feet_before);
     if (a->grounded && (move.hit_left || move.hit_right) && fabsf(want) > 40.0f) a->vy = -JUMP_SPEED * 0.85f; /* up and over */
 
     /* Lost: fallen into a pit, or left far behind. He turns up at Fabio's side again. */

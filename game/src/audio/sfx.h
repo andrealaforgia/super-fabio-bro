@@ -46,6 +46,7 @@ typedef enum {
   SFX_SLOP_THROW,  /* a wet, burbling heave */
   SFX_SLOP_DIES,   /* a big wet splat and a glitchy fizz */
   SFX_PARACHUTE,   /* a soft fabric whump as the canopy fills */
+  SFX_BULL,        /* a bellow and thundering hooves */
   SFX_VASE,        /* a terracotta crash */
   SFX_WATER,       /* the aqueduct's water rushing on */
   /* The drum kit's six words, in the order of kDrumWords. */

@@ -31,7 +31,21 @@ biome_t level_biome_at(const level_t* level, int col) {
 }
 float level_height(void) { return (float)(LEVEL_ROWS * TILE); }
 
+const char* building_name(building_kind_t kind, bool english) {
+  static const char* const kItalian[BUILDING_KIND_COUNT] = {"", "HOTEL", "THAI MASSAGE", "NEGOZIO", "GELATERIA", "BARBIERE", "RISTORANTE", "SUPERMERCATO", "OFFICINA", "FIORERIA", "CALZOLAIO"};
+  static const char* const kEnglish[BUILDING_KIND_COUNT] = {"", "HOTEL", "THAI MASSAGE", "SHOP", "ICE CREAM", "BARBER", "RESTAURANT", "SUPERMARKET", "GARAGE", "FLORIST", "COBBLER"};
+  return (english ? kEnglish : kItalian)[kind];
+}
+
+const char* const kCityNames[CITY_COUNT] = {"LONDON", "READING", "BIRMINGHAM", "MILANO", "BARLETTA", "SULMONA"};
+
 void platform_position(const platform_def_t* plank, float time, float* x, float* y) {
+  if (plank->kind == PLATFORM_CAPSULE) { /* round the rim, clockwise, and always level */
+    float a = plank->phase + 6.2831853f * time / plank->period;
+    *x = plank->x + plank->range * cosf(a);
+    *y = plank->y + plank->range * sinf(a) + POD_DROP;
+    return;
+  }
   float swing = plank->range * sinf(6.2831853f * time / plank->period + plank->phase);
   *x = plank->kind == PLATFORM_SLIDER ? plank->x + swing : plank->x;
   *y = plank->kind == PLATFORM_LIFT ? plank->y + swing : plank->y;
@@ -51,6 +65,8 @@ typedef struct {
   int counted_x;       /* columns already added to the since_* counters */
   int last_drums;      /* the column of the latest drum kit */
   int last_warp;       /* the column of the latest warp pipe */
+  int city;            /* which city is being laid out */
+  int city_buildings;  /* buildings made so far in it */
 } generator_t;
 
 static void put(generator_t* g, int col, int row, tile_t tile) {
@@ -331,7 +347,8 @@ static void building(generator_t* g, building_kind_t kind, int columns, int floo
   float x = (float)(g->x * TILE), w = (float)(columns * TILE), cx = x + w * 0.5f;
   flat(g, columns, false);
   if (level->building_count >= MAX_BUILDINGS) return;
-  level->buildings[level->building_count++] = (building_t){kind, rng_range(&g->rng, 0, 2), x, w, floors};
+  level->buildings[level->building_count++] = (building_t){kind, rng_range(&g->rng, 0, 2), x, w, floors, g->city < 3};
+  g->city_buildings++;
   for (int f = 1; f < floors; f++) { /* a balcony at each floor above the street, with a vase on it */
     float bw = fminf(w - 2.0f * TILE, 4.0f * TILE);
     float top = ground - (float)f * BALCONY_STEP;
@@ -344,10 +361,10 @@ static void building(generator_t* g, building_kind_t kind, int columns, int floo
   add_static_plank(g, cx, roof, w);
   for (int c = 1; c < columns - 1; c += 2) {
     /* A potion up on the first roof and on every hotel's: the climb is the price. */
-    bool potion = (kind == BUILDING_HOTEL || level->building_count == 1) && c == ((columns / 2) | 1);
+    bool potion = (kind == BUILDING_HOTEL || g->city_buildings == 1) && c == ((columns / 2) | 1);
     add_item_at(g, x + (float)c * TILE + 16.0f, roof - 34.0f, potion ? ITEM_POTION : ITEM_COIN);
   }
-  if (kind == BUILDING_APARTMENT) { /* and a friend's pickup on each apartment roof */
+  if (kind == BUILDING_APARTMENT || kind == BUILDING_RISTORANTE) { /* and a friend's pickup on each apartment roof */
     static const item_kind_t kFriends[3] = {ITEM_SUSHI, ITEM_DRAGON, ITEM_GLOVES};
     add_item_at(g, x + w * 0.5f - 16.0f + (level->building_count % 2) * 32.0f, roof - 34.0f, kFriends[level->building_count % 3]);
   }
@@ -395,12 +412,211 @@ static void aqueduct(generator_t* g) {
   g->since_hazard = 0;
 }
 
-static void city(generator_t* g) {
+/* A decoration whose middle is at `x`. */
+static decor_t* decor_at(generator_t* g, decor_kind_t kind, float x, int variant) {
   level_t* level = g->level;
-  while (g->x < CITY_COL) flat(g, 1, false);
+  if (level->decor_count >= MAX_LEVEL_DECOR) return NULL;
+  add_decor(g, kind, (int)(x / TILE));
+  decor_t* d = &level->decor[level->decor_count - 1];
+  d->x = x;
+  d->variant = variant;
+  return d;
+}
+
+/* A ledge of a monument, with a run of coins along it (and a friend, if one is wanted). */
+static int ledge(generator_t* g, float cx, float height, float w, item_kind_t extra) {
+  float top = (float)(GROUND_ROW * TILE) - height;
+  int plank = add_static_plank(g, cx, top, w);
+  for (float x = cx - w * 0.5f + 20.0f; x < cx + w * 0.5f - 10.0f; x += 40.0f) add_item_at(g, x, top - 34.0f, ITEM_COIN);
+  if (extra != ITEM_NONE) add_item_at(g, cx, top - 34.0f, extra);
+  return plank;
+}
+
+static item_kind_t friend_of(generator_t* g) {
+  static const item_kind_t kFriends[3] = {ITEM_SUSHI, ITEM_DRAGON, ITEM_GLOVES};
+  return kFriends[g->city % 3];
+}
+
+static void welcome(generator_t* g) {
   flat(g, 3, false);
-  add_decor(g, DECOR_WELCOME, g->x + 1); /* "Welcome to Sulmona!" over the first stretch of street */
+  decor_at(g, DECOR_WELCOME, (float)((g->x + 1) * TILE) + 16.0f, g->city); /* "Welcome to ...!" over the first stretch of street */
   flat(g, 5, false);
+  g->city_buildings = 0;
+}
+
+/* A vehicle you can climb onto: `columns` of street, a roof `height` up. */
+static void vehicle(generator_t* g, decor_kind_t kind, int variant, int columns, float height, float roof_w) {
+  float x = (float)(g->x * TILE) + (float)columns * TILE * 0.5f;
+  decor_at(g, kind, x, variant);
+  add_static_plank(g, x, (float)(GROUND_ROW * TILE) - height, roof_w);
+  add_item_at(g, x, (float)(GROUND_ROW * TILE) - height - 34.0f, ITEM_COIN);
+  flat(g, columns, false);
+}
+
+/* ---- London -------------------------------------------------------------------------------- */
+
+static void london_eye(generator_t* g) {
+  level_t* level = g->level;
+  float ground = (float)(GROUND_ROW * TILE);
+  flat(g, 2, false);
+  float hub_x = (float)(g->x * TILE) + EYE_RADIUS + POD_W * 0.5f + 8.0f;
+  float hub_y = ground - 190.0f;
+  level->has_eye = true;
+  level->eye_x = hub_x;
+  level->eye_y = hub_y;
+  level->eye_first_pod = level->platform_count;
+  for (int i = 0; i < EYE_PODS; i++)
+    add_platform(g, PLATFORM_CAPSULE, hub_x, hub_y, POD_W, EYE_RADIUS, EYE_PERIOD, 6.2831853f * (float)i / (float)EYE_PODS);
+  /* The viewing deck beside it, level with the capsules at three o'clock: a prize for the ride. */
+  level->terrace_x0 = hub_x + EYE_RADIUS + POD_W * 0.5f + 44.0f;
+  level->terrace_x1 = level->terrace_x0 + 190.0f;
+  level->terrace_y = hub_y + POD_DROP;
+  add_static_plank(g, (level->terrace_x0 + level->terrace_x1) * 0.5f, level->terrace_y, level->terrace_x1 - level->terrace_x0);
+  for (float x = level->terrace_x0 + 24.0f; x < level->terrace_x1 - 10.0f; x += 40.0f)
+    add_item_at(g, x, level->terrace_y - 34.0f, x > level->terrace_x0 + 100.0f && x < level->terrace_x0 + 140.0f ? ITEM_POTION : ITEM_COIN);
+  add_item_at(g, level->terrace_x0 + 164.0f, level->terrace_y - 34.0f, friend_of(g));
+  flat(g, (int)((level->terrace_x1 - (float)(g->x * TILE)) / TILE) + 1, false);
+  g->since_hazard = 0;
+}
+
+static void london(generator_t* g) {
+  welcome(g);
+  building(g, BUILDING_APARTMENT, 7, 3);
+  flat(g, 2, false);
+  /* Big Ben, with a double-decker to climb up from. */
+  float bus_left = (float)(g->x * TILE);
+  vehicle(g, DECOR_BUS, 0, 6, 90.0f, 160.0f);
+  float ben = bus_left + 6.0f * TILE + 76.0f;
+  decor_at(g, DECOR_BIG_BEN, ben, 0);
+  add_item_at(g, bus_left + 3.0f * TILE + 40.0f, (float)(GROUND_ROW * TILE) - 124.0f, friend_of(g)); /* up on the bus */
+  flat(g, 5, false);
+  building(g, BUILDING_THAI, 6, 2);
+  flat(g, 1, false);
+  parked_car(g, 1);
+  building(g, BUILDING_HOTEL, 8, 3);
+  flat(g, 2, false);
+  london_eye(g);
+  flat(g, 2, false);
+  building(g, BUILDING_SUPERMERCATO, 7, 2);
+  vehicle(g, DECOR_BUS, 1, 6, 90.0f, 160.0f);
+  building(g, BUILDING_OFFICINA, 6, 2);
+  flat(g, 3, false);
+}
+
+/* ---- Reading --------------------------------------------------------------------------------- */
+
+static void reading(generator_t* g) {
+  welcome(g);
+  building(g, BUILDING_APARTMENT, 7, 3);
+  flat(g, 2, false);
+  /* The Abbey Gateway: a pier on either side of the arch, each one a ledge. */
+  float abbey = (float)(g->x * TILE) + 100.0f;
+  decor_at(g, DECOR_ABBEY, abbey, 0);
+  ledge(g, abbey - 71.0f, 136.0f, 50.0f, ITEM_NONE);
+  ledge(g, abbey + 71.0f, 136.0f, 50.0f, friend_of(g));
+  flat(g, 7, false);
+  building(g, BUILDING_GELATERIA, 6, 2);
+  flat(g, 2, false);
+  /* A giant Huntley and Palmers tin. */
+  float tin = (float)(g->x * TILE) + 70.0f;
+  decor_at(g, DECOR_BISCUIT_TIN, tin, 0);
+  ledge(g, tin, 92.0f, 104.0f, ITEM_POTION);
+  flat(g, 5, false);
+  building(g, BUILDING_HOTEL, 8, 3);
+  parked_car(g, 0);
+  building(g, BUILDING_THAI, 6, 2);
+  flat(g, 1, false);
+  building(g, BUILDING_SUPERMERCATO, 7, 2);
+  flat(g, 3, false);
+}
+
+/* ---- Birmingham ------------------------------------------------------------------------------ */
+
+static void birmingham(generator_t* g) {
+  welcome(g);
+  building(g, BUILDING_HOTEL, 8, 3);
+  flat(g, 2, false);
+  /* The Bullring's bull, and the Rotunda beside it, with a balcony ring to reach from the bull's back. */
+  float bull = (float)(g->x * TILE) + 80.0f;
+  decor_at(g, DECOR_BULL, bull, 0);
+  g->level->has_bull = true;
+  g->level->bull_x = bull;
+  g->level->bull_plank = ledge(g, bull, 84.0f, 110.0f, ITEM_NONE);
+  float rotunda = bull + 150.0f;
+  decor_at(g, DECOR_ROTUNDA, rotunda, 0);
+  ledge(g, rotunda, 190.0f, 116.0f, friend_of(g));
+  flat(g, 11, false);
+  building(g, BUILDING_APARTMENT, 7, 3);
+  parked_car(g, 3);
+  building(g, BUILDING_OFFICINA, 6, 2);
+  flat(g, 1, false);
+  building(g, BUILDING_THAI, 6, 2);
+  flat(g, 2, false);
+  building(g, BUILDING_SUPERMERCATO, 7, 2);
+  parked_car(g, 2);
+  building(g, BUILDING_BARBIERE, 6, 2);
+  flat(g, 3, false);
+}
+
+/* ---- Milano ---------------------------------------------------------------------------------- */
+
+static void milano(generator_t* g) {
+  welcome(g);
+  building(g, BUILDING_GELATERIA, 6, 2);
+  flat(g, 1, false);
+  building(g, BUILDING_APARTMENT, 7, 3);
+  flat(g, 2, false);
+  /* A yellow tram to climb from, and the Duomo, with its terraces and its spires. */
+  float tram_left = (float)(g->x * TILE);
+  vehicle(g, DECOR_TRAM, 0, 7, 100.0f, 190.0f);
+  float duomo = tram_left + 7.0f * TILE + 190.0f;
+  decor_at(g, DECOR_DUOMO, duomo, 0);
+  ledge(g, duomo - 120.0f, 124.0f, 70.0f, ITEM_NONE);
+  ledge(g, duomo + 120.0f, 124.0f, 70.0f, ITEM_NONE);
+  ledge(g, duomo, 218.0f, 120.0f, friend_of(g));
+  flat(g, 13, false);
+  building(g, BUILDING_RISTORANTE, 8, 3);
+  flat(g, 1, false);
+  building(g, BUILDING_BARBIERE, 6, 2);
+  parked_car(g, 0);
+  building(g, BUILDING_SUPERMERCATO, 7, 2);
+  flat(g, 1, false);
+  building(g, BUILDING_FIORERIA, 6, 2);
+  flat(g, 3, false);
+}
+
+/* ---- Barletta -------------------------------------------------------------------------------- */
+
+static void barletta(generator_t* g) {
+  welcome(g);
+  building(g, BUILDING_CALZOLAIO, 6, 2);
+  flat(g, 1, false);
+  building(g, BUILDING_RISTORANTE, 8, 3);
+  flat(g, 2, false);
+  /* The Colosso: the pedestal, then his outstretched arm. */
+  float colosso = (float)(g->x * TILE) + 70.0f;
+  decor_at(g, DECOR_COLOSSO, colosso, 0);
+  ledge(g, colosso, 64.0f, 100.0f, friend_of(g));
+  flat(g, 5, false);
+  /* The Swabian castle: a wall walk between two towers. */
+  float castle = (float)(g->x * TILE) + 200.0f;
+  decor_at(g, DECOR_CASTELLO, castle, 0);
+  ledge(g, castle - 136.0f, 148.0f, 60.0f, ITEM_NONE);
+  ledge(g, castle + 136.0f, 148.0f, 60.0f, friend_of(g));
+  ledge(g, castle, 90.0f, 160.0f, ITEM_NONE);
+  flat(g, 13, false);
+  building(g, BUILDING_GELATERIA, 6, 2);
+  parked_car(g, 1);
+  building(g, BUILDING_FIORERIA, 6, 2);
+  flat(g, 1, false);
+  building(g, BUILDING_BARBIERE, 6, 2);
+  flat(g, 3, false);
+}
+
+/* ---- Sulmona, between the snow's cities and the castle ---------------------------------------- */
+
+static void sulmona(generator_t* g) {
+  welcome(g);
   building(g, BUILDING_APARTMENT, 7, 3);
   parked_car(g, 0);
   building(g, BUILDING_THAI, 6, 2);
@@ -418,15 +634,25 @@ static void city(generator_t* g) {
   flat(g, 3, false);
   building(g, BUILDING_APARTMENT, 7, 3);
   flat(g, 1, false);
+  building(g, BUILDING_SHOP, 7, 2);
+  flat(g, 1, false);
   building(g, BUILDING_THAI, 6, 2);
   parked_car(g, 2);
   aqueduct(g);
   flat(g, 2, false);
   building(g, BUILDING_SHOP, 6, 2);
+  flat(g, 1, false);
+  building(g, BUILDING_APARTMENT, 6, 2);
   parked_car(g, 3);
   building(g, BUILDING_HOTEL, 7, 3);
   flat(g, 3, false);
-  level->vase_count = level->vase_count < MAX_VASES ? level->vase_count : MAX_VASES;
+}
+
+static void city(generator_t* g) {
+  while (g->x < CITY_COL) flat(g, 1, false);
+  void (*const kCities[CITY_COUNT])(generator_t*) = {london, reading, birmingham, milano, barletta, sulmona};
+  for (g->city = 0; g->city < CITY_COUNT; g->city++) kCities[g->city](g);
+  g->level->vase_count = g->level->vase_count < MAX_VASES ? g->level->vase_count : MAX_VASES;
 }
 
 static void castle(generator_t* g) {

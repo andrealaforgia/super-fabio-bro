@@ -14,20 +14,26 @@
 
 #define TILE 32
 #define LEVEL_ROWS 17
-#define LEVEL_COLS 600
+#define LEVEL_COLS 1000
 #define GROUND_ROW 13
 #define MAX_DRUM_KITS 8
-#define MAX_LEVEL_ITEMS 512
-#define MAX_LEVEL_DECOR 256
-#define MAX_LEVEL_PLATFORMS 128
-#define MAX_BUILDINGS 16
-#define MAX_VASES 16
+#define MAX_LEVEL_ITEMS 1536
+#define MAX_LEVEL_DECOR 384
+#define MAX_LEVEL_PLATFORMS 320
+#define MAX_BUILDINGS 64
+#define MAX_VASES 128
 #define MAX_SPOUTS 8
 #define MAX_WARPS 12
 #define CAVE_COLS 48
 #define DESERT_COL 150 /* where the desert begins, and */
 #define SNOW_COL 310   /* the snow, in the main level */
-#define CITY_COL 440   /* and the city of Sulmona, just before the castle */
+#define CITY_COL 440   /* and the cities, London first and Sulmona last, just before the castle */
+#define CITY_COUNT 6
+#define EYE_PODS 12          /* the capsules of the London Eye */
+#define EYE_RADIUS 150.0f    /* from the hub to the rim */
+#define EYE_PERIOD 42.0f     /* seconds for a full turn */
+#define POD_DROP 16.0f       /* a capsule's floor hangs this far below its place on the rim */
+#define POD_W 64.0f
 #define BALCONY_STEP 96.0f /* the height of a floor: every balcony and roof is a multiple of it above the street */
 
 typedef enum {
@@ -85,6 +91,16 @@ typedef enum {
   DECOR_FOUNTAIN,   /* a fountain in the piazza: two frames */
   DECOR_WELCOME,    /* the sign "Welcome to Sulmona!", drawn in code from here on */
   DECOR_SIGNPOST,   /* Pescara one way, L'Aquila the other */
+  DECOR_BIG_BEN,    /* the landmarks of the cities, all drawn in code */
+  DECOR_BUS,        /* a London double-decker */
+  DECOR_ABBEY,      /* the gateway of Reading Abbey */
+  DECOR_BISCUIT_TIN,
+  DECOR_BULL,       /* the Bull of Birmingham's Bullring */
+  DECOR_ROTUNDA,
+  DECOR_DUOMO,      /* Milan cathedral */
+  DECOR_TRAM,
+  DECOR_COLOSSO,    /* the giant bronze of Barletta */
+  DECOR_CASTELLO,
   DECOR_KIND_COUNT
 } decor_kind_t;
 #define DECOR_PROCEDURAL 3
@@ -107,7 +123,8 @@ typedef struct {
 typedef enum {
   PLATFORM_SLIDER,
   PLATFORM_LIFT,
-  PLATFORM_STATIC /* a city balcony, roof, aqueduct deck or car roof: it stays put, and the city draws it */
+  PLATFORM_STATIC, /* a city balcony, roof, aqueduct deck or car roof: it stays put, and the city draws it */
+  PLATFORM_CAPSULE /* a London Eye capsule: (x, y) is the hub, `range` the radius; it stays level as it goes round */
 } platform_kind_t;
 
 typedef struct {
@@ -121,14 +138,30 @@ typedef struct {
 
 /* The city's buildings are drawn in code, in front of the sky and behind Fabio: only their
  * balconies and roofs (static planks) can be stood on. */
-typedef enum { BUILDING_APARTMENT, BUILDING_HOTEL, BUILDING_THAI, BUILDING_SHOP, BUILDING_KIND_COUNT } building_kind_t;
+typedef enum {
+  BUILDING_APARTMENT,
+  BUILDING_HOTEL,
+  BUILDING_THAI,
+  BUILDING_SHOP,
+  BUILDING_GELATERIA,
+  BUILDING_BARBIERE,
+  BUILDING_RISTORANTE,
+  BUILDING_SUPERMERCATO,
+  BUILDING_OFFICINA,
+  BUILDING_FIORERIA,
+  BUILDING_CALZOLAIO,
+  BUILDING_KIND_COUNT
+} building_kind_t;
 typedef struct {
   building_kind_t kind;
   int variant;
   float x;     /* left edge */
   float w;
   int floors;  /* the roof is `floors` * BALCONY_STEP up */
+  bool english; /* the shop signs are in English: the cities of the United Kingdom */
 } building_t;
+/* What the sign over a building's door says. */
+const char* building_name(building_kind_t kind, bool english);
 
 typedef struct {
   uint8_t tiles[LEVEL_ROWS][LEVEL_COLS];
@@ -154,6 +187,13 @@ typedef struct {
   int vase_count;                 /* terracotta vases standing on the balconies */
   float vase_x[MAX_VASES], vase_y[MAX_VASES]; /* the middle of the base */
   int vase_plank[MAX_VASES];      /* the balcony each stands on */
+  bool has_bull;                  /* the Bullring's bull statue, which comes alive */
+  float bull_x;
+  int bull_plank;                 /* the ledge on its back, which is gone while it runs */
+  bool has_eye;                   /* the London Eye */
+  float eye_x, eye_y;             /* its hub */
+  int eye_first_pod;              /* the platform index of its first capsule */
+  float terrace_x0, terrace_x1, terrace_y; /* the viewing deck beside it */
   bool has_aqueduct;              /* the medieval aqueduct, with its tap */
   float aqueduct_x0, aqueduct_x1; /* where it begins and ends */
   float aqueduct_deck;            /* the walkway along the top: its y */
@@ -174,6 +214,7 @@ bool level_solid_at(const level_t* level, float x, float y);
 float level_width(void);
 /* The width of this level in pixels: the main level's, or the cave's. */
 float level_pixel_width(const level_t* level);
+extern const char* const kCityNames[CITY_COUNT];
 /* Which zone column `col` is in; the whole of a cave is BIOME_CAVE. */
 biome_t level_biome_at(const level_t* level, int col);
 float level_height(void);

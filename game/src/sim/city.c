@@ -83,8 +83,44 @@ static void vases(world_t* world, float dt) {
   }
 }
 
+/* The statue wakes when he comes up to it; the bull rears, then runs the other way from him and
+ * tramples everything that stands in its path. */
+static void bull(world_t* world, float dt) {
+  const level_t* level = &world->level;
+  const player_t* p = &world->player;
+  bull_t* b = &world->bull;
+  float ground = (float)(GROUND_ROW * TILE);
+  if (!b->active) {
+    if (level->has_bull) world->planks[level->bull_plank].off = false; /* the statue is back */
+    if (b->spent && fabsf(p->x - level->bull_x) > BULL_REARM_DISTANCE) b->spent = false;
+    if (!b->spent && p->alive && !level->cave && fabsf(p->x - level->bull_x) <= BULL_TRIGGER && p->y >= ground - 140.0f) {
+      *b = (bull_t){true, true, level->bull_x, level->bull_x, 0.0f, p->facing > 0 ? -1 : 1};
+      world_burst(world, b->x, ground - 40.0f, 18, 214, 170, 100, 300.0f);
+      world_emit(world, EVENT_BULL_CHARGES, b->x);
+    }
+    return;
+  }
+  b->age += dt;
+  if (level->has_bull) /* off its back, everyone */
+    world->planks[level->bull_plank].off = b->age > BULL_REAR_SECONDS;
+  if (level->cave) {
+    b->active = false;
+    return;
+  }
+  if (b->age > BULL_REAR_SECONDS) b->x += (float)b->dir * BULL_SPEED * dt;
+  frect_t box = {b->x - BULL_W * 0.5f, ground - BULL_H, BULL_W, BULL_H};
+  size_t cursor = 0;
+  for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
+    if (!frect_overlaps(box, enemy_rect(e))) continue;
+    world_burst(world, e->x, e->y - e->h * 0.5f, 10, 255, 255, 255, 260.0f);
+    world_kill_enemy(world, e, true);
+  }
+  if (b->age > BULL_REAR_SECONDS && (fabsf(b->x - b->start) > BULL_RUN_DISTANCE || b->x < 0.0f || b->x > level_pixel_width(level))) b->active = false;
+}
+
 void city_update(world_t* world, const controls_t* controls, float dt) {
   const level_t* level = &world->level;
+  if (level->has_bull || world->bull.active) bull(world, dt);
   if (level->vase_count > 0) vases(world, dt);
   if (!level->has_aqueduct) return;
   tap(world, controls, dt);

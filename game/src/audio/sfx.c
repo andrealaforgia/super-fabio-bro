@@ -175,6 +175,16 @@ static double water_voice(double t, double d, rng_t* r, void* s) {
   return band * 1.8 * gurgle * envelope;
 }
 
+/* The bull: a low bellow that sags, over a gallop of thuds. */
+static double bull_voice(double t, double d, rng_t* r, void* s) {
+  (void)d; (void)s;
+  double f = 120.0 - 30.0 * t + 8.0 * sin(TAU * 6.0 * t);
+  double bellow = 0.35 * (square(f * t, 0.5) * 0.6 + sin(TAU * f * t)) * (t < 0.9 ? fmin(1.0, t / 0.05) * decay(t, 1.6) : 0.0);
+  double beat = fmod(t, 0.125);
+  double hoof = (t > 0.5 ? 0.5 : 0.0) * sin(TAU * 70.0 * beat) * decay(beat, 30.0) + 0.1 * noise(r) * decay(beat, 40.0);
+  return bellow + hoof;
+}
+
 /* A pipe: a falling square-wave slide with a wobble, ending in a soft thud. */
 static double warp_voice(double t, double d, rng_t* r, void* s) {
   (void)d; (void)r; (void)s;
@@ -469,6 +479,7 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && copy_clip(&clips[SFX_VOICE_SLOP], kVoiceSlop, kVoiceSlopLength);
   ok = ok && render(&clips[SFX_WARP], 0.65, warp_voice, 32);
   ok = ok && render(&clips[SFX_PARACHUTE], 0.5, parachute_voice, 37);
+  ok = ok && render(&clips[SFX_BULL], 1.4, bull_voice, 40);
   ok = ok && render(&clips[SFX_VASE], 0.5, vase_voice, 38);
   ok = ok && render(&clips[SFX_WATER], 1.6, water_voice, 39);
   ok = ok && render(&clips[SFX_ALLY_ARRIVE], 0.55, ally_arrive_voice, 33);
@@ -557,6 +568,7 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_WARP: *volume = 0.8f; return SFX_WARP;
     case EVENT_PARACHUTE_OPENS: *volume = 0.8f; return SFX_PARACHUTE;
     case EVENT_VASE_SMASHES: *volume = 0.8f; return SFX_VASE;
+    case EVENT_BULL_CHARGES: *volume = 0.9f; return SFX_BULL;
     case EVENT_WATER_ON: *volume = 0.7f; return SFX_WATER;
     case EVENT_ALLY_ARRIVES: *volume = 0.9f; return SFX_ALLY_ARRIVE;
     case EVENT_ALLY_BELLY: *volume = 1.0f; return SFX_ALLY_BELLY;

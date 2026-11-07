@@ -177,6 +177,7 @@ typedef enum {
   EVENT_PARACHUTE_OPENS,
   EVENT_VASE_SMASHES,
   EVENT_WATER_ON,
+  EVENT_BULL_CHARGES,
   EVENT_KIND_COUNT
 } event_kind_t;
 
@@ -303,6 +304,7 @@ typedef struct {
   float cooldown; /* before the next strike */
   float anim;
   bool struck;    /* this strike has landed */
+  int platform;   /* the plank he stands on (a balcony, a roof, a capsule), -1 for none */
 } ally_t;
 
 /* A green burst from the lightsaber: flies on through everything it destroys. */
@@ -396,6 +398,7 @@ typedef struct {
 typedef struct {
   float x, top; /* middle of the top */
   float dx, dy;
+  bool off; /* not there: nobody can stand on it */
 } plank_t;
 
 /* The one helicopter, resting on the grass until Fabio drops into it. Once he
@@ -413,6 +416,23 @@ typedef struct {
   float x, y; /* the middle of its base while it falls */
   float vy;
 } vase_t;
+/* The Bullring's bull: walk up to the statue and it comes alive, rears, then charges the other
+ * way from Fabio, trampling every enemy in its path. It never hurts him. */
+typedef struct {
+  bool active;
+  bool spent;   /* it has charged, and the statue is quiet until he has walked away from it */
+  float x;      /* the middle */
+  float start;  /* where it began */
+  float age;
+  int dir;
+} bull_t;
+#define BULL_TRIGGER 90.0f        /* how near to the statue he has to come */
+#define BULL_REAR_SECONDS 0.6f
+#define BULL_SPEED 620.0f
+#define BULL_RUN_DISTANCE 2600.0f
+#define BULL_W 150.0f
+#define BULL_H 84.0f
+#define BULL_REARM_DISTANCE 700.0f
 #define VASE_W 24.0f
 #define VASE_H 30.0f
 #define VASE_KNOCK_RANGE 44.0f /* how near he has to walk, along the balcony */
@@ -491,6 +511,7 @@ typedef struct {
   object_pool_t debris;    /* debris_t */
   object_pool_t drum_words; /* drum_word_t */
   vase_t vases[MAX_VASES];  /* in the level's order */
+  bull_t bull;
   float water_left;         /* seconds of water still falling, 0 when the tap is off */
   event_system_ptr events; /* where the world announces what happens; may be NULL */
 
@@ -555,6 +576,9 @@ void platforms_update(world_t* world);
 void platforms_reset(world_t* world);
 /* While Fabio stands on a plank it carries him along. */
 void platforms_carry(world_t* world, player_t* player);
+/* The same for anyone with a position: Fabio's friends ride the planks too. */
+void platforms_carry_body(world_t* world, float* x, float* y, int* platform);
+void platforms_land_body(world_t* world, float* x, float* y, float* vy, bool* grounded, int* platform, float feet_before);
 /* After he has moved: lands him on a plank he came down onto, or lets him go. */
 void platforms_land(world_t* world, player_t* player, float feet_before);
 

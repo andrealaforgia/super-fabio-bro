@@ -157,7 +157,7 @@ static void draw_decor(const frame_t* f) {
   const level_t* level = &f->world->level;
   for (int i = 0; i < level->decor_count; i++) {
     const decor_t* d = &level->decor[i];
-    if (city_draw_decor(f->gfx, f->look, d, f->cam_x)) continue;
+    if (city_draw_decor(f->gfx, f->look, f->world, d, f->cam_x)) continue;
     if (d->kind >= DECOR_PROCEDURAL) { /* a cooked sprite: standing, or hanging from the ceiling */
       int variant = d->kind == DECOR_FOUNTAIN ? (int)(f->world->time * 4.0f) : d->variant; /* the jet plays */
       const sprite_t* s = look_sprite(f->look, pose_decor(d->kind, variant));
@@ -270,7 +270,7 @@ static void draw_platforms(const frame_t* f) {
   for (int i = 0; i < world->level.platform_count; i++) {
     const platform_def_t* def = &world->level.platforms[i];
     const plank_t* plank = &world->planks[i];
-    if (def->kind == PLATFORM_STATIC) continue; /* the city draws its own balconies and roofs */
+    if (def->kind == PLATFORM_STATIC || def->kind == PLATFORM_CAPSULE) continue; /* the city draws its own balconies, roofs and capsules */
     float left = plank->x - def->w * 0.5f - f->cam_x;
     if (left > f->view_w + 40.0f || left + def->w < -40.0f) continue;
     float top = plank->top;
