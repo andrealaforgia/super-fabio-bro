@@ -317,7 +317,8 @@ static void draw_items(const frame_t* f) {
       case ITEM_SUSHI:
       case ITEM_DRAGON:
       case ITEM_GLOVES:
-        draw_centred(f, pose_ally_item(item->kind == ITEM_SUSHI ? ALLY_ANDREA : item->kind == ITEM_DRAGON ? ALLY_ALESSANDRO : ALLY_GIULIA, t + item->x * 0.01f),
+      case ITEM_POLO_BALL:
+        draw_centred(f, pose_ally_item(ally_for_item(item->kind), t + item->x * 0.01f),
                      item->x, item->y + bob, 1.0f, 1.0f, 0.0f, false, 1.0f);
         break;
       case ITEM_LIGHTSABER:
@@ -341,9 +342,10 @@ static void draw_items(const frame_t* f) {
                        : p->kind == ITEM_LIGHTSABER ? STRIP_SABER
                        : p->kind == ITEM_SUSHI ? STRIP_ITEM_SUSHI
                        : p->kind == ITEM_DRAGON ? STRIP_ITEM_DRAGON
-                       : p->kind == ITEM_GLOVES ? STRIP_ITEM_GLOVES : STRIP_MUSHROOM;
+                       : p->kind == ITEM_GLOVES ? STRIP_ITEM_GLOVES
+                       : p->kind == ITEM_POLO_BALL ? STRIP_ITEM_POLO_BALL : STRIP_MUSHROOM;
     float scale = p->kind == ITEM_POTION || p->kind == ITEM_BUBBLE_GUN ? 0.3f
-                  : (p->kind == ITEM_LIGHTSABER || p->kind == ITEM_SUSHI || p->kind == ITEM_DRAGON || p->kind == ITEM_GLOVES) ? 1.0f : 0.4f;
+                  : (p->kind == ITEM_LIGHTSABER || p->kind == ITEM_SUSHI || p->kind == ITEM_DRAGON || p->kind == ITEM_GLOVES || p->kind == ITEM_POLO_BALL) ? 1.0f : 0.4f;
     /* Standing on the block: the bottom of the picture where its box rests. */
     float feet = p->y + PICKUP_SIZE * 0.5f;
     if (p->kind == ITEM_POTION) {
@@ -600,6 +602,13 @@ static void draw_allies(const frame_t* f) {
     if (a->left < 1.5f && fmodf(f->world->time, 0.2f) < 0.1f) alpha = 0.4f;
     draw_sprite(f, pose_ally(a), a->x, a->y, FABIO_SCALE, a->facing < 0, alpha);
   }
+}
+
+/* Giacomo's water polo balls, spinning through the air. */
+static void draw_polo_balls(const frame_t* f) {
+  size_t cursor = 0;
+  for (const polo_ball_t* b; (b = pool_next_active(&f->world->polo_balls, &cursor));)
+    draw_centred(f, pose_polo_ball(b->age), b->x, b->y, 1.0f, 1.0f, 0.0f, b->vx < 0.0f, 1.0f);
 }
 
 static void draw_player(const frame_t* f) {
@@ -912,8 +921,9 @@ static void draw_hud(const frame_t* f) {
     render_sprite(gfx, &icon->texture, NULL, rect(cx - icon_w * 0.5f, top + 24.0f - icon_h * 0.5f, icon_w, icon_h), &none);
     float share = clampf(ally->left / ALLY_SECONDS, 0.0f, 1.0f);
     fill_rect(gfx, rect(cx - 22.0f, top + 46.0f, 44.0f, 6.0f), 40, 40, 60, 255);
-    fill_rect(gfx, rect(cx - 22.0f, top + 46.0f, 44.0f * share, 6.0f), kind == ALLY_ANDREA ? 120 : (kind == ALLY_ALESSANDRO ? 255 : 255),
-              kind == ALLY_ANDREA ? 190 : (kind == ALLY_ALESSANDRO ? 200 : 90), kind == ALLY_ANDREA ? 255 : (kind == ALLY_ALESSANDRO ? 60 : 90), 255);
+    fill_rect(gfx, rect(cx - 22.0f, top + 46.0f, 44.0f * share, 6.0f), kind == ALLY_ANDREA ? 120 : (kind == ALLY_GIACOMO ? 60 : 255),
+              kind == ALLY_ANDREA ? 190 : (kind == ALLY_ALESSANDRO ? 200 : (kind == ALLY_GIACOMO ? 160 : 90)),
+              kind == ALLY_ANDREA ? 255 : (kind == ALLY_ALESSANDRO ? 60 : (kind == ALLY_GIACOMO ? 255 : 90)), 255);
     shown++;
   }
 
@@ -985,6 +995,7 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
   draw_allies(&f);
   draw_bubbles(&f);
   draw_force_bursts(&f);
+  draw_polo_balls(&f);
   if (!world_drumming(world)) draw_player(&f); /* at the drums he is part of the kit */
   draw_effects(&f);
   draw_drum_words(&f);

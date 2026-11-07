@@ -81,12 +81,19 @@
 /* Fabio's three friends. A sushi dumpling brings Andrea, a Chinese dragon Alessandro and boxing
  * gloves Giulia. Each stays ALLY_SECONDS, a few steps ahead of Fabio (each a different number),
  * and fights by himself: Andrea strokes his belly, a wobble that kills everything round him;
- * Alessandro and Giulia run at what comes within their reach and strike it. Nothing hurts them. */
+ * Alessandro and Giulia run at what comes within their reach and strike it. Nothing hurts them.
+ * A water polo ball brings a fourth, Giacomo, who keeps his distance and throws the ball at what
+ * comes up ahead of him. Put him next to Giulia and she punches him: he sits on the ground with a
+ * black eye for the rest of his stay. */
 #define ALLY_SECONDS 30.0f
 #define ALLY_W 26.0f
 #define ALLY_H 54.0f
 #define ALLY_ARRIVE_SECONDS 0.35f
-#define MAX_ALLIES 3
+#define MAX_ALLIES 4
+#define MAX_POLO_BALLS 8
+#define POLO_BALL_SPEED 700.0f
+#define POLO_BALL_LIFE 1.2f
+#define POLO_BALL_R 12.0f
 #define SPELL_LENGTH 620.0f
 #define BULLET_SPEED 760.0f
 #define HELICOPTER_FUEL_SECONDS 30.0f
@@ -159,6 +166,8 @@ typedef enum {
   EVENT_ALLY_BELLY,  /* Andrea strokes his belly */
   EVENT_ALLY_KUNGFU, /* Alessandro strikes */
   EVENT_ALLY_PUNCH,  /* Giulia punches */
+  EVENT_ALLY_THROW,  /* Giacomo throws the ball */
+  EVENT_ALLY_OUCH,   /* Giacomo is punched */
   EVENT_LIGHTSABER,
   EVENT_FORCE_BURST,
   EVENT_SLOP_THROWN,
@@ -292,7 +301,7 @@ typedef struct {
 } bubble_t;
 #define MAX_BUBBLES 64
 
-typedef enum { ALLY_ANDREA, ALLY_ALESSANDRO, ALLY_GIULIA, ALLY_KIND_COUNT } ally_kind_t;
+typedef enum { ALLY_ANDREA, ALLY_ALESSANDRO, ALLY_GIULIA, ALLY_GIACOMO, ALLY_KIND_COUNT } ally_kind_t;
 typedef struct {
   ally_kind_t kind;
   float x, y, vx, vy; /* the middle of the feet */
@@ -305,7 +314,14 @@ typedef struct {
   float anim;
   bool struck;    /* this strike has landed */
   int platform;   /* the plank he stands on (a balcony, a roof, a capsule), -1 for none */
+  bool sitting;   /* Giacomo, punched by Giulia: on the ground with a black eye */
+  bool crouching; /* Giacomo is throwing low, at something crawling on the ground */
 } ally_t;
+
+/* A water polo ball in flight: it kills the first enemy it meets. */
+typedef struct {
+  float x, y, vx, age; /* centre */
+} polo_ball_t;
 
 /* A green burst from the lightsaber: flies on through everything it destroys. */
 typedef struct {
@@ -498,6 +514,7 @@ typedef struct {
   object_pool_t bubbles;   /* bubble_t */
   object_pool_t allies;    /* ally_t */
   object_pool_t force_bursts; /* force_burst_t */
+  object_pool_t polo_balls;   /* polo_ball_t */
   bool item_taken[MAX_LEVEL_ITEMS];
   object_pool_t bullets;   /* bullet_t */
   object_pool_t rays;      /* ray_t */
@@ -781,9 +798,12 @@ void world_clear_actors(world_t* world);
 /* Calls the ally in (or, if he is already here, keeps him another ALLY_SECONDS). */
 void world_summon_ally(world_t* world, ally_kind_t kind);
 void allies_update(world_t* world, float dt);
+void polo_balls_update(world_t* world, float dt);
 /* Brings them all to Fabio's side: he has been through a pipe. */
 void allies_regroup(world_t* world);
 /* How far ahead of Fabio the ally stands, how long a strike takes. */
+/* The friend a pickup brings. */
+ally_kind_t ally_for_item(item_kind_t kind);
 float ally_offset(ally_kind_t kind);
 float ally_attack_seconds(ally_kind_t kind);
 

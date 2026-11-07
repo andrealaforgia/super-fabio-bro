@@ -40,21 +40,22 @@ static bool make_pools(world_t* world) {
   world->bubbles = create_object_pool(sizeof(bubble_t), MAX_BUBBLES);
   world->allies = create_object_pool(sizeof(ally_t), MAX_ALLIES);
   world->force_bursts = create_object_pool(sizeof(force_burst_t), MAX_FORCE_BURSTS);
+  world->polo_balls = create_object_pool(sizeof(polo_ball_t), MAX_POLO_BALLS);
   return world->enemies.objects && world->pickups.objects &&
          world->bullets.objects && world->rays.objects &&
          world->effects.objects && world->particles.objects &&
          world->bumps.objects && world->popups.objects && world->bananas.objects && world->skewers.objects &&
          world->fireballs.objects && world->debris.objects && world->drum_words.objects &&
-         world->bubbles.objects && world->force_bursts.objects && world->allies.objects;
+         world->bubbles.objects && world->force_bursts.objects && world->allies.objects && world->polo_balls.objects;
 }
 
-#define POOL_COUNT 16
+#define POOL_COUNT 17
 
 static object_pool_t* pools_of(world_t* world, int index) {
   object_pool_t* all[] = {&world->enemies, &world->pickups, &world->bullets,
                           &world->rays,    &world->effects, &world->particles,
                           &world->bumps,    &world->popups,  &world->bananas, &world->skewers, &world->fireballs,
-                          &world->debris, &world->drum_words, &world->bubbles, &world->force_bursts, &world->allies};
+                          &world->debris, &world->drum_words, &world->bubbles, &world->force_bursts, &world->allies, &world->polo_balls};
   return all[index];
 }
 
@@ -148,6 +149,7 @@ void world_update(world_t* world, const controls_t* controls, float dt) {
     bubbles_update(world, dt);
     force_bursts_update(world, dt);
     allies_update(world, dt);
+    polo_balls_update(world, dt);
   }
   combat_update(world, dt);
   items_update(world, dt);

@@ -12,10 +12,15 @@ static const struct {
 } kAlly[ALLY_KIND_COUNT] = {
     {90.0f, 0.0f, 95.0f, 1.1f, 0.9f},    /* Andrea: a wobble all round him */
     {150.0f, 260.0f, 90.0f, 0.55f, 0.5f}, /* Alessandro: kung fu */
-    {210.0f, 230.0f, 78.0f, 0.42f, 0.45f} /* Giulia: boxing */
+    {210.0f, 230.0f, 78.0f, 0.42f, 0.45f}, /* Giulia: boxing */
+    {270.0f, 0.0f, 560.0f, 0.9f, 0.6f}    /* Giacomo: stays put and throws the ball from afar */
 };
 #define STRIKE_AT 0.5f   /* how far into a strike it lands */
 #define TELEPORT_AWAY 560.0f
+
+ally_kind_t ally_for_item(item_kind_t kind) {
+  return kind == ITEM_SUSHI ? ALLY_ANDREA : kind == ITEM_DRAGON ? ALLY_ALESSANDRO : kind == ITEM_GLOVES ? ALLY_GIULIA : ALLY_GIACOMO;
+}
 
 float ally_offset(ally_kind_t kind) { return kAlly[kind].offset; }
 float ally_attack_seconds(ally_kind_t kind) { return kAlly[kind].attack; }
@@ -29,11 +34,32 @@ static bool circle_touches(float cx, float cy, float r, frect_t box) {
  * behind, for the spinning kick) for the other two. */
 static bool strikes(const ally_t* a, const enemy_t* e) {
   frect_t box = enemy_rect(e);
+  if (a->kind == ALLY_GIACOMO) return (box.x + box.w * 0.5f - a->x) * (float)a->facing > 0.0f && fabsf(box.x + box.w * 0.5f - a->x) <= kAlly[a->kind].reach;
   if (a->kind == ALLY_ANDREA) return circle_touches(a->x, a->y - 28.0f, kAlly[a->kind].reach, box);
   float reach = kAlly[a->kind].reach, behind = a->kind == ALLY_ALESSANDRO ? 40.0f : 10.0f;
   float left = a->facing > 0 ? a->x - behind : a->x - reach;
   frect_t hit = {left, a->y - 70.0f, reach + behind, 74.0f};
   return frect_overlaps(hit, box);
+}
+
+static ally_t* friend_of_kind(world_t* world, ally_kind_t kind) {
+  size_t cursor = 0;
+  for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));)
+    if (a->kind == kind) return a;
+  return NULL;
+}
+
+/* Giacomo, if he is here, on his feet and close enough to Giulia's glove. Giulia punches him on sight. */
+static ally_t* giulia_target(world_t* world, const ally_t* giulia) {
+  if (giulia->kind != ALLY_GIULIA || giulia->age < ALLY_ARRIVE_SECONDS) return NULL;
+  ally_t* g = friend_of_kind(world, ALLY_GIACOMO);
+  return g && !g->sitting && g->age >= ALLY_ARRIVE_SECONDS ? g : NULL;
+}
+
+/* Whether her glove is on him: `slack` is how much further he may have run in the half second she
+ * takes to wind up and hit (Giacomo runs on while she punches). */
+static bool giulia_reaches(const ally_t* giulia, const ally_t* g, float slack) {
+  return fabsf(g->x - giulia->x) <= kAlly[ALLY_GIULIA].reach + slack && fabsf(g->y - giulia->y) < 40.0f;
 }
 
 /* A hole: a column with no ground in it from the feet to the bottom of the world. */
@@ -78,7 +104,7 @@ void world_summon_ally(world_t* world, ally_kind_t kind) {
   }
   ally_t* a = pool_acquire(&world->allies, NULL);
   if (!a) return;
-  *a = (ally_t){kind, 0, 0, 0, 0, world->player.facing, false, ALLY_SECONDS, 0.0f, 0.0f, 0.0f, 0.0f, false, -1};
+  *a = (ally_t){kind, 0, 0, 0, 0, world->player.facing, false, ALLY_SECONDS, 0.0f, 0.0f, 0.0f, 0.0f, false, -1, false, false};
   place_beside_fabio(world, a);
   world_add_effect(world, FX_ALLY_POOF, a->x, a->y, 0.5f, 1);
   world_burst(world, a->x, a->y - 28.0f, 10, 255, 240, 160, 200.0f);
@@ -105,8 +131,67 @@ static const enemy_t* nearest_enemy(const world_t* world, const ally_t* a, float
   return best;
 }
 
+/* Whether the enemy creeps along the floor, too low for a ball thrown standing up: the ground bugs. */
+static bool crawls(const ally_t* a, const enemy_t* e) { return e->kind == ENEMY_BUG && e->h < 40.0f && e->y >= a->y - 8.0f; }
+
+/* Giacomo lets the ball go. */
+static void throw_the_ball(world_t* world, ally_t* a) {
+  polo_ball_t* ball = pool_acquire(&world->polo_balls, NULL);
+  float height = a->crouching ? 14.0f : 38.0f; /* crouched, he rolls it along the ground */
+  if (ball) *ball = (polo_ball_t){a->x + (float)a->facing * 22.0f, a->y - height, (float)a->facing * POLO_BALL_SPEED, 0.0f};
+  world_emit(world, EVENT_ALLY_THROW, a->x);
+}
+
+/* Giulia's glove finds Giacomo: he is thrown back and ends up sitting on the ground. */
+static void punch_giacomo(world_t* world, ally_t* giulia, ally_t* g) {
+  g->sitting = true;
+  g->attack = 0.0f;
+  g->vx = (float)giulia->facing * 320.0f;
+  g->vy = -380.0f;
+  g->grounded = false;
+  g->platform = -1;
+  g->facing = -giulia->facing;
+  world_add_effect(world, FX_ALLY_PUNCH, g->x - (float)giulia->facing * 14.0f, g->y - 40.0f, 0.35f, giulia->facing);
+  world_burst(world, g->x, g->y - 50.0f, 12, 255, 230, 90, 240.0f);
+  world_emit(world, EVENT_ALLY_PUNCH, g->x);
+  world_emit(world, EVENT_ALLY_OUCH, g->x);
+}
+
+void polo_balls_update(world_t* world, float dt) {
+  size_t cursor = 0;
+  for (polo_ball_t* b; (b = pool_next_active(&world->polo_balls, &cursor));) {
+    b->age += dt;
+    b->x += b->vx * dt;
+    if (b->age > POLO_BALL_LIFE || level_solid_at(&world->level, b->x, b->y)) {
+      world_burst(world, b->x, b->y, 6, 120, 200, 255, 160.0f);
+      pool_release_object(&world->polo_balls, b);
+      continue;
+    }
+    frect_t box = {b->x - POLO_BALL_R, b->y - POLO_BALL_R, POLO_BALL_R * 2.0f, POLO_BALL_R * 2.0f};
+    size_t target_cursor = 0;
+    for (enemy_t* e; (e = pool_next_active(&world->enemies, &target_cursor));) {
+      if (!frect_overlaps(box, enemy_rect(e))) continue;
+      world_burst(world, b->x, b->y, 10, 120, 200, 255, 220.0f); /* a splash */
+      world_kill_enemy(world, e, true);
+      pool_release_object(&world->polo_balls, b);
+      break;
+    }
+  }
+}
+
 static void land_the_strike(world_t* world, ally_t* a) {
   a->struck = true;
+  if (a->kind == ALLY_GIACOMO) {
+    throw_the_ball(world, a);
+    return;
+  }
+  if (a->kind == ALLY_GIULIA) {
+    ally_t* g = giulia_target(world, a);
+    if (g && giulia_reaches(a, g, 110.0f)) {
+      punch_giacomo(world, a, g);
+      return;
+    }
+  }
   size_t cursor = 0;
   for (enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));)
     if (strikes(a, e)) world_kill_enemy(world, e, false);
@@ -137,12 +222,18 @@ void allies_update(world_t* world, float dt) {
 
     /* Where he wants to be: his place ahead of Fabio, or in reach of the nearest enemy. */
     float target = p->x + (float)p->facing * kAlly[a->kind].offset;
-    const enemy_t* prey = here ? nearest_enemy(world, a, kAlly[a->kind].chase > 0.0f ? kAlly[a->kind].chase : kAlly[a->kind].reach) : NULL;
+    ally_t* victim = giulia_target(world, a); /* Giulia has a score to settle with Giacomo */
+    const enemy_t* prey = here && !victim && !a->sitting ? nearest_enemy(world, a, kAlly[a->kind].chase > 0.0f ? kAlly[a->kind].chase : kAlly[a->kind].reach) : NULL;
     int facing = p->facing;
     if (prey) {
       facing = prey->x < a->x ? -1 : 1;
       if (kAlly[a->kind].chase > 0.0f) target = prey->x - (float)facing * kAlly[a->kind].reach * 0.55f;
     }
+    if (victim) {
+      facing = victim->x < a->x ? -1 : 1;
+      target = victim->x - (float)facing * kAlly[a->kind].reach * 0.55f;
+    }
+    if (a->sitting) target = a->x; /* punched: he stays where he sits */
     if (here && p->platform >= 0 && a->platform != p->platform && p->grounded) {
       join_on_plank(world, a);
       target = a->x;
@@ -157,7 +248,7 @@ void allies_update(world_t* world, float dt) {
     float want = clampf(dx * 5.0f, -RUN_SPEED * 1.2f, RUN_SPEED * 1.2f);
     if (fabsf(dx) < 6.0f) want = 0.0f;
     a->vx = approachf(a->vx, want, 3200.0f * dt);
-    if (a->attack <= 0.0f) a->facing = fabsf(a->vx) > 20.0f && !prey ? (a->vx > 0.0f ? 1 : -1) : facing;
+    if (a->attack <= 0.0f && !a->sitting) a->facing = fabsf(a->vx) > 20.0f && !prey ? (a->vx > 0.0f ? 1 : -1) : facing;
     a->vy = fminf(a->vy + GRAVITY * dt, MAX_FALL);
     /* A hole in the way and he is running at it: he takes off at the edge and clears it. */
     if (a->grounded && a->attack <= 0.0f && fabsf(want) > 40.0f) {
@@ -186,9 +277,11 @@ void allies_update(world_t* world, float dt) {
       a->attack += dt;
       if (!a->struck && a->attack >= kAlly[a->kind].attack * STRIKE_AT) land_the_strike(world, a);
       if (a->attack >= kAlly[a->kind].attack) a->attack = 0.0f;
-    } else if (here && a->cooldown <= 0.0f && prey && strikes(a, prey)) {
+    } else if (here && a->cooldown <= 0.0f && !a->sitting &&
+               ((prey && strikes(a, prey)) || (victim && giulia_reaches(a, victim, 0.0f)))) {
       a->attack = 0.0001f;
       a->struck = false;
+      a->crouching = a->kind == ALLY_GIACOMO && prey && crawls(a, prey);
       a->cooldown = kAlly[a->kind].cooldown + kAlly[a->kind].attack;
       a->facing = facing;
     }

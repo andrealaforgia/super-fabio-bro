@@ -251,7 +251,7 @@ start.
   or the AI slop monster). A pipe at each end leads back up, out of the pipe he went down;
   that pipe stays shut afterwards. Nothing spawns in a cave and nothing in it can
   end the run. The cave's tiles, crystals and stalactites are also in the two sheets above.
-- Fabio has three friends who turn up when he picks up the right thing (all three are in the
+- Fabio has four friends who turn up when he picks up the right thing (all of them are in the
   opening row of `?` blocks, and now and then along the level). A sushi dumpling brings
   Andrea, short-black-haired, black-bearded and round-bellied; a Chinese dragon brings Alessandro, a
   chubby, scruffy, bearded kung fu grandmaster in black glasses; a pair of boxing gloves brings
@@ -266,6 +266,13 @@ start.
   left far behind or fallen into a pit, and go down warp pipes with him. All three are
   cut from `assets/source/ally_andrea.png`, `ally_alessandro.png`, `ally_giulia.png` and
   `ally_items.png`, generated with Codex to match the other sheets.
+- A fourth friend, Giacomo, turns up with a water polo ball (also in the opening row and along
+  the level). He is bald and skinny, in a blue swimming costume, and stands furthest ahead of
+  Fabio (270 pixels). He never runs at anything: he throws a spinning ball at any enemy up to
+  560 pixels away, in front of or behind him, and the ball kills the first enemy it meets. For the beetles crawling on the floor he crouches and rolls it along the ground (a second Codex sheet, `giacomo_low.png`). When
+  he and Giulia are here together, in either order, she runs at him and punches him: he is
+  thrown back and sits on the ground with a black eye and a ring of stars, out of the fight for
+  the rest of his stay. His frames are cut from `assets/source/ally_giacomo.png`.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

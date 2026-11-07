@@ -31,7 +31,7 @@ static bool render(sample_t* clip, double seconds, voice_fn voice, uint32_t seed
   if (!data) return false;
   rng_t rng;
   rng_seed(&rng, seed);
-  double state[4] = {0, 0, 0, 0};
+  double state[16] = {0};
   for (int i = 0; i < length; i++) {
     double t = (double)i / MIXER_RATE;
     double v = voice(t, seconds, &rng, state);
@@ -125,19 +125,48 @@ static double force_burst_voice(double t, double d, rng_t* r, void* s) {
   return whoosh * decay(t, 4.0) + zap;
 }
 
-/* A gorilla's growl: a deep sawtooth that rattles (a fast tremolo), with a rough hiss over it, dipping
- * in pitch as it goes, swelling in and trailing away. */
+/* One two-pole resonator: a vocal-tract formant at `freq` Hz with `bandwidth` Hz. `z` holds its two past outputs. */
+static double resonate(double* z, double input, double freq, double bandwidth) {
+  double r = exp(-3.14159265 * bandwidth / MIXER_RATE);
+  double out = (1.0 - r) * input + 2.0 * r * cos(TAU * freq / MIXER_RATE) * z[0] - r * r * z[1];
+  z[1] = z[0];
+  z[0] = out;
+  return out;
+}
+
+/* A gorilla's growl, built the way a throat makes one: a rough train of glottal pulses (the pitch
+ * wandering, every other pulse weaker, the way a big animal's voice breaks into a rumble) pushed
+ * through three vocal-tract resonances that open from "uh" towards "ah" and close again, with
+ * breath noise on top, a throbbing in the volume, a gulp of air at the start and a rattle at the end. */
 static double gorilla_growl_voice(double t, double d, rng_t* r, void* s) {
-  (void)d;
-  double* lp = (double*)s; /* [0] the roughness, [1] the low-passed voice */
-  double pitch = 78.0 - 22.0 * t;
-  double phase = pitch * t;
-  double saw = 2.0 * (phase - floor(phase + 0.5));
-  double rattle = 0.55 + 0.45 * sin(TAU * (24.0 + 6.0 * t) * t);
-  lp[0] += 0.12 * (noise(r) - lp[0]);
-  lp[1] += 0.18 * (saw * rattle - lp[1]);
-  double envelope = fmin(1.0, t / 0.08) * (t < 0.55 ? 1.0 : decay(t - 0.55, 5.0));
-  return (1.1 * lp[1] + 0.9 * lp[0] * rattle) * envelope;
+  double* st = (double*)s; /* 0 pulse phase, 1 weak pulse flag, 2 pitch wander, 3 breath, 4 breath 2, 5-10 resonators, 11 the last source sample */
+  double progress = t / d;
+  double swell = sin(3.14159265 * fmin(1.0, progress * 1.15)); /* the throat opens and closes */
+  st[2] += 0.0015 * (noise(r) - st[2]);
+  double pitch = (62.0 + 38.0 * swell - 14.0 * progress) * (1.0 + 7.0 * st[2]);
+  st[0] += pitch / MIXER_RATE;
+  double pulse = 0.0;
+  if (st[0] >= 1.0) {
+    st[0] -= 1.0;
+    st[1] = 1.0 - st[1]; /* every other pulse is the weak one */
+  }
+  double ph = st[0];
+  pulse = pow(1.0 - ph, 3.0) * 2.0 - 0.45; /* a sharp spike with a slow tail: plenty of harmonics */
+  pulse *= st[1] > 0.5 ? 0.55 : 1.0;
+  st[3] += 0.3 * (noise(r) - st[3]);
+  st[4] += 0.08 * (noise(r) - st[4]);
+  double turbulence = 0.65 + 0.35 * st[3]; /* the pulses are ragged */
+  double raw = pulse * turbulence + 0.35 * st[4] * (0.5 + swell); /* and breathy */
+  double source = (raw - st[11]) * 3.0 + 0.25 * raw; /* the lips lift the highs; a small speaker would lose the lowest rumble */
+  st[11] = raw;
+  double open = swell;
+  double v = 1.0 * resonate(&st[5], source, 430.0 + 220.0 * open, 110.0) +
+             0.75 * resonate(&st[7], source, 900.0 + 450.0 * open, 160.0) +
+             0.25 * resonate(&st[9], source, 2300.0, 350.0);
+  double throb = 0.72 + 0.28 * sin(TAU * (11.0 + 4.0 * progress) * t);
+  double gulp = t < 0.07 ? 0.5 * st[4] * (t / 0.07) : 0.0;
+  double envelope = fmin(1.0, t / 0.05) * (progress < 0.6 ? 1.0 : decay(t - 0.6 * d, 5.0));
+  return (v * 3.2 * throb * envelope + gulp * 3.0);
 }
 
 /* A parachute opening: a puff of low-passed noise that swells and flaps, and a soft thump. */
@@ -230,6 +259,23 @@ static double ally_punch_voice(double t, double d, rng_t* r, void* s) {
   double* lp = (double*)s;
   lp[0] += 0.3 * (noise(r) - lp[0]);
   return (0.9 * lp[0] * decay(t, 28.0)) + 0.8 * sin(TAU * (160.0 - 400.0 * t) * t) * decay(t, 22.0);
+}
+
+/* Giacomo's throw: a quick whoosh with a wet, bubbly pop at the end. */
+static double ally_throw_voice(double t, double d, rng_t* r, void* s) {
+  (void)d;
+  double* lp = (double*)s;
+  lp[0] += (0.15 + 0.4 * t) * (noise(r) - lp[0]);
+  double whoosh = lp[0] * sin(3.14159 * fmin(1.0, t / 0.18)) * 1.2;
+  double pop = t > 0.12 ? 0.5 * sin(TAU * (700.0 - 1800.0 * (t - 0.12)) * t) * decay(t - 0.12, 30.0) : 0.0;
+  return whoosh * decay(t, 7.0) + pop;
+}
+
+/* Giacomo's yelp when Giulia hits him: a wobbling "ow" that sinks. */
+static double ally_ouch_voice(double t, double d, rng_t* r, void* s) {
+  (void)d; (void)r; (void)s;
+  double f = 620.0 - 320.0 * t + 40.0 * sin(TAU * 14.0 * t);
+  return 0.5 * (sin(TAU * f * t) + 0.4 * sin(TAU * f * 2.0 * t)) * decay(t, 5.0);
 }
 
 static double spell_voice(double t, double d, rng_t* r, void* s) {
@@ -475,7 +521,7 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_SLOP_DIES], 0.9, slop_dies_voice, 28);
   ok = ok && render(&clips[SFX_SABER_ON], 1.0, saber_on_voice, 29);
   ok = ok && render(&clips[SFX_FORCE_BURST], 0.4, force_burst_voice, 30);
-  ok = ok && render(&clips[SFX_GORILLA_GROWL], 0.9, gorilla_growl_voice, 31);
+  ok = ok && render(&clips[SFX_GORILLA_GROWL], 1.1, gorilla_growl_voice, 31);
   ok = ok && copy_clip(&clips[SFX_VOICE_SLOP], kVoiceSlop, kVoiceSlopLength);
   ok = ok && render(&clips[SFX_WARP], 0.65, warp_voice, 32);
   ok = ok && render(&clips[SFX_PARACHUTE], 0.5, parachute_voice, 37);
@@ -486,6 +532,8 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_ALLY_BELLY], 0.5, ally_belly_voice, 34);
   ok = ok && render(&clips[SFX_ALLY_KUNGFU], 0.4, ally_kungfu_voice, 35);
   ok = ok && render(&clips[SFX_ALLY_PUNCH], 0.2, ally_punch_voice, 36);
+  ok = ok && render(&clips[SFX_ALLY_THROW], 0.35, ally_throw_voice, 43);
+  ok = ok && render(&clips[SFX_ALLY_OUCH], 0.45, ally_ouch_voice, 44);
   ok = ok && render(&clips[SFX_BUBBLE_SHOT], 0.16, bubble_shot_voice, 21);
   ok = ok && render(&clips[SFX_BUBBLE_WRAP], 0.5, bubble_wrap_voice, 22);
   ok = ok && render(&clips[SFX_BUBBLE_POP], 0.3, bubble_pop_voice, 23);
@@ -574,6 +622,8 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_ALLY_BELLY: *volume = 1.0f; return SFX_ALLY_BELLY;
     case EVENT_ALLY_KUNGFU: *volume = 0.9f; return SFX_ALLY_KUNGFU;
     case EVENT_ALLY_PUNCH: *volume = 0.9f; return SFX_ALLY_PUNCH;
+    case EVENT_ALLY_THROW: *volume = 0.8f; return SFX_ALLY_THROW;
+    case EVENT_ALLY_OUCH: *volume = 0.9f; return SFX_ALLY_OUCH;
     case EVENT_SKEWER_THROWN: *volume = 0.8f; return SFX_SKEWER;
     case EVENT_HELICOPTER_BOARDS: *volume = 0.8f; return SFX_PICKUP;
     case EVENT_HELICOPTER_EXPLODES: *volume = 1.0f; return SFX_BOOK_READER_BOOM;

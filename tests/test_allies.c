@@ -227,7 +227,7 @@ static void the_friends_have_their_poses_and_their_sounds(void) {
   a->grounded = true;
   a->attack = 0.2f;
   CHECK(pose_ally(a).strip == STRIP_ALLY_ALESSANDRO_ATTACK);
-  ally_t g = {ALLY_GIULIA, 0, 0, 0, 0, 1, true, 5.0f, 1.0f, 0.0f, 0.0f, 0.0f, false, -1};
+  ally_t g = {ALLY_GIULIA, 0, 0, 0, 0, 1, true, 5.0f, 1.0f, 0.0f, 0.0f, 0.0f, false, -1, false, false};
   CHECK(pose_ally(&g).strip == STRIP_ALLY_GIULIA_IDLE);
   CHECK(pose_ally_item(ALLY_ANDREA, 0.0f).strip == STRIP_ITEM_SUSHI && pose_ally_item(ALLY_GIULIA, 0.0f).strip == STRIP_ITEM_GLOVES);
   CHECK(pose_ally_effect(FX_ALLY_PUNCH, 0.1f, 0.35f).strip == STRIP_ALLY_GIULIA_FX);
@@ -257,6 +257,119 @@ static void levels_offer_the_three_pickups_now_and_then(void) {
   CHECK(found[0] > 3 && found[1] > 3 && found[2] > 3);
 }
 
+static void a_water_polo_ball_brings_giacomo(void) {
+  world_t* world = world_new(5, recording_events());
+  bool in_opening_row = false;
+  for (int row = 0; row < LEVEL_ROWS; row++)
+    for (int col = 0; col < 30; col++)
+      in_opening_row = in_opening_row || (level_tile(&world->level, col, row) == TILE_QBLOCK && world->level.content[row][col] == ITEM_POLO_BALL);
+  CHECK(in_opening_row);
+  world->spawning = false;
+  world_spawn_pickup(world, ITEM_POLO_BALL, world->player.x, world->player.y - 10.0f);
+  step(world, NULL, 0.5f);
+  CHECK(allies(world) == 1 && ally_of(world, ALLY_GIACOMO));
+  CHECK(world_has_event(world, EVENT_ALLY_ARRIVES));
+  world_free(world);
+}
+
+static void giacomo_throws_the_ball_from_afar_and_it_kills_the_enemy_it_hits(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_GIACOMO);
+  step(world, NULL, 1.0f);
+  ally_t* g = ally_of(world, ALLY_GIACOMO);
+  float start = g->x;
+  still_zombie(world, start + 380.0f);
+  step(world, NULL, 0.3f);
+  CHECK(world->zombies_killed == 0); /* the ball is still on its way */
+  step(world, NULL, 2.0f);
+  CHECK(world->zombies_killed == 1);
+  CHECK(world_has_event(world, EVENT_ALLY_THROW));
+  CHECK(fabsf(g->x - start) < 40.0f && !g->sitting); /* he never ran at it */
+  CHECK(pool_get_active_count(&world->polo_balls) == 0); /* the ball went with the zombie */
+  /* One behind him gets the ball too, the other way. */
+  world_clear_events(world);
+  still_zombie(world, g->x - 300.0f);
+  step(world, NULL, 2.5f);
+  CHECK(world->zombies_killed == 2 && world_has_event(world, EVENT_ALLY_THROW));
+  world_free(world);
+}
+
+static void giulia_punches_giacomo_and_leaves_him_sitting_with_a_black_eye(void) {
+  for (int giacomo_first = 0; giacomo_first < 2; giacomo_first++) {
+    world_t* world = fresh();
+    world_summon_ally(world, giacomo_first ? ALLY_GIACOMO : ALLY_GIULIA);
+    step(world, NULL, 1.0f);
+    world_summon_ally(world, giacomo_first ? ALLY_GIULIA : ALLY_GIACOMO);
+    step(world, NULL, 4.0f);
+    ally_t* g = ally_of(world, ALLY_GIACOMO);
+    CHECK(g && g->sitting && g->grounded);
+    CHECK(world_has_event(world, EVENT_ALLY_PUNCH) && world_has_event(world, EVENT_ALLY_OUCH));
+    CHECK(pose_ally(g).strip == STRIP_ALLY_GIACOMO_SIT);
+    /* He stays sitting: an enemy ahead of him is left alone, and he does not move. */
+    float where = g->x;
+    still_zombie(world, g->x + 300.0f + 150.0f);
+    step(world, NULL, 3.0f);
+    CHECK(world->zombies_killed == 0 && fabsf(g->x - where) < 2.0f && g->sitting);
+    CHECK(allies(world) == 2);
+    world_free(world);
+  }
+}
+
+static void giacomo_alone_is_never_punched_and_all_four_friends_fit(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_GIACOMO);
+  step(world, NULL, 3.0f);
+  CHECK(!ally_of(world, ALLY_GIACOMO)->sitting);
+  world_summon_ally(world, ALLY_ANDREA);
+  world_summon_ally(world, ALLY_ALESSANDRO);
+  world_summon_ally(world, ALLY_GIULIA);
+  CHECK(allies(world) == 4);
+  step(world, NULL, 4.0f);
+  CHECK(ally_of(world, ALLY_GIACOMO)->sitting);
+  float volume;
+  CHECK(sfx_for_event(EVENT_ALLY_THROW, &volume) == SFX_ALLY_THROW && sfx_for_event(EVENT_ALLY_OUCH, &volume) == SFX_ALLY_OUCH);
+  CHECK(pose_ally_item(ALLY_GIACOMO, 0.0f).strip == STRIP_ITEM_POLO_BALL);
+  CHECK(pose_polo_ball(0.0f).strip == STRIP_ALLY_GIACOMO_FX);
+  world_free(world);
+}
+
+static void giulia_catches_giacomo_even_while_fabio_runs(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_GIACOMO);
+  world_summon_ally(world, ALLY_GIULIA);
+  buttons_t right = BTN_RIGHT;
+  for (int i = 0; i < 80; i++) step(world, &right, 0.1f);
+  CHECK(ally_of(world, ALLY_GIACOMO)->sitting);
+  world_free(world);
+}
+
+static void giacomo_crouches_to_roll_the_ball_at_a_beetle_on_the_floor(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_GIACOMO);
+  step(world, NULL, 1.0f);
+  ally_t* g = ally_of(world, ALLY_GIACOMO);
+  spawn_bug(world, BUG_SMALL, g->x + 380.0f, GROUND);
+  enemy_t* bug = enemy_at(world, (size_t)(world_count_enemies(world, ENEMY_BUG) - 1));
+  bug->speed = 0.0f;
+  bool crouched = false;
+  for (int i = 0; i < 25 && world->zombies_killed + world->bugs_killed == 0; i++) {
+    step(world, NULL, 0.1f);
+    crouched = crouched || (g->attack > 0.0f && g->crouching && pose_ally(g).strip == STRIP_ALLY_GIACOMO_LOW);
+  }
+  CHECK(crouched);
+  step(world, NULL, 1.0f);
+  CHECK(world_count_enemies(world, ENEMY_BUG) == 0);
+  /* A zombie he faces standing up. */
+  still_zombie(world, g->x + 380.0f);
+  bool stood = false;
+  for (int i = 0; i < 25 && world->zombies_killed == 0; i++) {
+    step(world, NULL, 0.1f);
+    stood = stood || (g->attack > 0.0f && !g->crouching);
+  }
+  CHECK(stood && world->zombies_killed == 1);
+  world_free(world);
+}
+
 void run_ally_tests(void) {
   RUN(the_opening_row_holds_the_three_pickups_and_each_brings_its_friend);
   RUN(each_friend_stands_a_few_steps_ahead_of_fabio_at_his_own_distance);
@@ -271,4 +384,10 @@ void run_ally_tests(void) {
   RUN(the_friends_go_down_a_pipe_with_fabio);
   RUN(the_friends_have_their_poses_and_their_sounds);
   RUN(levels_offer_the_three_pickups_now_and_then);
+  RUN(a_water_polo_ball_brings_giacomo);
+  RUN(giacomo_throws_the_ball_from_afar_and_it_kills_the_enemy_it_hits);
+  RUN(giulia_punches_giacomo_and_leaves_him_sitting_with_a_black_eye);
+  RUN(giacomo_alone_is_never_punched_and_all_four_friends_fit);
+  RUN(giulia_catches_giacomo_even_while_fabio_runs);
+  RUN(giacomo_crouches_to_roll_the_ball_at_a_beetle_on_the_floor);
 }

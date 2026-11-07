@@ -143,6 +143,14 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_ALLY_GIULIA_JUMP] = {"ally_giulia_jump", 3},
     [STRIP_ALLY_GIULIA_ATTACK] = {"ally_giulia_attack", 6},
     [STRIP_ALLY_GIULIA_FX] = {"ally_giulia_fx", 4},
+    [STRIP_ALLY_GIACOMO_IDLE] = {"ally_giacomo_idle", 4},
+    [STRIP_ALLY_GIACOMO_WALK] = {"ally_giacomo_walk", 6},
+    [STRIP_ALLY_GIACOMO_JUMP] = {"ally_giacomo_jump", 3},
+    [STRIP_ALLY_GIACOMO_ATTACK] = {"ally_giacomo_attack", 6},
+    [STRIP_ALLY_GIACOMO_FX] = {"ally_giacomo_fx", 4},
+    [STRIP_ITEM_POLO_BALL] = {"item_polo_ball", 4},
+    [STRIP_ALLY_GIACOMO_SIT] = {"ally_giacomo_sit", 2},
+    [STRIP_ALLY_GIACOMO_LOW] = {"ally_giacomo_low", 6},
     [STRIP_ITEM_SUSHI] = {"item_sushi", 4},
     [STRIP_ITEM_DRAGON] = {"item_dragon", 4},
     [STRIP_ITEM_GLOVES] = {"item_gloves", 4},
@@ -429,6 +437,8 @@ pose_t pose_ground(biome_t biome, bool fill, int col) {
 
 pose_t pose_ally(const ally_t* a) {
   strip_id_t base = (strip_id_t)(STRIP_ALLY_ANDREA_IDLE + a->kind * 5);
+  if (a->sitting && a->grounded) return make(STRIP_ALLY_GIACOMO_SIT, (int)(a->anim * 2.5f));
+  if (a->attack > 0.0f && a->crouching) return make(STRIP_ALLY_GIACOMO_LOW, (int)(a->attack / ally_attack_seconds(a->kind) * 6.0f));
   if (a->attack > 0.0f)
     return make((strip_id_t)(base + 3), (int)(a->attack / ally_attack_seconds(a->kind) * 6.0f));
   if (!a->grounded) return make((strip_id_t)(base + 2), a->vy < -200.0f ? 0 : (a->vy < 200.0f ? 1 : 2));
@@ -442,6 +452,8 @@ pose_t pose_ally_effect(fx_kind_t kind, float age, float duration) {
                      : kind == FX_ALLY_SLASH ? STRIP_ALLY_ALESSANDRO_FX : STRIP_ALLY_GIULIA_FX;
   return make(strip, (int)(age / duration * (float)kStripSpecs[strip].frames));
 }
+
+pose_t pose_polo_ball(float age) { return make(STRIP_ALLY_GIACOMO_FX, (int)(age * 16.0f)); }
 
 pose_t pose_ally_item(ally_kind_t kind, float time) {
   return make((strip_id_t)(STRIP_ITEM_SUSHI + kind), (int)(time * 6.0f));

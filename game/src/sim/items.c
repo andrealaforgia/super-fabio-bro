@@ -36,7 +36,8 @@ static void collect(world_t* world, item_kind_t kind, float x, float y) {
     case ITEM_SUSHI:
     case ITEM_DRAGON:
     case ITEM_GLOVES:
-      world_summon_ally(world, kind == ITEM_SUSHI ? ALLY_ANDREA : kind == ITEM_DRAGON ? ALLY_ALESSANDRO : ALLY_GIULIA);
+    case ITEM_POLO_BALL:
+      world_summon_ally(world, ally_for_item(kind));
       world_award(world, 300, x, y);
       return; /* the arrival has its own fanfare */
     case ITEM_MUSHROOM:

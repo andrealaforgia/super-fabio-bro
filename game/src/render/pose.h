@@ -135,7 +135,7 @@ typedef enum {
   STRIP_DECOR_CAR, /* the city: cars, Ovid, the fountain (the code-drawn signs have no strip) */
   STRIP_DECOR_OVID,
   STRIP_DECOR_FOUNTAIN,
-  /* Fabio's friends: five strips each, in this order, Andrea then Alessandro then Giulia
+  /* Fabio's friends: five strips each, in this order, Andrea then Alessandro then Giulia then Giacomo
    * (the strip of a kind is STRIP_ALLY_ANDREA_IDLE + kind * 5 + the part). */
   STRIP_ALLY_ANDREA_IDLE,
   STRIP_ALLY_ANDREA_WALK,
@@ -152,9 +152,17 @@ typedef enum {
   STRIP_ALLY_GIULIA_JUMP,
   STRIP_ALLY_GIULIA_ATTACK,
   STRIP_ALLY_GIULIA_FX,
-  STRIP_ITEM_SUSHI, /* the three pickups */
+  STRIP_ALLY_GIACOMO_IDLE, /* his throw is the attack, his FX strip the spinning ball */
+  STRIP_ALLY_GIACOMO_WALK,
+  STRIP_ALLY_GIACOMO_JUMP,
+  STRIP_ALLY_GIACOMO_ATTACK,
+  STRIP_ALLY_GIACOMO_FX,
+  STRIP_ITEM_SUSHI, /* the four pickups */
   STRIP_ITEM_DRAGON,
   STRIP_ITEM_GLOVES,
+  STRIP_ITEM_POLO_BALL,
+  STRIP_ALLY_GIACOMO_SIT, /* Giacomo on the ground with a black eye, 2 frames */
+  STRIP_ALLY_GIACOMO_LOW, /* Giacomo crouched, rolling the ball at a crawler, 6 frames */
   STRIP_ALLY_POOF,
   STRIP_SOAP_BUBBLE, /* one round soap bubble, drawn at any size */
   STRIP_CHUTE_FALL,  /* Fabio under the parachute: swaying, */
@@ -241,6 +249,7 @@ pose_t pose_ally(const ally_t* ally);
 /* The effects they leave: a poof, a belly wobble, a chi slash, a punch burst. */
 pose_t pose_ally_effect(fx_kind_t kind, float age, float duration);
 /* The pickup that brings an ally. */
+pose_t pose_polo_ball(float age); /* the ball in flight */
 pose_t pose_ally_item(ally_kind_t kind, float time);
 /* A cooked decoration (kind from DECOR_PROCEDURAL up), the frame picked by `variant`. */
 pose_t pose_decor(decor_kind_t kind, int variant);
