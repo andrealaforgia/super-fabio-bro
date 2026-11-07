@@ -132,6 +132,9 @@ typedef enum {
   STRIP_DECOR_MUSHROOM,
   STRIP_DECOR_STALAGMITE,
   STRIP_DECOR_STALACTITE,
+  STRIP_DECOR_CAR, /* the city: cars, Ovid, the fountain (the code-drawn signs have no strip) */
+  STRIP_DECOR_OVID,
+  STRIP_DECOR_FOUNTAIN,
   /* Fabio's friends: five strips each, in this order, Andrea then Alessandro then Giulia
    * (the strip of a kind is STRIP_ALLY_ANDREA_IDLE + kind * 5 + the part). */
   STRIP_ALLY_ANDREA_IDLE,
@@ -154,6 +157,20 @@ typedef enum {
   STRIP_ITEM_GLOVES,
   STRIP_ALLY_POOF,
   STRIP_SOAP_BUBBLE, /* one round soap bubble, drawn at any size */
+  STRIP_CHUTE_FALL,  /* Fabio under the parachute: swaying, */
+  STRIP_CHUTE_SHOOT, /* shooting, */
+  STRIP_CHUTE_OPEN,  /* the canopy opening, */
+  STRIP_CHUTE_LAND,  /* and touching down */
+  STRIP_AQUEDUCT,    /* three Gothic arches */
+  STRIP_TAP,         /* the valve wheel: two closed frames, two open */
+  STRIP_WATER,       /* a curtain of falling water */
+  STRIP_SPLASH,      /* and where it lands */
+  STRIP_VASE,        /* a vase: standing, tipping, smashed */
+  STRIP_THAI_WINDOW, /* the masseuses at their windows, in their two dresses */
+  STRIP_THAI_WINDOW_B,
+  STRIP_THAI_SIGN,   /* the neon sign, flickering */
+  STRIP_LANTERN,
+  STRIP_FLOWER_BOX,
   STRIP_COUNT
 } strip_id_t;
 
@@ -212,6 +229,8 @@ pose_t pose_ally_effect(fx_kind_t kind, float age, float duration);
 pose_t pose_ally_item(ally_kind_t kind, float time);
 /* A cooked decoration (kind from DECOR_PROCEDURAL up), the frame picked by `variant`. */
 pose_t pose_decor(decor_kind_t kind, int variant);
+/* A masseuse at her window, cycling through her tricks: `window` is 0 or 1, `time` in seconds. */
+pose_t pose_masseuse(int window, float time);
 /* The tile of a zone other than the forest, as a surface tile or the fill under it. */
 pose_t pose_ground(biome_t biome, bool fill, int col);
 /* The green burst flying, and the sparks it leaves on an enemy (`age` of `duration`). */

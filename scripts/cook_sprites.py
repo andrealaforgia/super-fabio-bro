@@ -53,6 +53,9 @@ ALLY_ALESSANDRO = "ally_alessandro.png"
 ALLY_GIULIA = "ally_giulia.png"
 BUBBLE_GUN = "bubble_gun.png"
 FABIO_BUBBLE_GUN = "fabio_bubble_gun.png"
+FABIO_PARACHUTE = "fabio_parachute.png"
+CITY_PROPS = "city_props.png"
+THAI_SHOP = "thai_shop.png"
 
 # kind "band": every blob in the rectangle, left to right, named in order.
 # kind "one": the rectangle is one sprite.
@@ -229,6 +232,67 @@ SPEC = [
     ("band", FABIO_BUBBLE_GUN, (0, 790, 1254, 910), ["fab_bub_shoot_%d" % i for i in range(8)], "light", "scale=0.9"),
     ("one", BUBBLE_GUN, "bubble_gun_0", (30, 140, 170, 240), "light"),
     ("bubble", BUBBLE_GUN, "bubble_big", (1035, 936, 1229, 1118), "none"),
+    # Fabio under the parachute (cooked at the size it is drawn, so the game draws it 1:1), the
+    # cells kept whole and centred on him, their bottoms on his feet.
+    ("one", FABIO_PARACHUTE, "chute_fall_0", (205, 8, 475, 282), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_fall_1", (500, 8, 770, 282), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_fall_2", (795, 8, 1065, 282), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_shoot_0", (205, 300, 475, 570), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_shoot_1", (500, 300, 810, 570), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_shoot_2", (795, 300, 1105, 570), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_open_0", (262, 590, 408, 860), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_open_1", (495, 590, 765, 860), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_open_2", (795, 590, 1065, 860), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_land_0", (165, 890, 340, 1150), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_land_1", (390, 890, 610, 1150), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_land_2", (650, 890, 890, 1150), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_land_3", (970, 890, 1120, 1150), "light", "fixed", "centre", "scale=0.37"),
+    # The city of Sulmona: Ovid, the aqueduct, the tap, the water, the cars, the vases, the fountain.
+    ("one", CITY_PROPS, "city_ovid", (322, 0, 480, 300), "light", "scale=0.5"),
+    ("one", CITY_PROPS, "city_aqueduct", (360, 300, 895, 522), "light", "scale=0.755"),
+    ("one", CITY_PROPS, "city_tap_0", (326, 526, 408, 630), "light", "scale=0.55"),
+    ("one", CITY_PROPS, "city_tap_1", (498, 526, 582, 630), "light", "scale=0.55"),
+    ("one", CITY_PROPS, "city_tap_2", (668, 526, 756, 630), "light", "scale=0.55"),
+    ("one", CITY_PROPS, "city_tap_3", (840, 526, 930, 630), "light", "scale=0.55"),
+    ("one", CITY_PROPS, "city_water_0", (340, 638, 400, 766), "light"),
+    ("one", CITY_PROPS, "city_water_1", (510, 638, 570, 766), "light"),
+    ("one", CITY_PROPS, "city_water_2", (680, 638, 740, 766), "light"),
+    ("one", CITY_PROPS, "city_water_3", (852, 638, 912, 766), "light"),
+    ("one", CITY_PROPS, "city_splash_0", (318, 786, 402, 840), "light", "scale=0.7"),
+    ("one", CITY_PROPS, "city_splash_1", (486, 780, 588, 840), "light", "scale=0.7"),
+    ("one", CITY_PROPS, "city_splash_2", (656, 776, 774, 840), "light", "scale=0.7"),
+    ("one", CITY_PROPS, "city_splash_3", (828, 790, 952, 840), "light", "scale=0.7"),
+    ("one", CITY_PROPS, "city_car_0", (150, 850, 378, 958), "light", "scale=0.5"),
+    ("one", CITY_PROPS, "city_car_1", (414, 850, 610, 958), "light", "scale=0.5"),
+    ("one", CITY_PROPS, "city_car_2", (648, 850, 878, 958), "light", "scale=0.5"),
+    ("one", CITY_PROPS, "city_car_3", (914, 850, 1166, 958), "light", "scale=0.5"),
+    ("one", CITY_PROPS, "city_vase_0", (264, 960, 378, 1090), "light", "scale=0.3"),
+    ("one", CITY_PROPS, "city_vase_1", (520, 960, 650, 1090), "light", "scale=0.3"),
+    ("one", CITY_PROPS, "city_vase_2", (740, 978, 964, 1092), "light", "scale=0.3"),
+    ("one", CITY_PROPS, "city_fountain_0", (382, 1082, 548, 1192), "light", "scale=0.6"),
+    ("one", CITY_PROPS, "city_fountain_1", (652, 1082, 818, 1192), "light", "scale=0.6"),
+    # The Thai massage shops: the masseuses at their windows, the neon sign, a lantern, a flower box.
+    ("one", THAI_SHOP, "thai_window_0", (38, 60, 220, 266), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_window_1", (245, 60, 427, 266), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_window_2", (450, 60, 632, 266), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_window_3", (654, 60, 836, 266), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_window_4", (858, 60, 1040, 266), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_window_5", (1060, 60, 1244, 266), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_window_b_0", (38, 334, 220, 548), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_window_b_1", (245, 334, 427, 548), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_window_b_2", (450, 334, 632, 548), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_window_b_3", (654, 334, 836, 548), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_window_b_4", (858, 334, 1040, 548), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_window_b_5", (1060, 334, 1244, 548), "light", "fixed", "scale=0.5"),
+    ("one", THAI_SHOP, "thai_sign_0", (30, 612, 304, 768), "light", "fixed", "scale=0.42"),
+    ("one", THAI_SHOP, "thai_sign_1", (344, 612, 614, 768), "light", "fixed", "scale=0.42"),
+    ("one", THAI_SHOP, "thai_sign_2", (652, 612, 922, 768), "light", "fixed", "scale=0.42"),
+    ("one", THAI_SHOP, "thai_sign_3", (960, 612, 1232, 768), "light", "fixed", "scale=0.42"),
+    ("one", THAI_SHOP, "thai_lantern_0", (254, 814, 422, 990), "light", "fixed", "scale=0.3"),
+    ("one", THAI_SHOP, "thai_lantern_1", (554, 814, 686, 990), "light", "fixed", "scale=0.3"),
+    ("one", THAI_SHOP, "thai_lantern_2", (818, 814, 984, 990), "light", "fixed", "scale=0.3"),
+    ("one", THAI_SHOP, "thai_flowers_0", (326, 1020, 582, 1166), "light", "scale=0.36"),
+    ("one", THAI_SHOP, "thai_flowers_1", (668, 1020, 920, 1166), "light", "scale=0.36"),
     # The AI slop monster, who throws slop: idle, windup, throw, hurt, death, the slop ball in
     # flight and splatting, and the pieces he bursts into. "main" keeps only the biggest blob.
     ("one", SLOP, "slop_idle_0", (150, 0, 392, 170), "light", "main", "scale=0.45"),

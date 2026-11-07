@@ -141,6 +141,7 @@ void world_update(world_t* world, const controls_t* controls, float dt) {
   player_update(world, controls, dt);
   if (world->state == STATE_PLAYING) {
     helicopter_update(world, dt);
+    city_update(world, controls, dt);
     spawner_update(world, dt);
     enemies_update(world, dt);
     drums_update(world, controls, dt);

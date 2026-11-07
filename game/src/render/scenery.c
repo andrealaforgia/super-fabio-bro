@@ -57,6 +57,10 @@ bool scenery_sky_zone(image_t* image, int h, biome_t biome) {
     top = PIXEL(120, 150, 196, 255);
     middle = PIXEL(168, 196, 226, 255);
     horizon = PIXEL(228, 240, 250, 255);
+  } else if (biome == BIOME_CITY) { /* a warm evening over the rooftops */
+    top = PIXEL(96, 108, 196, 255);
+    middle = PIXEL(226, 150, 170, 255);
+    horizon = PIXEL(255, 214, 150, 255);
   } else if (biome == BIOME_CAVE) { /* the dark of the cave, a glow of violet at the bottom */
     top = PIXEL(10, 6, 24, 255);
     middle = PIXEL(26, 14, 52, 255);

@@ -34,7 +34,7 @@ start.
 | Key | Does |
 |---|---|
 | arrows, or A and D | move |
-| space, Z, up | jump (hold for height; land on enemies to squash them) |
+| space, Z, up | jump (hold for height; land on enemies to squash them). In the helicopter, tapping jump twice leaps out. At the aqueduct tap, up turns the water on |
 | shift | run |
 | enter, control | shoot the pistol; under the spell, cast the ray |
 | K, X | swing the pickaxe |
@@ -140,7 +140,15 @@ start.
   last five). Then the helicopter blows up and is gone for good, and Fabio
   falls, unharmed (a pit below still costs a heart, as ever). The resting
   helicopter is cut from `assets/source/helicopter.jpeg`; flying and
-  exploding, from `assets/source/fabio_helicopter.jpeg`.
+  exploding, from `assets/source/fabio_helicopter.jpeg`. To get out early, tap jump (space, Z, up or W)
+  twice quickly, or tap it while holding down: Fabio leaps out of the seat and the helicopter is gone. High
+  up, a red and white parachute pops open (the same happens when the fuel runs out).
+  Under it he sinks at no more than 115 pixels a second, steers left and right at
+  three quarters of walking pace, and can still shoot (the shoot key fires the
+  pistol or the bubble gun as usual, and he has his own shooting frames). He lands
+  softly, the canopy collapsing round him and lying crumpled on the ground for a
+  couple of seconds. Jumping out close to the ground just drops him. Frames are cut
+  from `assets/source/fabio_parachute.png`, generated with Codex.
 - Fabio's drum kit first stands on the open grass about a quarter of the way into the level (past column 90, never near the start), and then another one every 70 to 100 columns or so all along the level (never on the helicopter's grass). Jump
   into it (walking past does nothing) and he sits down and plays by himself
   for 10 seconds, with no keys needed and nothing able to hurt him, his eight
@@ -187,13 +195,37 @@ start.
   after 4.5 seconds. Frames are cut from `assets/source/fabio_jedi.png` and
   `jedi_items.png`, generated with Codex to match the other sheets.
 - The level changes scenery as it goes: forest for the first 150 columns, then desert, then
-  snow up to the castle. Each zone has its own ground (sand over sandstone, snow over
+  snow, then the city of Sulmona, up to the castle. Each zone has its own ground (sand over sandstone, snow over
   frozen earth), its own decorations (cacti, a dead tree, a bleached skull and boulders; snowy
   pines, a snowman, ice crystals), its own sky and weather (amber with sand blowing
   across, pale with snow falling), blending into one another as the screen crosses the
   border. The snow zone is icy: Fabio is slow to get going and slow to stop there. The
   ground tiles and decorations are cut from `assets/source/biome_ground.png` and
   `biome_decor.png`, generated with Codex to match the other sheets.
+- Past the snow, just before the castle, is the city of Sulmona, about 130 columns of paved
+  street under an evening sky. A big sign, "Welcome to Sulmona!", stands at the entrance.
+  Along the street are apartment blocks, hotels (with a HOTEL sign on the roof), Thai
+  massage shops, an ordinary shop, and parked cars (their roofs can be stood on). The
+  buildings are drawn in code: balconies with railings, flower boxes and windows, roofs with
+  chimneys, aerials and water tanks. Everything Fabio can stand on is a one-way plank, solid
+  from above only, so he can jump up through it: every balcony (a floor is 96 pixels, a
+  jump 156) and every roof, three storeys at most, with coins on them and a TDD potion on
+  the first roof and on every hotel's. The Thai massage shops have a masseuse leaning out
+  of the shop window and another at the window above, cartoon-style and fully clothed in
+  Thai silk, waving, blowing kisses, beckoning and winking, under a flickering neon "Thai
+  Massage" sign and red paper lanterns. A signpost points one way to Pescara and the other
+  way to L'Aquila. The piazza has the bronze statue of Ovid on his pedestal (his plaque
+  says OVID) and a fountain. Terracotta vases with red geraniums stand on the balconies:
+  walk past one (within 44 pixels along its balcony) and you knock it off; it falls
+  straight down and smashes on the first enemy it meets, or the street, and is gone for
+  good. It never hurts Fabio. The medieval aqueduct (three Gothic arches, twice over) has a
+  brass tap on the street in front of it: stand within about 90 pixels of it and tap up (or punch it), and the wheel turns and
+  water pours from every arch for 14 seconds, splashing at the foot, and washes away every
+  enemy under a curtain. Friends' pickups lie on the apartment roofs too. A stone stair leads up to the walkway along the top. The city is cut from
+  `assets/source/city_props.png` (Ovid, aqueduct, tap, water, cars, vases, fountain) and
+  `thai_shop.png` (the masseuses, sign, lanterns, flower boxes), generated with Codex; the
+  road signs, buildings and paving are drawn in code. Every sprite strip now wraps its frame
+  number, so animations can simply count time.
 - Every pipe is a warp pipe, marked by a green arrow and a glow. Stand on the cap and tap
   down: Fabio sinks into the pipe, the screen fades, and he rises out of a secret cave
   under it. Every cave is a closed treasure room (always the same for the same pipe

@@ -14,16 +14,21 @@
 
 #define TILE 32
 #define LEVEL_ROWS 17
-#define LEVEL_COLS 520
+#define LEVEL_COLS 600
 #define GROUND_ROW 13
 #define MAX_DRUM_KITS 8
 #define MAX_LEVEL_ITEMS 512
 #define MAX_LEVEL_DECOR 256
-#define MAX_LEVEL_PLATFORMS 64
+#define MAX_LEVEL_PLATFORMS 128
+#define MAX_BUILDINGS 16
+#define MAX_VASES 16
+#define MAX_SPOUTS 8
 #define MAX_WARPS 12
 #define CAVE_COLS 48
 #define DESERT_COL 150 /* where the desert begins, and */
 #define SNOW_COL 310   /* the snow, in the main level */
+#define CITY_COL 440   /* and the city of Sulmona, just before the castle */
+#define BALCONY_STEP 96.0f /* the height of a floor: every balcony and roof is a multiple of it above the street */
 
 typedef enum {
   TILE_EMPTY = 0,
@@ -55,7 +60,7 @@ typedef enum {
 
 /* The scenery zones: the level runs from forest through desert into snow before the
  * castle, and a secret cave sits under the warp pipes. */
-typedef enum { BIOME_FOREST, BIOME_DESERT, BIOME_SNOW, BIOME_CAVE, BIOME_COUNT } biome_t;
+typedef enum { BIOME_FOREST, BIOME_DESERT, BIOME_SNOW, BIOME_CAVE, BIOME_CITY, BIOME_COUNT } biome_t;
 
 /* The first three are drawn procedurally (look.trees); the rest are cooked sprites, one strip
  * per kind with `variant` picking the frame. */
@@ -75,6 +80,11 @@ typedef enum {
   DECOR_MUSHROOM,
   DECOR_STALAGMITE,
   DECOR_STALACTITE, /* hangs from the ceiling: `y` is where it attaches, not a base */
+  DECOR_CAR,        /* the city's parked cars: four variants */
+  DECOR_OVID,       /* the statue of Ovid */
+  DECOR_FOUNTAIN,   /* a fountain in the piazza: two frames */
+  DECOR_WELCOME,    /* the sign "Welcome to Sulmona!", drawn in code from here on */
+  DECOR_SIGNPOST,   /* Pescara one way, L'Aquila the other */
   DECOR_KIND_COUNT
 } decor_kind_t;
 #define DECOR_PROCEDURAL 3
@@ -94,7 +104,11 @@ typedef struct {
  * rises and falls beside a ledge. Each is a pure function of the time, so the
  * level only stores where it swings about and how far. A plank is solid from
  * above only. */
-typedef enum { PLATFORM_SLIDER, PLATFORM_LIFT } platform_kind_t;
+typedef enum {
+  PLATFORM_SLIDER,
+  PLATFORM_LIFT,
+  PLATFORM_STATIC /* a city balcony, roof, aqueduct deck or car roof: it stays put, and the city draws it */
+} platform_kind_t;
 
 typedef struct {
   platform_kind_t kind;
@@ -104,6 +118,17 @@ typedef struct {
   float period;  /* seconds for a full swing there and back */
   float phase;   /* radians into the swing at time zero */
 } platform_def_t;
+
+/* The city's buildings are drawn in code, in front of the sky and behind Fabio: only their
+ * balconies and roofs (static planks) can be stood on. */
+typedef enum { BUILDING_APARTMENT, BUILDING_HOTEL, BUILDING_THAI, BUILDING_SHOP, BUILDING_KIND_COUNT } building_kind_t;
+typedef struct {
+  building_kind_t kind;
+  int variant;
+  float x;     /* left edge */
+  float w;
+  int floors;  /* the roof is `floors` * BALCONY_STEP up */
+} building_t;
 
 typedef struct {
   uint8_t tiles[LEVEL_ROWS][LEVEL_COLS];
@@ -124,6 +149,17 @@ typedef struct {
   int warp_count;         /* warp pipes: Fabio presses down on one to go through */
   int warp_col[MAX_WARPS]; /* the left column of each */
   int warp_row[MAX_WARPS]; /* and its top row: he stands on the cap */
+  building_t buildings[MAX_BUILDINGS];
+  int building_count;
+  int vase_count;                 /* terracotta vases standing on the balconies */
+  float vase_x[MAX_VASES], vase_y[MAX_VASES]; /* the middle of the base */
+  int vase_plank[MAX_VASES];      /* the balcony each stands on */
+  bool has_aqueduct;              /* the medieval aqueduct, with its tap */
+  float aqueduct_x0, aqueduct_x1; /* where it begins and ends */
+  float aqueduct_deck;            /* the walkway along the top: its y */
+  float tap_x;                    /* the water tap on the street: up turns it on */
+  int spout_count;
+  float spout_x[MAX_SPOUTS];      /* the middle of each water curtain */
   int guardian;           /* in a cave: 0 none, 1 a gorilla, 2 the slop monster */
   float guardian_x;
   float spawn_x, spawn_y; /* middle of the feet */

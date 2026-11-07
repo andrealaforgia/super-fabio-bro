@@ -12,7 +12,7 @@ static const test_group_t groups[] = {
           {"level", run_level_tests},
     {"physics", run_physics_tests}, {"player", run_player_tests},
     {"enemy", run_enemy_tests},     {"combat", run_combat_tests},
-    {"book_reader", run_book_reader_tests}, {"score_popups", run_score_popup_tests}, {"monk", run_monk_tests}, {"chef", run_chef_tests}, {"platforms", run_platform_tests}, {"gorilla", run_gorilla_tests}, {"demon", run_demon_tests}, {"helicopter", run_helicopter_tests}, {"drums", run_drum_tests}, {"bubbles", run_bubble_tests}, {"slop", run_slop_tests}, {"jedi", run_jedi_tests}, {"warps", run_warp_tests}, {"allies", run_ally_tests}, {"bot", run_bot_tests},         {"scenery", run_scenery_tests},
+    {"book_reader", run_book_reader_tests}, {"score_popups", run_score_popup_tests}, {"monk", run_monk_tests}, {"chef", run_chef_tests}, {"platforms", run_platform_tests}, {"gorilla", run_gorilla_tests}, {"demon", run_demon_tests}, {"helicopter", run_helicopter_tests}, {"drums", run_drum_tests}, {"bubbles", run_bubble_tests}, {"slop", run_slop_tests}, {"jedi", run_jedi_tests}, {"warps", run_warp_tests}, {"allies", run_ally_tests}, {"city", run_city_tests}, {"bot", run_bot_tests},         {"scenery", run_scenery_tests},
     {"sprites", run_sprites_tests}, {"audio", run_audio_tests},
 };
 

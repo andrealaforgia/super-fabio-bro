@@ -34,6 +34,7 @@ static void die(world_t* world) {
   player_t* p = &world->player;
   p->alive = false;
   p->flying = false;
+  p->chute = false;
   p->hp = 0;
   p->vy = -560.0f;
   p->vx = 0.0f;
@@ -85,6 +86,7 @@ static void fall_into_pit(world_t* world) {
   }
   p->x = p->safe_x;
   p->y = p->safe_y;
+  p->chute = false;
   p->platform = -1;
   p->vx = p->vy = 0.0f;
   p->invulnerable = 2.0f;
@@ -148,7 +150,7 @@ static void jump_and_fall(world_t* world, const controls_t* controls, float dt) 
     p->grounded = false;
     world_emit(world, EVENT_JUMP, p->x);
   }
-  p->vy = fminf(p->vy + GRAVITY * dt, MAX_FALL);
+  p->vy = fminf(p->vy + GRAVITY * dt, p->chute ? PARACHUTE_FALL : MAX_FALL);
   /* Letting go of jump early makes a short hop. */
   if (!controls_held(controls, BTN_JUMP) && p->vy < -CUT_JUMP_SPEED && p->hurt_timer <= 0.0f)
     p->vy += GRAVITY * 2.0f * dt;
@@ -220,6 +222,7 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
                     (controls_held(controls, BTN_LEFT) ? 1.0f : 0.0f);
   float top_speed = controls_held(controls, BTN_RUN) ? RUN_SPEED : WALK_SPEED;
   if (p->flying) top_speed *= HELICOPTER_SPEEDUP;
+  if (p->chute) top_speed = WALK_SPEED * PARACHUTE_DRIFT;
   if (p->hurt_timer <= 0.0f) {
     if (direction != 0.0f) {
       float accel = p->grounded ? 2400.0f : 1500.0f;
@@ -237,6 +240,14 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
     }
   }
 
+  /* Jump out of the helicopter: tap jump (or up) twice quickly, or tap it holding down. */
+  p->tap_window += dt;
+  if (p->flying && (controls_pressed(controls, BTN_JUMP) || controls_pressed(controls, BTN_UP))) {
+    if (p->tap_window < 0.35f || controls_held(controls, BTN_DOWN)) helicopter_bail_out(world);
+    else p->tap_window = 0.0f;
+  }
+  if (p->chute) p->chute_age += dt;
+  p->landing = fmaxf(0.0f, p->landing - dt);
   if (p->flying) fly(p, controls, dt);
   else jump_and_fall(world, controls, dt);
 
@@ -248,6 +259,14 @@ void player_update(world_t* world, const controls_t* controls, float dt) {
   p->grounded = moved.grounded;
   if (p->flying) keep_flying_in_bounds(p);
   platforms_land(world, p, feet_before);
+  if (p->chute && (p->grounded || p->y > (float)(GROUND_ROW * TILE) + 8.0f)) { /* touchdown (or into a pit) */
+    p->chute = false;
+    if (p->grounded) {
+      p->landing = PARACHUTE_LANDING_SECONDS;
+      p->vx = 0.0f;
+      world_add_effect(world, FX_CHUTE_REMAINS, p->x - (float)p->facing * 30.0f, p->y, PARACHUTE_REMAINS_SECONDS, p->facing);
+    }
+  }
   if (moved.hit_ceiling) world_bump_block(world, moved.ceiling_col, moved.ceiling_row);
 
   if (p->grounded && fabsf(p->vx) > 8.0f)

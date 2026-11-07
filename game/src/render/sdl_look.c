@@ -130,5 +130,8 @@ void look_free(look_t* look) {
 }
 
 const sprite_t* look_sprite(const look_t* look, pose_t pose) {
-  return &look->frames[pose.strip][pose.frame];
+  /* Any frame number will do: it wraps round the strip, so callers can just count time. */
+  int count = kStripSpecs[pose.strip].frames;
+  int frame = count > 0 ? ((pose.frame % count) + count) % count : 0;
+  return &look->frames[pose.strip][frame];
 }

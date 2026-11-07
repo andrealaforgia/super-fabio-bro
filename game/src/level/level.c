@@ -26,6 +26,7 @@ float level_pixel_width(const level_t* level) {
 
 biome_t level_biome_at(const level_t* level, int col) {
   if (level->cave) return BIOME_CAVE;
+  if (col >= CITY_COL) return BIOME_CITY;
   return col >= SNOW_COL ? BIOME_SNOW : (col >= DESERT_COL ? BIOME_DESERT : BIOME_FOREST);
 }
 float level_height(void) { return (float)(LEVEL_ROWS * TILE); }
@@ -157,6 +158,11 @@ static item_kind_t roll_content(generator_t* g) {
     g->since_potion = 0;
     return ITEM_POTION;
   }
+  if (g->since_ally > 50 || rng_chance(&g->rng, 0.14f)) { /* friends turn up often */
+    g->since_ally = 0;
+    int pick = rng_range(&g->rng, 0, 2);
+    return pick == 0 ? ITEM_SUSHI : (pick == 1 ? ITEM_DRAGON : ITEM_GLOVES);
+  }
   if (g->since_pistol > 110 || rng_chance(&g->rng, 0.04f)) {
     g->since_pistol = 0;
     return ITEM_PISTOL;
@@ -168,11 +174,6 @@ static item_kind_t roll_content(generator_t* g) {
   if (g->since_saber > 150 || rng_chance(&g->rng, 0.03f)) {
     g->since_saber = 0;
     return ITEM_LIGHTSABER;
-  }
-  if (g->since_ally > 130 || rng_chance(&g->rng, 0.04f)) {
-    g->since_ally = 0;
-    int pick = rng_range(&g->rng, 0, 2);
-    return pick == 0 ? ITEM_SUSHI : (pick == 1 ? ITEM_DRAGON : ITEM_GLOVES);
   }
   if (rng_chance(&g->rng, 0.2f)) return ITEM_MUSHROOM;
   return ITEM_COIN;
@@ -294,6 +295,140 @@ static void stairs(generator_t* g, int steps, bool descend) {
   g->since_hazard = 0;
 }
 
+
+/* ---- The city of Sulmona, between the snow and the castle ------------------------------
+ * A flat street. The buildings are scenery drawn in code; what Fabio can stand on are their
+ * balconies and roofs (static planks, solid from above), the roofs of the parked cars, and the
+ * walkway along the top of the medieval aqueduct, reached by a stone stair. */
+
+static void add_item_at(generator_t* g, float x, float y, item_kind_t kind) {
+  level_t* level = g->level;
+  if (level->item_count >= MAX_LEVEL_ITEMS) return;
+  placement_t* item = &level->items[level->item_count++];
+  item->kind = kind;
+  item->x = x;
+  item->y = y;
+}
+
+static int add_static_plank(generator_t* g, float cx, float top, float w) {
+  int index = g->level->platform_count;
+  add_platform(g, PLATFORM_STATIC, cx, top, w, 0.0f, 1.0f, 0.0f);
+  return g->level->platform_count > index ? index : -1;
+}
+
+static void add_vase(generator_t* g, float x, float y, int plank) {
+  level_t* level = g->level;
+  if (plank < 0 || level->vase_count >= MAX_VASES) return;
+  level->vase_x[level->vase_count] = x;
+  level->vase_y[level->vase_count] = y;
+  level->vase_plank[level->vase_count] = plank;
+  level->vase_count++;
+}
+
+static void building(generator_t* g, building_kind_t kind, int columns, int floors) {
+  level_t* level = g->level;
+  float ground = (float)(GROUND_ROW * TILE);
+  float x = (float)(g->x * TILE), w = (float)(columns * TILE), cx = x + w * 0.5f;
+  flat(g, columns, false);
+  if (level->building_count >= MAX_BUILDINGS) return;
+  level->buildings[level->building_count++] = (building_t){kind, rng_range(&g->rng, 0, 2), x, w, floors};
+  for (int f = 1; f < floors; f++) { /* a balcony at each floor above the street, with a vase on it */
+    float bw = fminf(w - 2.0f * TILE, 4.0f * TILE);
+    float top = ground - (float)f * BALCONY_STEP;
+    int plank = add_static_plank(g, cx, top, bw);
+    add_vase(g, cx - bw * 0.5f + 18.0f, top, plank);
+    if (bw > 3.0f * TILE) add_vase(g, cx + bw * 0.5f - 18.0f, top, plank);
+    add_item_at(g, cx, top - 34.0f, ITEM_COIN);
+  }
+  float roof = ground - (float)floors * BALCONY_STEP;
+  add_static_plank(g, cx, roof, w);
+  for (int c = 1; c < columns - 1; c += 2) {
+    /* A potion up on the first roof and on every hotel's: the climb is the price. */
+    bool potion = (kind == BUILDING_HOTEL || level->building_count == 1) && c == ((columns / 2) | 1);
+    add_item_at(g, x + (float)c * TILE + 16.0f, roof - 34.0f, potion ? ITEM_POTION : ITEM_COIN);
+  }
+  if (kind == BUILDING_APARTMENT) { /* and a friend's pickup on each apartment roof */
+    static const item_kind_t kFriends[3] = {ITEM_SUSHI, ITEM_DRAGON, ITEM_GLOVES};
+    add_item_at(g, x + w * 0.5f - 16.0f + (level->building_count % 2) * 32.0f, roof - 34.0f, kFriends[level->building_count % 3]);
+  }
+  g->since_hazard = 0;
+}
+
+/* A parked car: four columns of street, with its roof to stand on. */
+static void parked_car(generator_t* g, int variant) {
+  float x = (float)(g->x * TILE) + 2.0f * TILE;
+  add_decor(g, DECOR_CAR, g->x + 1);
+  decor_t* d = &g->level->decor[g->level->decor_count - 1];
+  d->x = x;
+  d->variant = variant;
+  add_static_plank(g, x, (float)(GROUND_ROW * TILE) - 42.0f, 100.0f);
+  add_item_at(g, x, (float)(GROUND_ROW * TILE) - 72.0f, ITEM_COIN);
+  flat(g, 4, false);
+}
+
+#define AQUEDUCT_SEGMENTS 2
+#define AQUEDUCT_SEGMENT_W 400.0f /* three arches: the sprite is 401 wide, and they overlap by a pixel */
+#define AQUEDUCT_DECK 160.0f      /* how high the walkway along the top is above the street */
+
+static void aqueduct(generator_t* g) {
+  level_t* level = g->level;
+  float ground = (float)(GROUND_ROW * TILE);
+  flat(g, 2, false);
+  level->tap_x = (float)(g->x * TILE) + 16.0f; /* the tap, on the street */
+  flat(g, 2, false);
+  stairs(g, 3, false); /* stone steps up to the walkway; the far side is a drop */
+  level->aqueduct_x0 = (float)((g->x - 1) * TILE);
+  level->aqueduct_x1 = level->aqueduct_x0 + AQUEDUCT_SEGMENT_W * AQUEDUCT_SEGMENTS;
+  level->has_aqueduct = true;
+  level->aqueduct_deck = ground - AQUEDUCT_DECK;
+  float length = level->aqueduct_x1 - level->aqueduct_x0;
+  flat(g, (int)(length / TILE) - 1, false);
+  add_static_plank(g, level->aqueduct_x0 + length * 0.5f, ground - AQUEDUCT_DECK, length);
+  /* The water falls through the arches, whose middles are at these shares of a segment. */
+  static const float kArch[3] = {0.185f, 0.5f, 0.8f};
+  for (int seg = 0; seg < AQUEDUCT_SEGMENTS; seg++)
+    for (int a = 0; a < 3 && level->spout_count < MAX_SPOUTS; a++)
+      level->spout_x[level->spout_count++] = level->aqueduct_x0 + ((float)seg + kArch[a]) * (AQUEDUCT_SEGMENT_W - 1.0f);
+  for (float x = level->aqueduct_x0 + 64.0f; x < level->aqueduct_x1 - 32.0f; x += 64.0f)
+    add_item_at(g, x, ground - AQUEDUCT_DECK - 34.0f,
+                fabsf(x - (level->aqueduct_x0 + level->aqueduct_x1) * 0.5f) < 32.0f ? ITEM_POTION : ITEM_COIN);
+  g->since_hazard = 0;
+}
+
+static void city(generator_t* g) {
+  level_t* level = g->level;
+  while (g->x < CITY_COL) flat(g, 1, false);
+  flat(g, 3, false);
+  add_decor(g, DECOR_WELCOME, g->x + 1); /* "Welcome to Sulmona!" over the first stretch of street */
+  flat(g, 5, false);
+  building(g, BUILDING_APARTMENT, 7, 3);
+  parked_car(g, 0);
+  building(g, BUILDING_THAI, 6, 2);
+  flat(g, 1, false);
+  parked_car(g, 1);
+  building(g, BUILDING_HOTEL, 8, 3);
+  flat(g, 2, false);
+  add_decor(g, DECOR_SIGNPOST, g->x + 1); /* Pescara one way, L'Aquila the other */
+  flat(g, 4, false);
+  /* The piazza: Ovid on his pedestal, and a fountain. */
+  flat(g, 2, false);
+  add_decor(g, DECOR_OVID, g->x + 1);
+  flat(g, 5, false);
+  add_decor(g, DECOR_FOUNTAIN, g->x + 1);
+  flat(g, 3, false);
+  building(g, BUILDING_APARTMENT, 7, 3);
+  flat(g, 1, false);
+  building(g, BUILDING_THAI, 6, 2);
+  parked_car(g, 2);
+  aqueduct(g);
+  flat(g, 2, false);
+  building(g, BUILDING_SHOP, 6, 2);
+  parked_car(g, 3);
+  building(g, BUILDING_HOTEL, 7, 3);
+  flat(g, 3, false);
+  level->vase_count = level->vase_count < MAX_VASES ? level->vase_count : MAX_VASES;
+}
+
 static void castle(generator_t* g) {
   level_t* level = g->level;
   int steps = 5;
@@ -350,7 +485,7 @@ void level_generate(level_t* level, uint32_t seed) {
   pipe(g); /* a warp pipe to try, just past the opening */
 
   g->counted_x = g->x;
-  while (g->x < LEVEL_COLS - 52) {
+  while (g->x < CITY_COL - 14) {
     g->since_potion += g->x - g->counted_x;
     g->since_pistol += g->x - g->counted_x;
     g->since_bubble_gun += g->x - g->counted_x;
@@ -387,6 +522,7 @@ void level_generate(level_t* level, uint32_t seed) {
       stairs(g, steps, true);
     }
   }
+  city(g);
   castle(g);
 }
 

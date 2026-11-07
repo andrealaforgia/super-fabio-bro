@@ -96,6 +96,13 @@
 #define HELICOPTER_SPEEDUP 1.1f /* his walking and running speeds, sideways, in it */
 #define HELICOPTER_CEILING 140.0f /* the highest his skids go: under the scoreboard */
 #define HELICOPTER_BOOM_SECONDS 0.9f /* seven frames */
+/* Jumping out of the helicopter (jump while holding down) opens a parachute, which drops him
+ * slowly and gently, lets him steer, shoot and land. */
+#define PARACHUTE_FALL 115.0f      /* the most he falls per second under it */
+#define PARACHUTE_DRIFT 0.75f      /* the share of his walking speed he can steer at */
+#define PARACHUTE_OPEN_SECONDS 0.3f
+#define PARACHUTE_LANDING_SECONDS 0.5f
+#define PARACHUTE_REMAINS_SECONDS 2.0f
 /* Fabio's drum kit. He jumps into it and plays by himself for DRUM_SECONDS, as
  * untouchable as in the helicopter, and the kit shouts a word every
  * DRUM_WORD_EVERY seconds: it swells into a ring DRUM_WORD_RADIUS wide over
@@ -167,6 +174,9 @@ typedef enum {
   EVENT_DRUM_BODOBOOOM,
   EVENT_DRUM_BOING,
   EVENT_DRUM_DISH,
+  EVENT_PARACHUTE_OPENS,
+  EVENT_VASE_SMASHES,
+  EVENT_WATER_ON,
   EVENT_KIND_COUNT
 } event_kind_t;
 
@@ -199,6 +209,10 @@ typedef struct {
   int platform; /* the plank he stands on (an index into the level's), or -1 */
   bool flying;  /* he is in the helicopter */
   float fuel;   /* seconds of flight left */
+  bool chute;       /* he is coming down under the parachute */
+  float chute_age;  /* seconds since it opened */
+  float landing;    /* seconds left of the touchdown, the canopy collapsing round him */
+  float tap_window; /* seconds since the last jump tap in the helicopter: a second one bails out */
 } player_t;
 
 /* The book reader is no enemy: he reads Fabio's book, laughs and does no harm.
@@ -352,7 +366,8 @@ typedef enum {
   FX_ALLY_PUNCH, /* Giulia's punch burst, 4 frames */
   FX_FORCE_HIT, /* a green burst meeting an enemy, 6 frames */
   FX_SLOP_DEATH, /* the slop monster tearing into noise and dripping away, 8 frames */
-  FX_SLOP_SPLAT  /* a ball of slop landing, 6 frames */
+  FX_SLOP_SPLAT, /* a ball of slop landing, 6 frames */
+  FX_CHUTE_REMAINS /* the crumpled parachute he leaves on the ground */
 } fx_kind_t;
 
 typedef struct {
@@ -389,6 +404,24 @@ typedef struct {
   bool present;
   float x, y; /* middle, and the skids */
 } helicopter_t;
+
+/* A terracotta vase on a balcony: Fabio knocks it off as he walks by, and it drops on whatever is
+ * below. It is a vase once only. */
+typedef enum { VASE_STANDING, VASE_FALLING, VASE_SMASHED } vase_state_t;
+typedef struct {
+  vase_state_t state;
+  float x, y; /* the middle of its base while it falls */
+  float vy;
+} vase_t;
+#define VASE_W 24.0f
+#define VASE_H 30.0f
+#define VASE_KNOCK_RANGE 44.0f /* how near he has to walk, along the balcony */
+
+/* The aqueduct's tap: with the water on, curtains fall from its arches for WATER_SECONDS and
+ * whatever is under one is washed away. */
+#define WATER_SECONDS 14.0f
+#define WATER_HALF_WIDTH 24.0f
+#define TAP_RANGE 90.0f
 
 /* One of Fabio's drum kits, standing on the grass. Every jump into one starts a fresh gig. */
 typedef struct {
@@ -457,6 +490,8 @@ typedef struct {
   object_pool_t fireballs; /* fireball_t */
   object_pool_t debris;    /* debris_t */
   object_pool_t drum_words; /* drum_word_t */
+  vase_t vases[MAX_VASES];  /* in the level's order */
+  float water_left;         /* seconds of water still falling, 0 when the tap is off */
   event_system_ptr events; /* where the world announces what happens; may be NULL */
 
   uint32_t seed; /* the level was generated from this */
@@ -651,11 +686,18 @@ float demon_presence(const enemy_t* demon);
 typedef enum { BOOK_READER_READING, BOOK_READER_LAUGHING } book_reader_mood_t;
 book_reader_mood_t book_reader_mood(const enemy_t* book_reader);
 
+/* city.c: the vases and the aqueduct */
+void city_update(world_t* world, const controls_t* controls, float dt);
+/* Is the water running, and is Fabio standing at the tap? */
+bool water_running(const world_t* world);
+bool fabio_at_tap(const world_t* world);
 /* helicopter.c */
 /* Fabio lands on the resting helicopter from above and flies it, jump or up
  * to climb, down to sink, nothing to hover, until the fuel is gone after
  * HELICOPTER_FUEL_SECONDS: then it explodes and he falls, unharmed. */
 void helicopter_update(world_t* world, float dt);
+/* Jump out of the helicopter: a parachute opens if he is up in the air. */
+void helicopter_bail_out(world_t* world);
 
 /* drums.c */
 extern const char* const kDrumWords[DRUM_WORDS];

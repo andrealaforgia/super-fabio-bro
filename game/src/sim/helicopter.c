@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include "world.h"
 
 frect_t helicopter_rect(const helicopter_t* h) {
@@ -23,11 +25,34 @@ static void board(world_t* world) {
   world_emit(world, EVENT_HELICOPTER_BOARDS, p->x);
 }
 
-/* Out of fuel: it blows up where it is, and he drops out of it. */
+/* The parachute opens above the ground: he floats down under it. */
+static void open_parachute(world_t* world) {
+  player_t* p = &world->player;
+  p->chute = true;
+  p->chute_age = 0.0f;
+  p->landing = 0.0f;
+  p->vy = fminf(p->vy, PARACHUTE_FALL);
+  world_emit(world, EVENT_PARACHUTE_OPENS, p->x);
+}
+
+void helicopter_bail_out(world_t* world) {
+  player_t* p = &world->player;
+  p->flying = false;
+  p->fuel = 0.0f;
+  p->vy = -120.0f; /* a little hop out of the seat */
+  p->grounded = false;
+  p->platform = -1;
+  world_burst(world, p->x, p->y - 30.0f, 8, 230, 230, 230, 160.0f);
+  world_emit(world, EVENT_JUMP, p->x);
+  if (p->y < (float)(GROUND_ROW * TILE) - 40.0f) open_parachute(world);
+}
+
+/* Out of fuel: it blows up where it is, and he drops out of it, under a parachute if he is up high. */
 static void explode(world_t* world) {
   player_t* p = &world->player;
   p->flying = false;
   p->fuel = 0.0f;
+  if (p->y < (float)(GROUND_ROW * TILE) - 40.0f) open_parachute(world);
   world_add_effect(world, FX_HELICOPTER_BOOM, p->x, p->y, HELICOPTER_BOOM_SECONDS, p->facing);
   world_emit(world, EVENT_HELICOPTER_EXPLODES, p->x);
 }

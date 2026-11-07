@@ -1,4 +1,5 @@
 #include "render.h"
+#include "sdl_city.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -77,11 +78,11 @@ static void draw_texture_centred(const frame_t* f, texture_t texture, float cx,
 /* How much of each zone is in view: the middle column of the screen against where the zones
  * begin, blended over 24 columns. The desert stays under the snow while the snow fades in. */
 typedef struct {
-  float desert, snow, cave;
+  float desert, snow, cave, city;
 } zone_mix_t;
 
 static zone_mix_t zone_mix(const frame_t* f) {
-  zone_mix_t m = {0.0f, 0.0f, 0.0f};
+  zone_mix_t m = {0.0f, 0.0f, 0.0f, 0.0f};
   if (f->world->level.cave) {
     m.cave = 1.0f;
     return m;
@@ -89,14 +90,16 @@ static zone_mix_t zone_mix(const frame_t* f) {
   float col = (f->cam_x + f->view_w * 0.5f) / (float)TILE;
   m.desert = clampf((col - (float)(DESERT_COL - 12)) / 24.0f, 0.0f, 1.0f);
   m.snow = clampf((col - (float)(SNOW_COL - 12)) / 24.0f, 0.0f, 1.0f);
+  m.city = clampf((col - (float)(CITY_COL - 12)) / 24.0f, 0.0f, 1.0f);
   return m;
 }
 
 static void blend_tint(const uint8_t base[3], const uint8_t desert[3], const uint8_t snow[3],
-                       const uint8_t cave[3], zone_mix_t m, uint8_t out[3]) {
+                       const uint8_t cave[3], const uint8_t city[3], zone_mix_t m, uint8_t out[3]) {
   for (int c = 0; c < 3; c++) {
     float v = lerpf((float)base[c], (float)desert[c], m.desert);
     v = lerpf(v, (float)snow[c], m.snow);
+    v = lerpf(v, (float)city[c], m.city);
     out[c] = (uint8_t)lerpf(v, (float)cave[c], m.cave);
   }
 }
@@ -108,7 +111,7 @@ static void draw_backdrop(const frame_t* f) {
   draw_options_t sky = {false, 1.0f, 0.0f, true, theme.sky[0], theme.sky[1], theme.sky[2]};
   render_sprite(f->gfx, &f->look->sky, NULL, rect(0, 0, f->view_w, VIEW_HEIGHT), &sky);
   /* The desert's amber sky, then the snow's pale one, then the cave's dark: each fades in over the last. */
-  const float zone_alpha[BIOME_COUNT] = {0.0f, mix.desert, mix.snow, mix.cave};
+  const float zone_alpha[BIOME_COUNT] = {0.0f, mix.desert, mix.snow, mix.cave, mix.city};
   for (int zone = BIOME_DESERT; zone < BIOME_COUNT; zone++) {
     if (zone_alpha[zone] <= 0.0f) continue;
     draw_options_t fade = {false, zone_alpha[zone], 0.0f, false, 0, 0, 0};
@@ -133,14 +136,15 @@ static void draw_backdrop(const frame_t* f) {
   static const uint8_t kDesert[MOUNTAIN_LAYERS][3] = {{255, 225, 170}, {240, 200, 140}, {215, 170, 110}};
   static const uint8_t kSnow[MOUNTAIN_LAYERS][3] = {{235, 245, 255}, {225, 238, 252}, {205, 228, 245}};
   static const uint8_t kCave[MOUNTAIN_LAYERS][3] = {{90, 60, 150}, {70, 46, 120}, {52, 34, 96}};
+  static const uint8_t kCity[MOUNTAIN_LAYERS][3] = {{214, 170, 190}, {186, 140, 170}, {150, 112, 148}}; /* the dusk behind the rooftops */
   static const float factor[MOUNTAIN_LAYERS] = {0.08f, 0.2f, 0.38f};
   float span = (float)(LAYER_W * SCENERY_PIXEL);
   for (int layer = 0; layer < MOUNTAIN_LAYERS; layer++) {
     float offset = fmodf(f->cam_x * factor[layer] + theme.scroll * span, span);
     uint8_t c[3];
-    blend_tint(theme.layer[layer], kDesert[layer], kSnow[layer], kCave[layer], mix, c);
+    blend_tint(theme.layer[layer], kDesert[layer], kSnow[layer], kCave[layer], kCity[layer], mix, c);
     /* No pine forest on the horizon in the desert: the nearest ridge fades out there. */
-    float alpha = layer == MOUNTAIN_LAYERS - 1 ? 1.0f - mix.desert * (1.0f - mix.snow) : 1.0f;
+    float alpha = layer == MOUNTAIN_LAYERS - 1 ? (1.0f - mix.desert * (1.0f - mix.snow)) * (1.0f - mix.city) : 1.0f;
     if (alpha < 0.01f) continue; /* (an alpha of exactly 0 would mean opaque) */
     draw_options_t tint = {false, alpha, 0.0f, true, c[0], c[1], c[2]};
     for (float x = -offset; x < f->view_w; x += span)
@@ -153,13 +157,15 @@ static void draw_decor(const frame_t* f) {
   const level_t* level = &f->world->level;
   for (int i = 0; i < level->decor_count; i++) {
     const decor_t* d = &level->decor[i];
+    if (city_draw_decor(f->gfx, f->look, d, f->cam_x)) continue;
     if (d->kind >= DECOR_PROCEDURAL) { /* a cooked sprite: standing, or hanging from the ceiling */
-      const sprite_t* s = look_sprite(f->look, pose_decor(d->kind, d->variant));
+      int variant = d->kind == DECOR_FOUNTAIN ? (int)(f->world->time * 4.0f) : d->variant; /* the jet plays */
+      const sprite_t* s = look_sprite(f->look, pose_decor(d->kind, variant));
       if (d->x + (float)s->w < f->cam_x || d->x - (float)s->w > f->cam_x + f->view_w) continue;
       if (d->kind == DECOR_STALACTITE)
         render_sprite(f->gfx, &s->texture, NULL, rect(d->x - (float)s->w * 0.5f - f->cam_x, d->y - 2.0f, (float)s->w, (float)s->h), NULL);
       else
-        draw_sprite(f, pose_decor(d->kind, d->variant), d->x, d->y + 2.0f, 1.0f, false, 1.0f);
+        draw_sprite(f, pose_decor(d->kind, variant), d->x, d->y + 2.0f, 1.0f, false, 1.0f);
       continue;
     }
     texture_t tree = f->look->trees[d->kind];
@@ -211,6 +217,10 @@ static void draw_tiles(const frame_t* f) {
       float y = (float)(row * TILE) + bump_offset(f->world, col, row);
       switch (tile) {
         case TILE_GRASS:
+          if (level_biome_at(level, col) == BIOME_CITY) {
+            city_draw_ground_tile(f->gfx, f->cam_x, x, y, true, col);
+            break;
+          }
           if (level_biome_at(level, col) != BIOME_FOREST) { /* sand, snow or cave rock on top */
             draw_tile_pose(f, pose_ground(level_biome_at(level, col), false, col), x, y);
             break;
@@ -227,7 +237,8 @@ static void draw_tiles(const frame_t* f) {
           }
           break;
         case TILE_ROCK:
-          if (level_biome_at(level, col) != BIOME_FOREST) draw_tile_pose(f, pose_ground(level_biome_at(level, col), true, col + row), x, y);
+          if (level_biome_at(level, col) == BIOME_CITY) city_draw_ground_tile(f->gfx, f->cam_x, x, y, false, col);
+          else if (level_biome_at(level, col) != BIOME_FOREST) draw_tile_pose(f, pose_ground(level_biome_at(level, col), true, col + row), x, y);
           else draw_tile_sprite(f, STRIP_GROUND_ROCK, x, y);
           break;
         case TILE_BRICK: draw_tile_sprite(f, STRIP_TILE_BRICK, x, y); break;
@@ -259,6 +270,7 @@ static void draw_platforms(const frame_t* f) {
   for (int i = 0; i < world->level.platform_count; i++) {
     const platform_def_t* def = &world->level.platforms[i];
     const plank_t* plank = &world->planks[i];
+    if (def->kind == PLATFORM_STATIC) continue; /* the city draws its own balconies and roofs */
     float left = plank->x - def->w * 0.5f - f->cam_x;
     if (left > f->view_w + 40.0f || left + def->w < -40.0f) continue;
     float top = plank->top;
@@ -531,11 +543,11 @@ static void draw_greeting(const frame_t* f) {
 static void draw_weather(const frame_t* f) {
   zone_mix_t mix = zone_mix(f);
   float t = f->world->time;
-  for (int i = 0; i < 90 && mix.snow > 0.0f; i++) {
+  for (int i = 0; i < 90 && mix.snow > 0.0f && mix.city < 1.0f; i++) {
     float x = fmodf((float)i * 137.5f + sinf(t * 0.7f + (float)i) * 18.0f + t * 22.0f, f->view_w);
     float y = fmodf((float)i * 53.7f + t * (42.0f + (float)(i % 5) * 14.0f), (float)VIEW_HEIGHT);
     float size = 2.0f + (float)(i % 3);
-    fill_rect(f->gfx, rect(x, y, size, size), 255, 255, 255, (uint8_t)(210.0f * mix.snow * (1.0f - mix.cave)));
+    fill_rect(f->gfx, rect(x, y, size, size), 255, 255, 255, (uint8_t)(210.0f * mix.snow * (1.0f - mix.cave) * (1.0f - mix.city)));
   }
   for (int i = 0; i < 36 && mix.desert > 0.0f && mix.snow < 1.0f; i++) {
     float speed = 260.0f + (float)(i % 4) * 90.0f;
@@ -609,7 +621,7 @@ static void draw_player(const frame_t* f) {
     lean = (fabsf(p->vx) > 230.0f ? 5.0f : 3.0f) * (float)p->facing;
   }
   const sprite_t* sprite = look_sprite(f->look, pose_player(p));
-  float scale = p->flying ? 1.0f : FABIO_SCALE; /* the helicopter is cooked at the size it is drawn */
+  float scale = (p->flying || p->chute || p->landing > 0.0f) ? 1.0f : FABIO_SCALE; /* the helicopter and the parachute are cooked at the size they are drawn */
   float w = (float)sprite->w * scale, h = (float)sprite->h * scale;
   float ax = (float)sprite->anchor_x * scale;
   bool flip = p->facing < 0;
@@ -657,6 +669,11 @@ static void draw_effects(const frame_t* f) {
       float left = fx->duration - fx->age;
       draw_sprite(f, pose_slop_effect(fx->kind, fx->age, fx->duration), fx->x, fx->y, 1.0f,
                   fx->facing < 0, left < 0.15f ? left / 0.15f : 1.0f);
+      continue;
+    }
+    if (fx->kind == FX_CHUTE_REMAINS) { /* the crumpled canopy, lying where he landed, fading at the end */
+      float left = fx->duration - fx->age;
+      draw_sprite(f, pose_effect(fx->kind), fx->x, fx->y + 1.0f, 1.0f, fx->facing < 0, left < 0.5f ? fmaxf(left / 0.5f, 0.05f) : 1.0f);
       continue;
     }
     if (fx->kind == FX_FORCE_HIT) {
@@ -954,9 +971,11 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
   float scale = gfx->view_scale;
   f.cam_x = floorf(world->camera_x * scale) / scale;
   draw_backdrop(&f);
+  city_draw_back(gfx, look, world, f.cam_x, f.view_w);
   draw_decor(&f);
   draw_tiles(&f);
   draw_platforms(&f);
+  city_draw_front(gfx, look, world, f.cam_x, f.view_w);
   draw_warp_hints(&f);
   draw_items(&f);
   draw_helicopter(&f);

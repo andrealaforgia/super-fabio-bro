@@ -429,6 +429,140 @@ static void the_poses_follow_the_helicopter(void) {
   CHECK(last == 6);
 }
 
+/* Up in the air, in the helicopter: he lets go of everything, then holds down and taps jump. */
+static void bail_out(world_t* world) {
+  buttons_t down = BTN_DOWN, down_jump = BTN_DOWN | BTN_JUMP;
+  step(world, &down, 0.03f);
+  step(world, &down_jump, 0.02f);
+  step(world, NULL, 0.01f);
+}
+
+static world_t* flying_high(void) {
+  world_t* world = flying();
+  world->player.y = GROUND - 250.0f;
+  world->player.vy = 0.0f;
+  world->player.fuel = HELICOPTER_FUEL_SECONDS;
+  step(world, NULL, 0.05f);
+  return world;
+}
+
+static void jumping_out_of_the_helicopter_high_up_opens_a_parachute(void) {
+  world_t* world = flying_high();
+  world_clear_events(world);
+  bail_out(world);
+  CHECK(!world->player.flying && world->player.chute);
+  CHECK(world_has_event(world, EVENT_PARACHUTE_OPENS));
+  CHECK(!world->helicopter.present); /* the helicopter does not come back */
+  world_free(world);
+}
+
+static void tapping_jump_or_up_twice_quickly_jumps_out_too(void) {
+  for (int key = 0; key < 2; key++) {
+    world_t* world = flying_high();
+    buttons_t tap = key ? BTN_UP : BTN_JUMP;
+    step(world, &tap, 0.04f);
+    step(world, NULL, 0.1f);
+    CHECK(world->player.flying);
+    step(world, &tap, 0.04f);
+    CHECK(!world->player.flying && world->player.chute);
+    world_free(world);
+  }
+}
+
+static void jump_alone_still_climbs_and_down_alone_still_sinks(void) {
+  world_t* world = flying_high();
+  buttons_t jump = BTN_JUMP, down = BTN_DOWN;
+  step(world, &jump, 0.3f);
+  CHECK(world->player.flying && !world->player.chute);
+  step(world, &down, 0.3f);
+  CHECK(world->player.flying && !world->player.chute);
+  world_free(world);
+}
+
+static void under_the_parachute_he_floats_down_slowly(void) {
+  world_t* world = flying_high();
+  bail_out(world);
+  step(world, NULL, 0.5f);
+  float y0 = world->player.y;
+  step(world, NULL, 1.0f);
+  float fell = world->player.y - y0;
+  CHECK(world->player.chute);
+  CHECK(fell > 60.0f && fell <= PARACHUTE_FALL * 1.02f);
+  CHECK(world->player.vy <= PARACHUTE_FALL + 0.5f);
+  world_free(world);
+}
+
+static void he_steers_under_the_parachute_but_not_as_fast_as_he_walks(void) {
+  world_t* world = flying_high();
+  bail_out(world);
+  buttons_t right = BTN_RIGHT | BTN_RUN;
+  float x0 = world->player.x;
+  step(world, &right, 0.8f);
+  CHECK(world->player.x > x0 + 40.0f);
+  CHECK(world->player.vx <= WALK_SPEED * PARACHUTE_DRIFT + 1.0f);
+  CHECK(world->player.facing == 1);
+  world_free(world);
+}
+
+static void he_can_still_shoot_while_parachuting(void) {
+  world_t* world = flying_high();
+  bail_out(world);
+  world->player.ammo = 5;
+  buttons_t shoot = BTN_SHOOT;
+  step(world, &shoot, 0.3f);
+  CHECK(world->player.chute);
+  CHECK(world->player.ammo < 5);
+  CHECK(world_has_event(world, EVENT_SHOOT));
+  CHECK(pose_player(&world->player).strip == STRIP_CHUTE_SHOOT);
+  world_free(world);
+}
+
+static void touching_down_closes_the_parachute_and_leaves_the_canopy_on_the_ground(void) {
+  world_t* world = flying_high();
+  bail_out(world);
+  step(world, NULL, 4.0f);
+  CHECK(world->player.grounded && !world->player.chute);
+  CHECK(world->player.landing > 0.0f || live_effects(world, FX_CHUTE_REMAINS) == 1);
+  CHECK(live_effects(world, FX_CHUTE_REMAINS) == 1);
+  CHECK(world->player.hp == PLAYER_HP); /* a soft landing */
+  step(world, NULL, PARACHUTE_REMAINS_SECONDS + 0.2f);
+  CHECK(live_effects(world, FX_CHUTE_REMAINS) == 0);
+  CHECK(world->player.landing == 0.0f);
+  world_free(world);
+}
+
+static void jumping_out_just_above_the_ground_needs_no_parachute(void) {
+  world_t* world = flying();
+  world->player.y = GROUND - 12.0f;
+  world->player.vy = 0.0f;
+  world_clear_events(world);
+  bail_out(world);
+  CHECK(!world->player.flying && !world->player.chute);
+  CHECK(!world_has_event(world, EVENT_PARACHUTE_OPENS));
+  step(world, NULL, 1.0f);
+  CHECK(world->player.grounded);
+  world_free(world);
+}
+
+static void running_out_of_fuel_up_high_opens_the_parachute_too(void) {
+  world_t* world = flying_high();
+  world->player.fuel = 0.05f;
+  step(world, NULL, 0.2f);
+  CHECK(!world->player.flying && world->player.chute);
+  world_free(world);
+}
+
+static void the_parachute_has_its_poses_and_its_sound(void) {
+  world_t* world = flying_high();
+  bail_out(world);
+  CHECK(pose_player(&world->player).strip == STRIP_CHUTE_OPEN);
+  step(world, NULL, PARACHUTE_OPEN_SECONDS + 0.1f);
+  CHECK(pose_player(&world->player).strip == STRIP_CHUTE_FALL);
+  float volume;
+  CHECK(sfx_for_event(EVENT_PARACHUTE_OPENS, &volume) == SFX_PARACHUTE && volume > 0.0f);
+  world_free(world);
+}
+
 void run_helicopter_tests(void) {
   RUN(every_level_has_one_helicopter_resting_on_open_grass);
   RUN(a_new_world_has_it_resting_and_fabio_on_foot);
@@ -458,4 +592,14 @@ void run_helicopter_tests(void) {
   RUN(on_his_last_heart_he_is_still_safe_in_it);
   RUN(the_helicopter_comes_back_with_a_new_level);
   RUN(the_poses_follow_the_helicopter);
+  RUN(jumping_out_of_the_helicopter_high_up_opens_a_parachute);
+  RUN(tapping_jump_or_up_twice_quickly_jumps_out_too);
+  RUN(jump_alone_still_climbs_and_down_alone_still_sinks);
+  RUN(under_the_parachute_he_floats_down_slowly);
+  RUN(he_steers_under_the_parachute_but_not_as_fast_as_he_walks);
+  RUN(he_can_still_shoot_while_parachuting);
+  RUN(touching_down_closes_the_parachute_and_leaves_the_canopy_on_the_ground);
+  RUN(jumping_out_just_above_the_ground_needs_no_parachute);
+  RUN(running_out_of_fuel_up_high_opens_the_parachute_too);
+  RUN(the_parachute_has_its_poses_and_its_sound);
 }

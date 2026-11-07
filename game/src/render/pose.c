@@ -125,6 +125,9 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_DECOR_MUSHROOM] = {"decor_mushroom", 0},
     [STRIP_DECOR_STALAGMITE] = {"decor_stalagmite", 2},
     [STRIP_DECOR_STALACTITE] = {"decor_stalactite", 5},
+    [STRIP_DECOR_CAR] = {"city_car", 4},
+    [STRIP_DECOR_OVID] = {"city_ovid", 0},
+    [STRIP_DECOR_FOUNTAIN] = {"city_fountain", 2},
     [STRIP_ALLY_ANDREA_IDLE] = {"ally_andrea_idle", 4},
     [STRIP_ALLY_ANDREA_WALK] = {"ally_andrea_walk", 6},
     [STRIP_ALLY_ANDREA_JUMP] = {"ally_andrea_jump", 3},
@@ -145,6 +148,20 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_ITEM_GLOVES] = {"item_gloves", 4},
     [STRIP_ALLY_POOF] = {"ally_poof", 6},
     [STRIP_SOAP_BUBBLE] = {"bubble_big", 0},
+    [STRIP_CHUTE_FALL] = {"chute_fall", 3},
+    [STRIP_CHUTE_SHOOT] = {"chute_shoot", 3},
+    [STRIP_CHUTE_OPEN] = {"chute_open", 3},
+    [STRIP_CHUTE_LAND] = {"chute_land", 4},
+    [STRIP_AQUEDUCT] = {"city_aqueduct", 0},
+    [STRIP_TAP] = {"city_tap", 4},
+    [STRIP_WATER] = {"city_water", 4},
+    [STRIP_SPLASH] = {"city_splash", 4},
+    [STRIP_VASE] = {"city_vase", 3},
+    [STRIP_THAI_WINDOW] = {"thai_window", 6},
+    [STRIP_THAI_WINDOW_B] = {"thai_window_b", 6},
+    [STRIP_THAI_SIGN] = {"thai_sign", 4},
+    [STRIP_LANTERN] = {"thai_lantern", 3},
+    [STRIP_FLOWER_BOX] = {"thai_flowers", 2},
 };
 
 static pose_t make(strip_id_t strip, int frame) {
@@ -157,6 +174,13 @@ static pose_t make(strip_id_t strip, int frame) {
 
 pose_t pose_player(const player_t* p) {
   if (!p->alive) return make(STRIP_FAB_HURT, 3);
+  if (p->chute) { /* the parachute: opening, then swaying down, shooting when he does */
+    if (p->shoot_pose > 0.0f) return make(STRIP_CHUTE_SHOOT, 1 + (int)(p->anim_time * 20.0f) % 2);
+    if (p->chute_age < PARACHUTE_OPEN_SECONDS) return make(STRIP_CHUTE_OPEN, (int)(p->chute_age / PARACHUTE_OPEN_SECONDS * 3.0f));
+    static const int sway[4] = {0, 1, 2, 1};
+    return make(STRIP_CHUTE_FALL, sway[(int)(p->anim_time * 2.0f) % 4]);
+  }
+  if (p->landing > 0.0f && p->grounded) return make(STRIP_CHUTE_LAND, p->landing > PARACHUTE_LANDING_SECONDS * 0.5f ? 0 : 1);
   if (p->flying) return make(STRIP_FAB_HELI, (int)(p->anim_time * 18.0f)); /* the rotor spins */
   if (p->hurt_timer > 0.0f) return p->jedi_time > 0.0f ? make(STRIP_FAB_JEDI_HURT, 0) : make(STRIP_FAB_HURT, 1);
   if (p->jedi_time > 0.0f) { /* the knight's robes, for as long as the Force is with him */
@@ -339,6 +363,7 @@ pose_t pose_effect(fx_kind_t kind) {
     case FX_FORCE_HIT: return make(STRIP_FORCE_HIT, 0);
     case FX_SLOP_DEATH: return make(STRIP_SLOP_DEATH, 0);
     case FX_SLOP_SPLAT: return make(STRIP_SLOP_SPLAT, 0);
+    case FX_CHUTE_REMAINS: return make(STRIP_CHUTE_LAND, 2);
   }
   return make(STRIP_FX_SMOKE, 0);
 }
@@ -371,6 +396,10 @@ pose_t pose_old_knight(float left) {
   float age = GREETING_SECONDS - left;
   bool speaking = age > GREETING_FADE_IN && left > GREETING_FADE_OUT;
   return make(STRIP_OLD_KNIGHT, speaking ? (int)(age * 7.0f) % 2 : 0);
+}
+
+pose_t pose_masseuse(int window, float time) {
+  return make(window ? STRIP_THAI_WINDOW_B : STRIP_THAI_WINDOW, (int)(time * 1.6f));
 }
 
 pose_t pose_decor(decor_kind_t kind, int variant) {

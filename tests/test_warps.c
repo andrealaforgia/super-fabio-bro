@@ -45,7 +45,7 @@ static void the_level_runs_forest_then_desert_then_snow(void) {
   CHECK(level_biome_at(level, 10) == BIOME_FOREST);
   CHECK(level_biome_at(level, DESERT_COL - 1) == BIOME_FOREST && level_biome_at(level, DESERT_COL) == BIOME_DESERT);
   CHECK(level_biome_at(level, SNOW_COL - 1) == BIOME_DESERT && level_biome_at(level, SNOW_COL) == BIOME_SNOW);
-  CHECK(level_biome_at(level, 500) == BIOME_SNOW);
+  CHECK(level_biome_at(level, CITY_COL - 1) == BIOME_SNOW && level_biome_at(level, 500) == BIOME_CITY);
   free(level);
 }
 

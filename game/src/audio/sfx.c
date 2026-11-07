@@ -140,6 +140,41 @@ static double gorilla_growl_voice(double t, double d, rng_t* r, void* s) {
   return (1.1 * lp[1] + 0.9 * lp[0] * rattle) * envelope;
 }
 
+/* A parachute opening: a puff of low-passed noise that swells and flaps, and a soft thump. */
+static double parachute_voice(double t, double d, rng_t* r, void* s) {
+  (void)d;
+  double* lp = (double*)s;
+  lp[0] += 0.08 * (noise(r) - lp[0]);
+  double flap = 0.6 + 0.4 * sin(TAU * 28.0 * t * (1.0 - t));
+  double puff = lp[0] * 3.0 * flap * fmin(1.0, t / 0.06) * decay(t, 6.0);
+  double thump = 0.5 * sin(TAU * (90.0 - 60.0 * t) * t) * decay(t, 14.0);
+  return puff + thump;
+}
+
+/* A terracotta vase on stone: a sharp crack, then a rattle of falling shards. */
+static double vase_voice(double t, double d, rng_t* r, void* s) {
+  (void)d; (void)s;
+  double crack = noise(r) * 0.9 * decay(t, 40.0);
+  double body = 0.4 * sin(TAU * (520.0 - 600.0 * t) * t) * decay(t, 18.0);
+  double shards = 0.0;
+  for (int i = 1; i <= 5; i++) {
+    double at = 0.06 + 0.055 * (double)i;
+    if (t > at) shards += 0.28 * sin(TAU * (900.0 + 330.0 * (double)i) * (t - at)) * decay(t - at, 70.0);
+  }
+  return crack + body + shards;
+}
+
+/* Water rushing on: a band of hiss that swells fast and runs on, with a gurgling wobble. */
+static double water_voice(double t, double d, rng_t* r, void* s) {
+  double* lp = (double*)s;
+  lp[0] += 0.35 * (noise(r) - lp[0]);
+  lp[1] += 0.08 * (lp[0] - lp[1]);
+  double band = lp[0] - lp[1];
+  double gurgle = 0.75 + 0.25 * sin(TAU * (9.0 + 4.0 * sin(TAU * 1.3 * t)) * t);
+  double envelope = fmin(1.0, t / 0.25) * (t < d - 0.4 ? 1.0 : (d - t) / 0.4);
+  return band * 1.8 * gurgle * envelope;
+}
+
 /* A pipe: a falling square-wave slide with a wobble, ending in a soft thud. */
 static double warp_voice(double t, double d, rng_t* r, void* s) {
   (void)d; (void)r; (void)s;
@@ -433,6 +468,9 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_GORILLA_GROWL], 0.9, gorilla_growl_voice, 31);
   ok = ok && copy_clip(&clips[SFX_VOICE_SLOP], kVoiceSlop, kVoiceSlopLength);
   ok = ok && render(&clips[SFX_WARP], 0.65, warp_voice, 32);
+  ok = ok && render(&clips[SFX_PARACHUTE], 0.5, parachute_voice, 37);
+  ok = ok && render(&clips[SFX_VASE], 0.5, vase_voice, 38);
+  ok = ok && render(&clips[SFX_WATER], 1.6, water_voice, 39);
   ok = ok && render(&clips[SFX_ALLY_ARRIVE], 0.55, ally_arrive_voice, 33);
   ok = ok && render(&clips[SFX_ALLY_BELLY], 0.5, ally_belly_voice, 34);
   ok = ok && render(&clips[SFX_ALLY_KUNGFU], 0.4, ally_kungfu_voice, 35);
@@ -517,6 +555,9 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_LIGHTSABER: *volume = 0.9f; return SFX_SABER_ON;
     case EVENT_FORCE_BURST: *volume = 0.7f; return SFX_FORCE_BURST;
     case EVENT_WARP: *volume = 0.8f; return SFX_WARP;
+    case EVENT_PARACHUTE_OPENS: *volume = 0.8f; return SFX_PARACHUTE;
+    case EVENT_VASE_SMASHES: *volume = 0.8f; return SFX_VASE;
+    case EVENT_WATER_ON: *volume = 0.7f; return SFX_WATER;
     case EVENT_ALLY_ARRIVES: *volume = 0.9f; return SFX_ALLY_ARRIVE;
     case EVENT_ALLY_BELLY: *volume = 1.0f; return SFX_ALLY_BELLY;
     case EVENT_ALLY_KUNGFU: *volume = 0.9f; return SFX_ALLY_KUNGFU;

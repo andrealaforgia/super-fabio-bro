@@ -31,7 +31,7 @@ static void every_level_has_planks_over_pits_and_lifts_beside_ledges(void) {
         /* Wherever it swings it stays over the gap. */
         for (float x = left - plank->range + 1.0f; x < right + plank->range; x += TILE * 0.5f)
           CHECK(!tile_is_solid(level_tile(level, (int)(x / TILE), GROUND_ROW)));
-      } else {
+      } else if (plank->kind == PLATFORM_LIFT) {
         lifts++;
         int ledge = (int)((right + 12.0f) / TILE);
         CHECK(level_tile(level, ledge, GROUND_ROW - 8) == TILE_GOLD);
