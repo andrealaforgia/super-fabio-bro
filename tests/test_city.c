@@ -575,9 +575,9 @@ static void anyone_standing_on_the_statue_falls_to_the_street_when_the_bull_star
   const level_t* level = &world->level;
   player_t* p = &world->player;
   const platform_def_t* back = &level->platforms[level->bull_plank];
-  world_summon_ally(world, ALLY_ALESSANDRO);
+  world_summon_ally(world, ALLY_GIULIA);
   step(world, NULL, 1.0f); /* his friend arrives */
-  p->x = back->x - 30.0f;
+  p->x = back->x + back->w * 0.5f - 6.0f; /* at the far end: his friend waits behind him, still on the statue */
   p->y = back->y;
   p->grounded = true;
   p->platform = level->bull_plank;

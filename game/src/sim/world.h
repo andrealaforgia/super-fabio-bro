@@ -92,7 +92,7 @@
 #define ALLY_ARRIVE_SECONDS 0.35f
 #define MAX_ALLIES 4
 #define GIACOMO_GRACE_SECONDS 0.75f /* on his feet again before Giulia may punch him once more */
-#define GIACOMO_SIT_SECONDS 5.0f /* on the ground after Giulia's punch, before he gets up and carries on */
+#define GIACOMO_SIT_SECONDS 3.0f /* on the ground after Giulia's punch, before he gets up and carries on */
 #define MAX_POLO_BALLS 8
 #define POLO_BALL_SPEED 700.0f
 #define POLO_BALL_LIFE 1.2f
@@ -326,6 +326,7 @@ typedef struct {
   float land_x;   /* where to head for once he has jumped, */
   bool jump_next; /* and whether to jump when he gets there */
   bool planned;   /* he has a way to Fabio's floor */
+  float plan_hold; /* seconds his walk to the brink still stands if the search finds nothing */
 } ally_t;
 
 /* The next move of a friend who is on another floor than Fabio (ally_path.c). */
@@ -826,7 +827,7 @@ void allies_regroup(world_t* world);
 /* How far ahead of Fabio the ally stands, how long a strike takes. */
 /* The friend a pickup brings. */
 ally_kind_t ally_for_item(item_kind_t kind);
-float ally_offset(ally_kind_t kind);
+float ally_place(ally_kind_t kind, bool fabio_is_still); /* signed distance along Fabio's way: beside him on the move, behind him when still */
 float ally_attack_seconds(ally_kind_t kind);
 
 /* Whether a bubble has this enemy wrapped: he floats, harmless, until it bursts. */

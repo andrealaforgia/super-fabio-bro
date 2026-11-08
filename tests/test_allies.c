@@ -64,24 +64,33 @@ static void the_opening_row_holds_the_three_pickups_and_each_brings_its_friend(v
   world_free(world);
 }
 
-static void each_friend_stands_a_few_steps_ahead_of_fabio_at_his_own_distance(void) {
+static void with_nothing_to_fight_the_friends_wait_behind_fabio_when_he_is_still_and_walk_beside_him_when_he_moves(void) {
   world_t* world = fresh();
-  world->player.x = 1500.0f; /* room to walk back the other way */
+  world->player.x = 1500.0f;
   world->camera_x = world->player.x - 400.0f;
   world_summon_ally(world, ALLY_ANDREA);
   world_summon_ally(world, ALLY_ALESSANDRO);
   world_summon_ally(world, ALLY_GIULIA);
   CHECK(effect_live(world, FX_ALLY_POOF));
-  step(world, NULL, 1.2f);
+  step(world, NULL, 2.0f);
   float fabio = world->player.x;
   float a = ally_of(world, ALLY_ANDREA)->x - fabio, b = ally_of(world, ALLY_ALESSANDRO)->x - fabio,
         c = ally_of(world, ALLY_GIULIA)->x - fabio;
-  CHECK(a > 60.0f && a < b && b < c && c < 260.0f);
-  CHECK(fabsf(a - ally_offset(ALLY_ANDREA)) < 10.0f);
-  /* Fabio turns round and walks the other way: they go round to the other side of him. */
+  CHECK(a < -40.0f && b < -40.0f && c < -40.0f); /* all behind him, waiting */
+  CHECK(a > -300.0f && b > -300.0f && c > -300.0f); /* never far */
+  CHECK(fabsf(a - ally_place(ALLY_ANDREA, true)) < 12.0f);
+  /* Fabio walks on: they come up beside him, still close. */
+  buttons_t right = BTN_RIGHT;
+  step(world, &right, 2.0f);
+  fabio = world->player.x;
+  for (int kind = 0; kind < 3; kind++) {
+    float d = ally_of(world, (ally_kind_t)kind)->x - fabio;
+    CHECK(fabsf(d) < 200.0f);
+  }
+  /* And when he turns round and walks the other way they go round with him. */
   buttons_t left = BTN_LEFT;
-  step(world, &left, 2.5f);
-  CHECK(ally_of(world, ALLY_ANDREA)->x < world->player.x - 60.0f);
+  step(world, &left, 3.0f);
+  CHECK(fabsf(ally_of(world, ALLY_ANDREA)->x - world->player.x) < 200.0f);
   world_free(world);
 }
 
@@ -123,27 +132,92 @@ static void andrea_strokes_his_belly_and_everything_round_him_goes(void) {
   world_free(world);
 }
 
-static void alessandro_runs_at_an_enemy_and_strikes_it_with_kung_fu(void) {
+static void alessandro_strikes_an_enemy_that_comes_within_reach_with_kung_fu(void) {
   world_t* world = fresh();
   world_summon_ally(world, ALLY_ALESSANDRO);
   step(world, NULL, 1.0f);
   float start = ally_of(world, ALLY_ALESSANDRO)->x;
-  still_zombie(world, start + 230.0f);
-  step(world, NULL, 0.35f);
-  CHECK(ally_of(world, ALLY_ALESSANDRO)->x > start + 40.0f); /* he is on his way */
+  still_zombie(world, start + 60.0f);
   step(world, NULL, 1.5f);
+  CHECK(fabsf(ally_of(world, ALLY_ALESSANDRO)->x - start) < 40.0f); /* he stays with Fabio */
   CHECK(world->zombies_killed == 1);
   CHECK(world_has_event(world, EVENT_ALLY_KUNGFU) && effect_live(world, FX_ALLY_SLASH) + 1 > 0);
   world_free(world);
 }
 
-static void giulia_punches_what_comes_near_her(void) {
+static void with_no_enemies_and_fabio_still_the_friends_stand_behind_him_spaced_out_and_wait(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_ANDREA);
+  world_summon_ally(world, ALLY_GIULIA);
+  step(world, NULL, 3.0f);
+  float a = ally_of(world, ALLY_ANDREA)->x, g = ally_of(world, ALLY_GIULIA)->x;
+  CHECK(a < world->player.x - 40.0f && g < world->player.x - 40.0f && fabsf(a - g) > 40.0f); /* behind him, and apart */
+  CHECK(a > world->player.x - 300.0f && g > world->player.x - 300.0f);
+  step(world, NULL, 1.0f);
+  CHECK(fabsf(ally_of(world, ALLY_ANDREA)->x - a) < 3.0f && fabsf(ally_of(world, ALLY_GIULIA)->x - g) < 3.0f); /* nothing to find: they wait */
+  world_free(world);
+}
+
+static world_t* settled_pair(float* alessandro, float* giulia) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_ALESSANDRO);
+  world_summon_ally(world, ALLY_GIULIA);
+  step(world, NULL, 3.0f);
+  *alessandro = ally_of(world, ALLY_ALESSANDRO)->x;
+  *giulia = ally_of(world, ALLY_GIULIA)->x;
+  return world;
+}
+
+static void an_enemy_coming_for_fabio_is_met_by_one_friend_who_faces_it(void) {
+  for (int side = 1; side <= 1; side += 2) { /* from the front */
+    float ale, giu;
+    world_t* world = settled_pair(&ale, &giu);
+    still_zombie(world, world->player.x + (float)side * (side > 0 ? 200.0f : 300.0f));
+    step(world, NULL, 0.3f);
+    ally_t* a = ally_of(world, ALLY_ALESSANDRO);
+    ally_t* g = ally_of(world, ALLY_GIULIA);
+    float moved_a = fabsf(a->x - ale), moved_g = fabsf(g->x - giu);
+    CHECK((moved_a > 25.0f) != (moved_g > 25.0f)); /* one of them goes, not both */
+    ally_t* sent = moved_a > moved_g ? a : g;
+    CHECK(sent->facing == side && (sent->x - (moved_a > moved_g ? ale : giu)) * (float)side > 0.0f);
+    step(world, NULL, 3.0f);
+    CHECK(world->zombies_killed == 1);
+    world_free(world);
+  }
+}
+
+static void two_enemies_coming_for_fabio_are_met_by_two_friends_one_each(void) {
+  float ale, giu;
+  world_t* world = settled_pair(&ale, &giu);
+  still_zombie(world, world->player.x + 150.0f);
+  still_zombie(world, world->player.x + 210.0f);
+  step(world, NULL, 0.35f);
+  CHECK(fabsf(ally_of(world, ALLY_ALESSANDRO)->x - ale) > 25.0f && fabsf(ally_of(world, ALLY_GIULIA)->x - giu) > 25.0f);
+  step(world, NULL, 3.0f);
+  CHECK(world->zombies_killed == 2);
+  world_free(world);
+}
+
+static void an_enemy_far_from_fabio_is_left_alone_and_the_friends_stay_with_him(void) {
+  float ale, giu;
+  world_t* world = settled_pair(&ale, &giu);
+  still_zombie(world, world->player.x + 700.0f);
+  step(world, NULL, 1.0f);
+  CHECK(fabsf(ally_of(world, ALLY_ALESSANDRO)->x - ale) < 10.0f && fabsf(ally_of(world, ALLY_GIULIA)->x - giu) < 10.0f);
+  world_free(world);
+}
+
+static void giulia_punches_what_comes_within_reach(void) {
   world_t* world = fresh();
   world_summon_ally(world, ALLY_GIULIA);
   step(world, NULL, 1.0f);
   float start = ally_of(world, ALLY_GIULIA)->x;
-  still_zombie(world, start + 200.0f);
-  still_zombie(world, start + 235.0f);
+  still_zombie(world, start + 40.0f);
+  still_zombie(world, start + 60.0f);
   step(world, NULL, 3.0f);
   CHECK(world->zombies_killed == 2);
   CHECK(world_has_event(world, EVENT_ALLY_PUNCH));
@@ -167,7 +241,7 @@ static void the_friends_jump_the_holes_in_the_ground(void) {
     world_t* world = fresh();
     for (int col = 20; col < 26; col++) /* a hole six columns wide, the widest there is */
       for (int row = GROUND_ROW; row < LEVEL_ROWS; row++) world->level.tiles[row][col] = TILE_EMPTY;
-    world->player.x = 31 * TILE;
+    world->player.x = 38 * TILE;
     world_summon_ally(world, (ally_kind_t)kind);
     ally_t* a = ally_of(world, (ally_kind_t)kind);
     a->x = 14 * TILE;
@@ -264,11 +338,13 @@ static void a_water_polo_ball_brings_giacomo(void) {
 
 static void giacomo_throws_the_ball_from_afar_and_it_kills_the_enemy_it_hits(void) {
   world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
   world_summon_ally(world, ALLY_GIACOMO);
-  step(world, NULL, 1.0f);
+  step(world, NULL, 2.5f);
   ally_t* g = ally_of(world, ALLY_GIACOMO);
   float start = g->x;
-  still_zombie(world, start + 380.0f);
+  still_zombie(world, start + 320.0f);
   step(world, NULL, 0.3f);
   CHECK(world->zombies_killed == 0); /* the ball is still on its way */
   step(world, NULL, 2.0f);
@@ -276,40 +352,51 @@ static void giacomo_throws_the_ball_from_afar_and_it_kills_the_enemy_it_hits(voi
   CHECK(world_has_event(world, EVENT_ALLY_THROW));
   CHECK(fabsf(g->x - start) < 40.0f && !g->sitting); /* he never ran at it */
   CHECK(pool_get_active_count(&world->polo_balls) == 0); /* the ball went with the zombie */
-  /* One behind him gets the ball too, the other way. */
-  world_clear_events(world);
-  still_zombie(world, g->x - 300.0f);
-  step(world, NULL, 2.5f);
-  CHECK(world->zombies_killed == 2 && world_has_event(world, EVENT_ALLY_THROW));
   world_free(world);
 }
 
-static void giulia_punches_giacomo_and_he_sits_five_seconds_and_she_punches_him_again_every_time_she_reaches_him(void) {
+/* Giacomo is right by Giulia (as when they come together): she does not go after him, but he is in her reach. */
+static void giulia_beside_giacomo(world_t* world) {
+  ally_t* g = ally_of(world, ALLY_GIACOMO);
+  ally_t* u = ally_of(world, ALLY_GIULIA);
+  if (g && u && !u->attack) {
+    u->x = g->x - 50.0f;
+    u->y = g->y;
+    u->vx = 0.0f;
+  }
+}
+
+static void giulia_punches_giacomo_and_he_sits_three_seconds_and_she_punches_him_again_every_time_she_reaches_him(void) {
   for (int giacomo_first = 0; giacomo_first < 2; giacomo_first++) {
     world_t* world = fresh();
     world_summon_ally(world, giacomo_first ? ALLY_GIACOMO : ALLY_GIULIA);
     step(world, NULL, 1.0f);
     world_summon_ally(world, giacomo_first ? ALLY_GIULIA : ALLY_GIACOMO);
     ally_t* g = ally_of(world, ALLY_GIACOMO);
-    for (int i = 0; i < 60 && !g->sitting; i++) step(world, NULL, 0.1f);
+    for (int i = 0; i < 60 && !g->sitting; i++) {
+      giulia_beside_giacomo(world);
+      step(world, NULL, 0.1f);
+    }
     CHECK(g->sitting);
     step(world, NULL, 0.5f); /* thrown back, and down */
     CHECK(g->grounded);
     CHECK(world_has_event(world, EVENT_ALLY_PUNCH) && world_has_event(world, EVENT_ALLY_OUCH));
     CHECK(pose_ally(g).strip == STRIP_ALLY_GIACOMO_SIT);
-    /* For the five seconds an enemy ahead of him is left alone and he does not move. */
+    /* For the three seconds an enemy ahead of him is left alone and he does not move. */
     float where = g->x;
+    world_clear_events(world);
     still_zombie(world, g->x + 300.0f + 150.0f);
     step(world, NULL, GIACOMO_SIT_SECONDS - 1.0f);
-    CHECK(world->zombies_killed == 0 && fabsf(g->x - where) < 2.0f && g->sitting);
+    CHECK(!world_has_event(world, EVENT_ALLY_THROW) && fabsf(g->x - where) < 2.0f && g->sitting); /* (a friend may deal with it) */
     CHECK(allies(world) == 2);
-    /* He gets up after the five seconds; she is still on him, so down he goes again,
+    /* He gets up after the three seconds; she is still on him, so down he goes again,
      * and so on every time. Count the times he is knocked down. */
     int punches = 1;
     bool was_sitting = true;
     float sat_for = GIACOMO_SIT_SECONDS - 1.0f + 0.5f, longest = 0.0f;
     float up_for = 0.0f, shortest_up = 99.0f;
     for (int i = 0; i < 300; i++) { /* 30 seconds */
+      giulia_beside_giacomo(world);
       step(world, NULL, 0.1f);
       if (g->sitting) {
         if (!was_sitting) { /* knocked down again: how long was he up? */
@@ -339,7 +426,7 @@ static void a_sitting_friend_who_falls_in_a_pit_is_set_down_on_ground_and_still_
   world_summon_ally(world, ALLY_GIACOMO);
   step(world, NULL, 1.0f);
   /* A hole exactly where his place beside Fabio is, and he is down in it, sitting. */
-  float offset = ally_offset(ALLY_GIACOMO);
+  float offset = 270.0f; /* a few steps ahead, clear of the ground under Fabio himself */
   int col = (int)((world->player.x + offset) / TILE);
   for (int c = col - 2; c <= col + 2; c++)
     for (int row = GROUND_ROW; row < LEVEL_ROWS; row++) world->level.tiles[row][c] = TILE_EMPTY;
@@ -364,14 +451,17 @@ static void giacomo_gets_up_and_carries_on_when_giulia_is_gone(void) {
   world_summon_ally(world, ALLY_GIACOMO);
   world_summon_ally(world, ALLY_GIULIA);
   ally_t* g = ally_of(world, ALLY_GIACOMO);
-  for (int i = 0; i < 60 && !g->sitting; i++) step(world, NULL, 0.1f);
+  for (int i = 0; i < 60 && !g->sitting; i++) {
+    giulia_beside_giacomo(world);
+    step(world, NULL, 0.1f);
+  }
   CHECK(g->sitting);
   ally_t* giulia = ally_of(world, ALLY_GIULIA);
   giulia->left = 0.01f; /* she leaves */
   step(world, NULL, GIACOMO_SIT_SECONDS + 0.5f);
   CHECK(ally_of(world, ALLY_GIULIA) == NULL && !g->sitting);
   world_clear_events(world);
-  still_zombie(world, g->x + 380.0f);
+  still_zombie(world, g->x + 250.0f);
   step(world, NULL, 3.0f);
   CHECK(world->zombies_killed == 1 && world_has_event(world, EVENT_ALLY_THROW));
   world_free(world);
@@ -386,7 +476,10 @@ static void giacomo_alone_is_never_punched_and_all_four_friends_fit(void) {
   world_summon_ally(world, ALLY_ALESSANDRO);
   world_summon_ally(world, ALLY_GIULIA);
   CHECK(allies(world) == 4);
-  step(world, NULL, 4.0f);
+  for (int i = 0; i < 40 && !ally_of(world, ALLY_GIACOMO)->sitting; i++) { /* (she only punches him when he is in her vicinity) */
+    giulia_beside_giacomo(world);
+    step(world, NULL, 0.1f);
+  }
   CHECK(ally_of(world, ALLY_GIACOMO)->sitting);
   float volume;
   CHECK(sfx_for_event(EVENT_ALLY_THROW, &volume) == SFX_ALLY_THROW && sfx_for_event(EVENT_ALLY_OUCH, &volume) == SFX_ALLY_OUCH);
@@ -402,6 +495,7 @@ static void giulia_catches_giacomo_even_while_fabio_runs(void) {
   buttons_t right = BTN_RIGHT;
   bool was_punched = false;
   for (int i = 0; i < 80; i++) {
+    giulia_beside_giacomo(world);
     step(world, &right, 0.1f);
     was_punched = was_punched || ally_of(world, ALLY_GIACOMO)->sitting;
   }
@@ -414,7 +508,7 @@ static void giacomo_crouches_to_roll_the_ball_at_a_beetle_on_the_floor(void) {
   world_summon_ally(world, ALLY_GIACOMO);
   step(world, NULL, 1.0f);
   ally_t* g = ally_of(world, ALLY_GIACOMO);
-  spawn_bug(world, BUG_SMALL, g->x + 380.0f, GROUND);
+  spawn_bug(world, BUG_SMALL, g->x + 250.0f, GROUND);
   enemy_t* bug = enemy_at(world, (size_t)(world_count_enemies(world, ENEMY_BUG) - 1));
   bug->speed = 0.0f;
   bool crouched = false;
@@ -426,7 +520,7 @@ static void giacomo_crouches_to_roll_the_ball_at_a_beetle_on_the_floor(void) {
   step(world, NULL, 1.0f);
   CHECK(world_count_enemies(world, ENEMY_BUG) == 0);
   /* A zombie he faces standing up. */
-  still_zombie(world, g->x + 380.0f);
+  still_zombie(world, g->x + 250.0f);
   bool stood = false;
   for (int i = 0; i < 25 && world->zombies_killed == 0; i++) {
     step(world, NULL, 0.1f);
@@ -573,7 +667,7 @@ static void a_friend_left_far_behind_sprints_to_catch_up_and_never_pops_up_in_fr
   world->player.x += 900.0f; /* Fabio is suddenly far ahead (in the game he would have run there) */
   float biggest = watch_friends_move(world, 4.0f);
   ally_t* a = ally_of(world, ALLY_ANDREA);
-  CHECK(a && fabsf(a->x - world->player.x - ally_offset(ALLY_ANDREA)) < 40.0f);
+  CHECK(a && fabsf(a->x - world->player.x - ally_place(ALLY_ANDREA, true)) < 40.0f);
   CHECK(biggest < 60.0f);
   world_free(world);
 }
@@ -592,7 +686,7 @@ static void a_friend_who_fell_in_a_pit_runs_back_in_from_the_edge_of_the_screen(
   CHECK(a->y <= GROUND + 1.0f && a->vx > 100.0f); /* ...on the ground and running towards him */
   float biggest = watch_friends_move(world, 5.0f);
   a = ally_of(world, ALLY_GIULIA);
-  CHECK(fabsf(a->x - world->player.x - ally_offset(ALLY_GIULIA)) < 40.0f);
+  CHECK(fabsf(a->x - world->player.x - ally_place(ALLY_GIULIA, true)) < 40.0f);
   CHECK(biggest < 60.0f);
   world_free(world);
 }
@@ -605,7 +699,7 @@ static void a_friend_arrives_at_fabio_and_runs_on_ahead_to_his_place(void) {
     CHECK(fabsf(a->x - world->player.x) < 20.0f); /* he is there with Fabio, not already out in front */
     float biggest = watch_friends_move(world, 2.0f);
     a = ally_of(world, (ally_kind_t)kind);
-    CHECK(fabsf(a->x - world->player.x - ally_offset((ally_kind_t)kind)) < 12.0f);
+    CHECK(fabsf(a->x - world->player.x - ally_place((ally_kind_t)kind, true)) < 12.0f);
     CHECK(biggest < 60.0f);
     world_free(world);
   }
@@ -669,6 +763,14 @@ static void giacomo_left_behind_while_he_sits_catches_up_on_his_own_feet(void) {
   }
   bool sat = false;
   for (int i = 0; i < 400; i++) { /* 20 seconds with Fabio running on, and Giulia knocking Giacomo down */
+    if (!sat) { /* she meets him once (put there by the test, so not counted as a move) */
+      giulia_beside_giacomo(world);
+      ally_t* u = ally_of(world, ALLY_GIULIA);
+      if (u) {
+        last_x[ALLY_GIULIA] = u->x;
+        last_y[ALLY_GIULIA] = u->y;
+      }
+    }
     step(world, &run_right, 0.05f);
     cursor = 0;
     for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));) {
@@ -702,7 +804,7 @@ static void a_friend_keeps_his_stance_while_fabio_stands_still_and_does_not_jitt
   world_summon_ally(world, ALLY_ANDREA);
   step(world, NULL, 1.0f);
   ally_t* a = ally_of(world, ALLY_ANDREA);
-  a->x = world->player.x + ally_offset(ALLY_ANDREA) + 7.0f; /* a little off his place, so he has to nudge back */
+  a->x = world->player.x + ally_place(ALLY_ANDREA, true) + 7.0f; /* a little off his place, so he has to nudge back */
   CHECK(facing_flips(world, ALLY_ANDREA, 3.0f) == 0);
   CHECK(ally_of(world, ALLY_ANDREA)->facing == 1);
   world_free(world);
@@ -723,12 +825,12 @@ static void the_formation_follows_the_way_fabio_travels_not_the_way_he_faces(voi
   }
   CHECK(world->player.vx < -40.0f);
   CHECK(ally_of(world, ALLY_ANDREA)->x < world->player.x - 40.0f);
-  CHECK(ally_of(world, ALLY_GIULIA)->x < world->player.x - 100.0f);
-  /* He stops, and turns to face the other way without moving: they stay where they are ahead of him. */
+  CHECK(ally_of(world, ALLY_GIULIA)->x > world->player.x + 60.0f); /* she is a little behind him, on the side he came from */
+  /* He stops, and turns to face the other way without moving: they wait behind him, on the side he came from. */
   step(world, NULL, 1.0f);
   world->player.facing = 1;
-  step(world, NULL, 1.0f);
-  CHECK(ally_of(world, ALLY_ANDREA)->x < world->player.x - 40.0f);
+  step(world, NULL, 1.5f);
+  CHECK(ally_of(world, ALLY_ANDREA)->x > world->player.x + 40.0f);
   world_free(world);
 }
 
@@ -848,7 +950,7 @@ static void a_friend_off_the_screen_with_nowhere_to_come_in_from_waits_unseen_th
   world->view_w = 800.0f; /* now there is ground beyond the edge of what is shown */
   float after = watch_friends_move(world, 4.0f);
   a = ally_of(world, ALLY_GIULIA);
-  CHECK(a->y <= GROUND + 1.0f && fabsf(a->x - world->player.x - ally_offset(ALLY_GIULIA)) < 40.0f);
+  CHECK(a->y <= GROUND + 1.0f && fabsf(a->x - world->player.x - ally_place(ALLY_GIULIA, true)) < 40.0f);
   CHECK(after < 60.0f);
   world_free(world);
 }
@@ -856,17 +958,17 @@ static void a_friend_off_the_screen_with_nowhere_to_come_in_from_waits_unseen_th
 static void a_friend_held_by_the_edge_of_his_plank_does_not_run_on_past_it_with_fabio(void) {
   world_t* world = fresh();
   int plank = add_plank(world, 768.0f, GROUND - 128.0f, 384.0f); /* 576 to 960 */
-  fabio_stands(world, 700.0f, GROUND - 128.0f, plank);
-  world_summon_ally(world, ALLY_GIACOMO);
-  ally_t* g = ally_of(world, ALLY_GIACOMO);
+  fabio_stands(world, 760.0f, GROUND - 128.0f, plank);
+  world_summon_ally(world, ALLY_GIULIA);
+  ally_t* g = ally_of(world, ALLY_GIULIA);
   g->x = 940.0f;
   g->y = GROUND - 128.0f;
   g->platform = plank;
   g->grounded = true;
   buttons_t run_right = BTN_RIGHT | BTN_RUN;
-  for (int i = 0; i < 60; i++) { /* a second of Fabio running along the plank, towards the end of it */
+  for (int i = 0; i < 30; i++) { /* half a second of Fabio running along the plank, towards the end of it */
     step(world, &run_right, 1.0f / 60.0f);
-    g = ally_of(world, ALLY_GIACOMO);
+    g = ally_of(world, ALLY_GIULIA);
     CHECK(g && g->platform == plank && fabsf(g->y - (GROUND - 128.0f)) < 1.5f);
   }
   world_free(world);
@@ -885,14 +987,82 @@ static void a_plank_only_a_step_above_the_street_still_has_to_be_climbed(void) {
   world_free(world);
 }
 
+/* A world with Fabio at x=1300 and the named friends standing at the given spots, settled and old enough to fight. */
+static world_t* friends_at(const ally_kind_t* kinds, const float* xs, int count) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = 1100.0f;
+  for (int i = 0; i < count; i++) {
+    world_summon_ally(world, kinds[i]);
+    ally_t* a = ally_of(world, kinds[i]);
+    a->x = xs[i];
+    a->y = GROUND;
+    a->vx = 0.0f;
+    a->age = 5.0f;
+    a->cooldown = 0.0f;
+    a->grounded = true;
+  }
+  return world;
+}
+
+static void a_friend_never_starts_on_an_enemy_a_friend_before_him_just_killed(void) {
+  ally_kind_t kinds[] = {ALLY_ANDREA, ALLY_ALESSANDRO};
+  float xs[] = {1500.0f, 1550.0f};
+  world_t* world = friends_at(kinds, xs, 2);
+  still_zombie(world, 1490.0f);
+  still_zombie(world, 1560.0f);
+  ally_t* andrea = ally_of(world, ALLY_ANDREA);
+  andrea->attack = ally_attack_seconds(ALLY_ANDREA) * 0.5f - 0.001f; /* his belly strike lands in this update */
+  andrea->struck = false;
+  allies_update(world, 1.0f / 120.0f);
+  CHECK(world_count_enemies(world, ENEMY_ZOMBIE) == 0);
+  CHECK(ally_of(world, ALLY_ALESSANDRO)->attack == 0.0f); /* nothing left for him to hit */
+  world_free(world);
+}
+
+static void a_friend_left_on_a_high_ledge_comes_down_and_follows_even_when_fabio_is_far_off(void) {
+  world_t* world = fresh();
+  world->player.x = 2200.0f;
+  world->camera_x = 1800.0f;
+  world_summon_ally(world, ALLY_ALESSANDRO);
+  ally_t* a = ally_of(world, ALLY_ALESSANDRO);
+  for (int col = 30; col <= 40; col++) world->level.tiles[GROUND_ROW - 3][col] = TILE_BRICK; /* a ledge 96 up, three tiles */
+  a->x = 31.0f * TILE;
+  a->y = GROUND - 3.0f * TILE;
+  a->vx = 0.0f;
+  a->age = 5.0f;
+  a->grounded = true;
+  a->platform = -1;
+  float start = a->x;
+  step(world, NULL, 8.0f);
+  CHECK(a->y >= GROUND - 1.0f); /* down on the street, not held at the brink for ever */
+  CHECK(a->x > start + 300.0f);  /* and on his way after Fabio */
+  world_free(world);
+}
+
+static void giulia_does_not_leave_fabio_to_chase_a_giacomo_who_is_far_behind(void) {
+  ally_kind_t kinds[] = {ALLY_GIULIA, ALLY_GIACOMO};
+  float xs[] = {1500.0f, 500.0f};
+  world_t* world = friends_at(kinds, xs, 2);
+  ally_of(world, ALLY_GIACOMO)->grace = 0.0f;
+  float start = ally_of(world, ALLY_GIULIA)->x;
+  step(world, NULL, 0.5f);
+  CHECK(ally_of(world, ALLY_GIULIA)->x > start - 100.0f); /* she settles behind Fabio, not off after Giacomo */
+  world_free(world);
+}
+
 void run_ally_tests(void) {
   RUN(the_opening_row_holds_the_three_pickups_and_each_brings_its_friend);
-  RUN(each_friend_stands_a_few_steps_ahead_of_fabio_at_his_own_distance);
+  RUN(with_nothing_to_fight_the_friends_wait_behind_fabio_when_he_is_still_and_walk_beside_him_when_he_moves);
   RUN(a_friend_stays_thirty_seconds_and_then_goes_in_a_poof);
   RUN(calling_a_friend_who_is_here_gives_him_a_fresh_thirty_seconds_not_a_twin);
   RUN(andrea_strokes_his_belly_and_everything_round_him_goes);
-  RUN(alessandro_runs_at_an_enemy_and_strikes_it_with_kung_fu);
-  RUN(giulia_punches_what_comes_near_her);
+  RUN(alessandro_strikes_an_enemy_that_comes_within_reach_with_kung_fu);
+  RUN(with_no_enemies_and_fabio_still_the_friends_stand_behind_him_spaced_out_and_wait);
+  RUN(an_enemy_coming_for_fabio_is_met_by_one_friend_who_faces_it);
+  RUN(two_enemies_coming_for_fabio_are_met_by_two_friends_one_each);
+  RUN(an_enemy_far_from_fabio_is_left_alone_and_the_friends_stay_with_him);
+  RUN(giulia_punches_what_comes_within_reach);
   RUN(nothing_that_touches_a_friend_hurts_him_and_the_enemies_still_come_for_fabio);
   RUN(the_friends_jump_the_holes_in_the_ground);
   RUN(the_friends_go_down_a_pipe_with_fabio);
@@ -900,7 +1070,7 @@ void run_ally_tests(void) {
   RUN(levels_offer_the_three_pickups_now_and_then);
   RUN(a_water_polo_ball_brings_giacomo);
   RUN(giacomo_throws_the_ball_from_afar_and_it_kills_the_enemy_it_hits);
-  RUN(giulia_punches_giacomo_and_he_sits_five_seconds_and_she_punches_him_again_every_time_she_reaches_him);
+  RUN(giulia_punches_giacomo_and_he_sits_three_seconds_and_she_punches_him_again_every_time_she_reaches_him);
   RUN(a_sitting_friend_who_falls_in_a_pit_is_set_down_on_ground_and_still_gets_up);
   RUN(giacomo_gets_up_and_carries_on_when_giulia_is_gone);
   RUN(giacomo_alone_is_never_punched_and_all_four_friends_fit);
@@ -925,4 +1095,7 @@ void run_ally_tests(void) {
   RUN(a_friend_off_the_screen_with_nowhere_to_come_in_from_waits_unseen_then_runs_in);
   RUN(a_friend_held_by_the_edge_of_his_plank_does_not_run_on_past_it_with_fabio);
   RUN(a_plank_only_a_step_above_the_street_still_has_to_be_climbed);
+  RUN(a_friend_never_starts_on_an_enemy_a_friend_before_him_just_killed);
+  RUN(a_friend_left_on_a_high_ledge_comes_down_and_follows_even_when_fabio_is_far_off);
+  RUN(giulia_does_not_leave_fabio_to_chase_a_giacomo_who_is_far_behind);
 }

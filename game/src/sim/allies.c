@@ -2,19 +2,24 @@
 
 #include "world.h"
 
-/* What sets the three friends apart. */
+/* What sets the friends apart. */
 static const struct {
-  float offset;   /* how far ahead of Fabio he stands */
-  float chase;    /* how far off an enemy gets him running at it (0: he never leaves his place) */
+  float beside;   /* where he keeps (ahead of Fabio is positive) while Fabio is on the move and there is nothing to fight */
+  float waiting;  /* where he keeps (behind Fabio is negative) while Fabio stands still and there is nothing to fight */
   float reach;    /* how close an enemy has to be to be struck */
   float cooldown; /* between strikes */
   float attack;   /* how long a strike takes */
 } kAlly[ALLY_KIND_COUNT] = {
-    {90.0f, 0.0f, 95.0f, 1.1f, 0.9f},    /* Andrea: a wobble all round him */
-    {150.0f, 260.0f, 90.0f, 0.55f, 0.5f}, /* Alessandro: kung fu */
-    {210.0f, 230.0f, 78.0f, 0.42f, 0.45f}, /* Giulia: boxing */
-    {270.0f, 0.0f, 560.0f, 0.9f, 0.6f}    /* Giacomo: stays put and throws the ball from afar */
+    {50.0f, -130.0f, 95.0f, 1.1f, 0.9f},    /* Andrea: a wobble all round him */
+    {-40.0f, -190.0f, 90.0f, 0.55f, 0.5f},   /* Alessandro: kung fu */
+    {-130.0f, -70.0f, 78.0f, 0.42f, 0.45f},  /* Giulia: boxing */
+    {120.0f, -260.0f, 560.0f, 0.9f, 0.6f}    /* Giacomo: keeps his distance and throws the ball from afar */
 };
+#define GIULIA_NOTICE 60.0f    /* Giacomo this much beyond her glove and she turns on him */
+#define THREAT_RANGE 520.0f    /* an enemy this near Fabio (and on the screen) may be coming for him */
+#define THREAT_CLOSE 220.0f    /* this near him it is a threat whichever way it walks */
+#define THREAT_BAND 110.0f     /* and no higher or lower than this from him */
+#define THROW_FROM 300.0f      /* Giacomo closes in on an enemy to about this far, and throws from there */
 #define STRIKE_AT 0.5f   /* how far into a strike it lands */
 #define CATCH_UP_FROM 260.0f   /* further than this from where he should be, he sprints to catch up */
 #define CATCH_UP_SPEED (RUN_SPEED * 2.2f)
@@ -23,6 +28,7 @@ static const struct {
 #define FACE_MOTION 60.0f      /* a friend faces the way he runs above this speed, and the way Fabio goes below it */
 #define FLOOR_GAP 24.0f        /* higher or lower than this and he is on another floor than Fabio */
 #define PLAN_EVERY 0.25f       /* how often he works out his way again */
+#define PLAN_HOLD 2.0f         /* seconds a walk to the brink survives a search that finds nothing */
 #define PLANS_PER_UPDATE 1     /* friends who may work out a route in one update */
 #define JUMP_AT 14.0f          /* how near the take-off spot he jumps */
 
@@ -30,7 +36,7 @@ ally_kind_t ally_for_item(item_kind_t kind) {
   return kind == ITEM_SUSHI ? ALLY_ANDREA : kind == ITEM_DRAGON ? ALLY_ALESSANDRO : kind == ITEM_GLOVES ? ALLY_GIULIA : ALLY_GIACOMO;
 }
 
-float ally_offset(ally_kind_t kind) { return kAlly[kind].offset; }
+float ally_place(ally_kind_t kind, bool fabio_is_still) { return fabio_is_still ? kAlly[kind].waiting : kAlly[kind].beside; }
 float ally_attack_seconds(ally_kind_t kind) { return kAlly[kind].attack; }
 
 static bool circle_touches(float cx, float cy, float r, frect_t box) {
@@ -57,19 +63,21 @@ static ally_t* friend_of_kind(world_t* world, ally_kind_t kind) {
   return NULL;
 }
 
-/* Giacomo, if he is here, on his feet and past his moment of grace. Giulia punches him every time
- * she reaches him. */
-static ally_t* giulia_target(world_t* world, const ally_t* giulia) {
-  if (giulia->kind != ALLY_GIULIA || giulia->age < ALLY_ARRIVE_SECONDS) return NULL;
-  ally_t* g = friend_of_kind(world, ALLY_GIACOMO);
-  return g && !g->sitting && g->grace <= 0.0f && g->age >= ALLY_ARRIVE_SECONDS ? g : NULL;
-}
-
 /* Whether her glove is on him: `slack` is how much further he may have run in the half second she
  * takes to wind up and hit (Giacomo runs on while she punches). */
 static bool giulia_reaches(const ally_t* giulia, const ally_t* g, float slack) {
   return fabsf(g->x - giulia->x) <= kAlly[ALLY_GIULIA].reach + slack && fabsf(g->y - giulia->y) < 40.0f;
 }
+
+/* Giacomo, if he is here, on his feet, past his moment of grace and right by her. Giulia punches him every time he
+ * comes within her reach, but she does not go off down the street after him: she stays with Fabio. */
+static ally_t* giulia_target(world_t* world, const ally_t* giulia) {
+  if (giulia->kind != ALLY_GIULIA || giulia->age < ALLY_ARRIVE_SECONDS) return NULL;
+  ally_t* g = friend_of_kind(world, ALLY_GIACOMO);
+  if (!g || g->sitting || g->grace > 0.0f || g->age < ALLY_ARRIVE_SECONDS) return NULL;
+  return giulia_reaches(giulia, g, GIULIA_NOTICE) ? g : NULL;
+}
+
 
 /* A hole: a column with no ground in it from the feet to the bottom of the world. */
 static bool is_pit_at(const world_t* world, float x, float feet) {
@@ -196,19 +204,65 @@ void allies_regroup(world_t* world) {
   for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));) appear_at_fabio(world, a);
 }
 
-/* The nearest enemy he has any business with, on about his own level. */
-static const enemy_t* nearest_enemy(const world_t* world, const ally_t* a, float range) {
+/* Whether he stands on another floor than Fabio: his business is getting to him, not fighting. */
+static bool on_another_floor(const world_t* world, const ally_t* a) {
+  const player_t* p = &world->player;
+  return p->grounded && (p->platform != a->platform || (p->platform < 0 && fabsf(p->y - a->y) > FLOOR_GAP));
+}
+
+/* An enemy already within his blow (or his throw), on the screen: he strikes it as he goes. */
+static const enemy_t* enemy_in_reach(const world_t* world, const ally_t* a) {
+  if (on_another_floor(world, a)) return NULL;
   const enemy_t* best = NULL;
-  float best_d = range;
   size_t cursor = 0;
-  for (const enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));) {
-    float d = fabsf(e->x - a->x);
-    if (d < best_d && fabsf((e->y - e->h * 0.5f) - (a->y - 28.0f)) < 110.0f) {
-      best = e;
-      best_d = d;
-    }
-  }
+  for (const enemy_t* e; (e = pool_next_active(&world->enemies, &cursor));)
+    if (in_view(world, e->x) && strikes(a, e) && (!best || fabsf(e->x - a->x) < fabsf(best->x - a->x))) best = e;
   return best;
+}
+
+/* Whether an enemy is coming for Fabio: on the screen, close enough to matter, at about his height, and either
+ * walking his way or already upon him. */
+static bool threatens_fabio(const world_t* world, const enemy_t* e) {
+  const player_t* p = &world->player;
+  float away = e->x - p->x;
+  return in_view(world, e->x) && fabsf(away) < THREAT_RANGE && fabsf(e->y - p->y) < THREAT_BAND && (away * e->vx < 0.0f || fabsf(away) < THREAT_CLOSE);
+}
+
+/* Sends one friend, and only one, to meet each enemy that is coming for Fabio, the most pressing first, each
+ * to the friend nearest to it. Friends left over keep their places beside him. defender[i] is for the i-th friend. */
+static void send_defenders(world_t* world, const enemy_t* defender[MAX_ALLIES]) {
+  const ally_t* free_friend[MAX_ALLIES];
+  int n = 0;
+  size_t cursor = 0;
+  for (const ally_t* a; (a = pool_next_active(&world->allies, &cursor)) && n < MAX_ALLIES;) {
+    defender[n] = NULL;
+    bool free_to_go = a->age >= ALLY_ARRIVE_SECONDS && !a->sitting && !giulia_target(world, a) && !on_another_floor(world, a);
+    free_friend[n++] = free_to_go ? a : NULL;
+  }
+  const enemy_t* given[MAX_ALLIES];
+  for (int round = 0; round < n; round++) {
+    const enemy_t* worst = NULL;
+    size_t ec = 0;
+    for (const enemy_t* e; (e = pool_next_active(&world->enemies, &ec));) {
+      bool taken = false;
+      for (int k = 0; k < round; k++) taken = taken || given[k] == e;
+      if (!taken && threatens_fabio(world, e) && (!worst || fabsf(e->x - world->player.x) < fabsf(worst->x - world->player.x))) worst = e;
+    }
+    if (!worst) break;
+    given[round] = worst;
+    int best = -1;
+    for (int i = 0; i < n; i++)
+      if (free_friend[i] && !defender[i] && (best < 0 || fabsf(free_friend[i]->x - worst->x) < fabsf(free_friend[best]->x - worst->x))) best = i;
+    if (best < 0) break;
+    defender[best] = worst;
+  }
+}
+
+static bool enemy_is_live(const world_t* world, const enemy_t* e) {
+  size_t cursor = 0;
+  for (const enemy_t* other; (other = pool_next_active(&world->enemies, &cursor));)
+    if (other == e) return true;
+  return false;
 }
 
 /* Whether the enemy creeps along the floor, too low for a ball thrown standing up: the ground bugs. */
@@ -289,8 +343,12 @@ void allies_update(world_t* world, float dt) {
   const player_t* p = &world->player;
   int lead = update_lead(world);
   int plans_this_update = 0;
+  const enemy_t* defending[MAX_ALLIES];
+  send_defenders(world, defending);
+  int index = -1;
   size_t cursor = 0;
   for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));) {
+    index++;
     a->left -= dt;
     a->age += dt;
     a->anim += dt;
@@ -302,6 +360,7 @@ void allies_update(world_t* world, float dt) {
     }
     a->cooldown = fmaxf(0.0f, a->cooldown - dt);
     a->grace = fmaxf(0.0f, a->grace - dt);
+    a->plan_hold = fmaxf(0.0f, a->plan_hold - dt);
     if (a->sitting && a->grounded) { /* sits it out, then gets up where he sat */
       a->sit_left -= dt;
       if (a->sit_left <= 0.0f) {
@@ -313,14 +372,18 @@ void allies_update(world_t* world, float dt) {
     }
     bool here = a->age >= ALLY_ARRIVE_SECONDS; /* he is still taking shape as he turns up */
 
-    /* Where he wants to be: his place ahead of Fabio, or in reach of the nearest enemy. */
-    float target = p->x + (float)lead * kAlly[a->kind].offset;
+    /* Where he wants to be: in reach of the enemy he was given, or out scouting ahead of Fabio for the next one. */
+    float target = p->x + (float)lead * ally_place(a->kind, fabs(p->vx) <= TRAVEL_SPEED);
     ally_t* victim = giulia_target(world, a); /* Giulia has a score to settle with Giacomo */
-    const enemy_t* prey = here && !victim && !a->sitting ? nearest_enemy(world, a, kAlly[a->kind].chase > 0.0f ? kAlly[a->kind].chase : kAlly[a->kind].reach) : NULL;
+    /* (a friend before him in this update may just have taken his enemy down) */
+    const enemy_t* sent = index < MAX_ALLIES && here && !victim && !a->sitting && defending[index] && enemy_is_live(world, defending[index]) ? defending[index] : NULL;
+    const enemy_t* prey = sent ? sent : (here && !victim && !a->sitting ? enemy_in_reach(world, a) : NULL);
     int facing = lead;
-    if (prey) {
-      facing = prey->x < a->x ? -1 : 1;
-      if (kAlly[a->kind].chase > 0.0f) target = prey->x - (float)facing * kAlly[a->kind].reach * 0.55f;
+    if (prey) facing = prey->x < a->x ? -1 : 1;
+    if (sent) { /* he goes to meet it: up close, or for Giacomo, to within throwing distance */
+      float gap = kAlly[a->kind].reach * 0.55f;
+      if (a->kind == ALLY_GIACOMO) gap = fminf(fabsf(sent->x - a->x), THROW_FROM);
+      target = sent->x - (float)facing * gap;
     }
     if (victim) {
       facing = victim->x < a->x ? -1 : 1;
@@ -339,10 +402,16 @@ void allies_update(world_t* world, float dt) {
       if (a->plan_in <= 0.0f && plans_this_update < PLANS_PER_UPDATE) {
         plans_this_update++; /* the search is not free: one friend per update, the others the next */
         ally_step_t step = ally_plan_step(world, a);
-        a->planned = step.found;
-        a->go_x = step.go_x;
-        a->land_x = step.land_x;
-        a->jump_next = step.jump;
+        if (!step.found && a->planned && !a->jump_next && a->plan_hold > 0.0f) {
+          /* the search lost the way for a moment, from where he now stands: he keeps walking the way he was going
+           * (to the brink and over) rather than turning back and forth between two answers */
+        } else {
+          a->planned = step.found;
+          a->go_x = step.go_x;
+          a->land_x = step.land_x;
+          a->jump_next = step.jump;
+          a->plan_hold = PLAN_HOLD;
+        }
         a->plan_in = PLAN_EVERY;
       }
     }
@@ -365,7 +434,7 @@ void allies_update(world_t* world, float dt) {
       float wanted = target;
       target = clampf(target, plank->x - half, plank->x + half);
       held_by_the_edge = target != wanted;
-    } else if (a->grounded && a->platform < 0) {
+    } else if (a->grounded && a->platform < 0 && !other_floor) { /* (on another floor than Fabio, coming down is the point) */
       float wanted = target;
       target = keep_to_the_floor(world, a, target);
       held_by_the_edge = target != wanted;
@@ -375,7 +444,7 @@ void allies_update(world_t* world, float dt) {
     float pace = fabsf(dx) > CATCH_UP_FROM ? CATCH_UP_SPEED : RUN_SPEED * 1.2f; /* far behind: he sprints */
     /* Keeping his place ahead of Fabio he moves at Fabio's own speed plus whatever closes the gap: left
      * to the gap alone he would trail his place by a seventh of a second of Fabio's walk. */
-    bool keeping_place = !prey && !victim && !(a->planned && !a->sitting && (other_floor || !a->grounded)) && a->attack <= 0.0f && !a->sitting;
+    bool keeping_place = !victim && !sent && !(a->planned && !a->sitting && (other_floor || !a->grounded)) && a->attack <= 0.0f && !a->sitting;
     float with_fabio = keeping_place && !held_by_the_edge ? p->vx : 0.0f; /* held at an edge: no running on past it */
     float want = clampf(dx * 5.0f + with_fabio, -pace, pace);
     if (fabsf(dx) < 6.0f && fabsf(with_fabio) < 20.0f) want = 0.0f;
