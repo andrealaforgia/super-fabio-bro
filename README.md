@@ -262,8 +262,19 @@ start.
   Alessandro 150, Giulia 210), and go round to the other side when Fabio turns. Andrea
   strokes his bare belly now and then, and the wobble (a big golden burst with a glow, stars and
   sparks) kills everything about 95 pixels round him. Alessandro runs at any enemy within 260 pixels and strikes it with kung fu; Giulia
-  does the same within 230 and punches. They hop over low walls and leap the holes in the ground (even the widest), turn up at Fabio's side if
-  left far behind or fallen into a pit, and go down warp pipes with him. All three are
+  does the same within 230 and punches. When Fabio is on another floor (a balcony, a roof, a block, a capsule) they get there the way he did: a short
+  search over the floors near them (`game/src/sim/ally_path.c`) picks the next place to walk to and whether to jump
+  there, so they climb a staircase of ledges one jump at a time, run at a block from far enough off to clear its
+  edge, walk off a ledge to come down, and never stroll off the brink of the floor they share with him. A friend with no
+  way up (a perch out of reach) keeps pace below. Nobody is ever picked up and put down where it can be seen: a
+  friend who arrives appears at Fabio and runs on ahead to his place; one left behind (Giacomo sitting out his punch,
+  a fight that ran on) sprints to catch up; one who falls out of the bottom of the screen, or is far off and out of
+  sight, runs back in from just beyond the edge of the screen (behind Fabio, or ahead of him where the level has no
+  ground behind), on the ground. They go on ahead of Fabio in the direction he is travelling (not just the way he
+  faces, which a backwards strike changes), keep their stance while he stands still, and move at his speed plus
+  whatever closes the gap, so they lead him instead of trailing their places.
+  They hop over low walls and leap the holes in the ground (even the widest), and go down warp pipes with him
+  (arriving with him on the other side). All three are
   cut from `assets/source/ally_andrea.png`, `ally_alessandro.png`, `ally_giulia.png` and
   `ally_items.png`, generated with Codex to match the other sheets.
 - A fourth friend, Giacomo, turns up with a water polo ball (also in the opening row and along

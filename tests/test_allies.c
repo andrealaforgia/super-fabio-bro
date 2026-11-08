@@ -1,6 +1,7 @@
 #include <math.h>
 #include <stdlib.h>
 
+#include "bot.h"
 #include "pose.h"
 #include "sfx.h"
 #include "test_groups.h"
@@ -65,6 +66,8 @@ static void the_opening_row_holds_the_three_pickups_and_each_brings_its_friend(v
 
 static void each_friend_stands_a_few_steps_ahead_of_fabio_at_his_own_distance(void) {
   world_t* world = fresh();
+  world->player.x = 1500.0f; /* room to walk back the other way */
+  world->camera_x = world->player.x - 400.0f;
   world_summon_ally(world, ALLY_ANDREA);
   world_summon_ally(world, ALLY_ALESSANDRO);
   world_summon_ally(world, ALLY_GIULIA);
@@ -75,9 +78,9 @@ static void each_friend_stands_a_few_steps_ahead_of_fabio_at_his_own_distance(vo
         c = ally_of(world, ALLY_GIULIA)->x - fabio;
   CHECK(a > 60.0f && a < b && b < c && c < 260.0f);
   CHECK(fabsf(a - ally_offset(ALLY_ANDREA)) < 10.0f);
-  /* Fabio turns round: they go round to the other side of him. */
-  world->player.facing = -1;
-  step(world, NULL, 1.5f);
+  /* Fabio turns round and walks the other way: they go round to the other side of him. */
+  buttons_t left = BTN_LEFT;
+  step(world, &left, 2.5f);
   CHECK(ally_of(world, ALLY_ANDREA)->x < world->player.x - 60.0f);
   world_free(world);
 }
@@ -159,19 +162,6 @@ static void nothing_that_touches_a_friend_hurts_him_and_the_enemies_still_come_f
   world_free(world);
 }
 
-static void a_friend_left_far_behind_or_fallen_in_a_pit_turns_up_at_fabios_side(void) {
-  world_t* world = fresh();
-  world_summon_ally(world, ALLY_ANDREA);
-  step(world, NULL, 0.5f);
-  world->player.x += 900.0f;
-  step(world, NULL, 0.3f);
-  CHECK(fabsf(ally_of(world, ALLY_ANDREA)->x - world->player.x) < 200.0f);
-  ally_of(world, ALLY_ANDREA)->y = level_height() + 100.0f;
-  step(world, NULL, 0.1f);
-  CHECK(ally_of(world, ALLY_ANDREA)->y < GROUND + 5.0f);
-  world_free(world);
-}
-
 static void the_friends_jump_the_holes_in_the_ground(void) {
   for (int kind = 0; kind < ALLY_KIND_COUNT; kind++) {
     world_t* world = fresh();
@@ -227,7 +217,7 @@ static void the_friends_have_their_poses_and_their_sounds(void) {
   a->grounded = true;
   a->attack = 0.2f;
   CHECK(pose_ally(a).strip == STRIP_ALLY_ALESSANDRO_ATTACK);
-  ally_t g = {ALLY_GIULIA, 0, 0, 0, 0, 1, true, 5.0f, 1.0f, 0.0f, 0.0f, 0.0f, false, -1, false, false, 0.0f, 0.0f};
+  ally_t g = {.kind = ALLY_GIULIA, .facing = 1, .grounded = true, .left = 5.0f, .age = 1.0f, .platform = -1};
   CHECK(pose_ally(&g).strip == STRIP_ALLY_GIULIA_IDLE);
   CHECK(pose_ally_item(ALLY_ANDREA, 0.0f).strip == STRIP_ITEM_SUSHI && pose_ally_item(ALLY_GIULIA, 0.0f).strip == STRIP_ITEM_GLOVES);
   CHECK(pose_ally_effect(FX_ALLY_PUNCH, 0.1f, 0.35f).strip == STRIP_ALLY_GIULIA_FX);
@@ -446,6 +436,455 @@ static void giacomo_crouches_to_roll_the_ball_at_a_beetle_on_the_floor(void) {
   world_free(world);
 }
 
+/* ---- Finding the way up: friends follow Fabio to other floors by walking and jumping. ---- */
+
+static int add_plank(world_t* world, float x, float top, float width) {
+  int index = world->level.platform_count++;
+  world->level.platforms[index] = (platform_def_t){PLATFORM_STATIC, x, top, width, 0.0f, 1.0f, 0.0f};
+  platforms_reset(world);
+  return index;
+}
+
+/* Fabio stands on a plank (or the ground when `plank` is -1) at x, as if he had jumped up there. */
+static void fabio_stands(world_t* world, float x, float feet, int plank) {
+  player_t* p = &world->player;
+  p->x = x;
+  p->y = feet;
+  p->vx = p->vy = 0.0f;
+  p->grounded = true;
+  p->platform = plank;
+}
+
+static bool in_sight(const world_t* world, float x) {
+  float view = world->view_w > 0.0f ? world->view_w : 1280.0f;
+  return x > world->camera_x - 40.0f && x < world->camera_x + view + 40.0f;
+}
+
+/* Whether any of him is on the screen: its width, and its height (the level is one screen tall). */
+static bool seen_at(const world_t* world, float x, float feet) {
+  return in_sight(world, x) && feet - ALLY_H < level_height();
+}
+
+/* Runs for `seconds` and returns the biggest distance any friend moved in a 0.05 s step while anyone
+ * could see it (the start of the first step included): a jump or a fall is at most about 45 pixels, a
+ * sprint 35, a pop from one place to another far more. Friends are told apart by kind. */
+static float watch_friends_move(world_t* world, float seconds) {
+  float biggest = 0.0f;
+  float last_x[ALLY_KIND_COUNT], last_y[ALLY_KIND_COUNT];
+  bool known[ALLY_KIND_COUNT] = {false};
+  size_t cursor = 0;
+  for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));) {
+    last_x[a->kind] = a->x;
+    last_y[a->kind] = a->y;
+    known[a->kind] = true;
+  }
+  for (float t = 0.0f; t < seconds; t += 0.05f) {
+    step(world, NULL, 0.05f);
+    cursor = 0;
+    for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));) {
+      if (known[a->kind] && (seen_at(world, a->x, a->y) || seen_at(world, last_x[a->kind], last_y[a->kind])))
+        biggest = fmaxf(biggest, fmaxf(fabsf(a->x - last_x[a->kind]), fabsf(a->y - last_y[a->kind])));
+      last_x[a->kind] = a->x;
+      last_y[a->kind] = a->y;
+      known[a->kind] = true;
+    }
+  }
+  return biggest;
+}
+
+static void a_friend_on_the_street_jumps_up_to_a_plank_fabio_has_climbed_onto(void) {
+  for (int kind = 0; kind < ALLY_KIND_COUNT; kind++) {
+    world_t* world = fresh();
+    world_summon_ally(world, (ally_kind_t)kind);
+    step(world, NULL, 1.0f);
+    int plank = add_plank(world, 20.0f * TILE, GROUND - 100.0f, 160.0f);
+    fabio_stands(world, 20.0f * TILE, GROUND - 100.0f, plank);
+    float biggest = watch_friends_move(world, 6.0f);
+    ally_t* a = ally_of(world, (ally_kind_t)kind);
+    CHECK(a && a->platform == plank && fabsf(a->y - (GROUND - 100.0f)) < 1.5f);
+    CHECK(biggest < 60.0f); /* he walked and jumped there: no leap from the street to the plank */
+    world_free(world);
+  }
+}
+
+static void a_friend_climbs_a_staircase_of_planks_one_jump_at_a_time(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_ALESSANDRO);
+  step(world, NULL, 1.0f);
+  add_plank(world, 18.0f * TILE, GROUND - 110.0f, 120.0f);
+  int top = add_plank(world, 24.0f * TILE, GROUND - 220.0f, 140.0f); /* too high to reach from the street */
+  fabio_stands(world, 24.0f * TILE, GROUND - 220.0f, top);
+  float biggest = watch_friends_move(world, 9.0f);
+  ally_t* a = ally_of(world, ALLY_ALESSANDRO);
+  CHECK(a && a->platform == top && fabsf(a->y - (GROUND - 220.0f)) < 1.5f);
+  CHECK(biggest < 60.0f);
+  CHECK(!effect_live(world, FX_ALLY_POOF)); /* nobody was brought over in a puff */
+  world_free(world);
+}
+
+static void a_friend_gets_up_onto_a_block_that_has_sides_by_running_at_it(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_GIULIA);
+  step(world, NULL, 1.0f);
+  for (int col = 18; col <= 23; col++) world->level.tiles[GROUND_ROW - 4][col] = TILE_BRICK; /* a row of blocks, 128 up */
+  float top = (float)((GROUND_ROW - 4) * TILE);
+  fabio_stands(world, 20.5f * TILE, top, -1);
+  float biggest = watch_friends_move(world, 9.0f);
+  ally_t* a = ally_of(world, ALLY_GIULIA);
+  CHECK(a && fabsf(a->y - top) < 1.5f && a->x > 18.0f * TILE && a->x < 24.0f * TILE);
+  CHECK(biggest < 60.0f);
+  world_free(world);
+}
+
+static void a_friend_walks_off_the_edge_to_come_down_after_fabio(void) {
+  world_t* world = fresh();
+  int plank = add_plank(world, 20.0f * TILE, GROUND - 100.0f, 160.0f);
+  fabio_stands(world, 20.0f * TILE, GROUND - 100.0f, plank);
+  world_summon_ally(world, ALLY_ANDREA);
+  step(world, NULL, 4.0f);
+  ally_t* a = ally_of(world, ALLY_ANDREA);
+  CHECK(a && a->platform == plank); /* up on the plank with him */
+  fabio_stands(world, 25.0f * TILE, GROUND, -1); /* Fabio drops to the street */
+  float biggest = watch_friends_move(world, 6.0f);
+  a = ally_of(world, ALLY_ANDREA);
+  CHECK(a && a->platform == -1 && fabsf(a->y - GROUND) < 1.5f);
+  CHECK(biggest < 60.0f);
+  world_free(world);
+}
+
+static void a_friend_with_no_way_up_waits_below_and_keeps_pace_never_popping_up_to_fabio(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_ANDREA);
+  step(world, NULL, 1.0f);
+  int perch = add_plank(world, 20.0f * TILE, GROUND - 400.0f, 120.0f); /* out of anybody's reach */
+  fabio_stands(world, 20.0f * TILE, GROUND - 400.0f, perch);
+  float biggest = watch_friends_move(world, 16.0f);
+  ally_t* a = ally_of(world, ALLY_ANDREA);
+  CHECK(a && a->platform != perch && a->y > GROUND - 5.0f); /* still below, as long as he stays up there */
+  CHECK(fabsf(a->x - 20.0f * TILE) < 300.0f); /* but keeping pace with Fabio's x */
+  CHECK(biggest < 60.0f && !effect_live(world, FX_ALLY_POOF));
+  world_free(world);
+}
+
+static void a_friend_left_far_behind_sprints_to_catch_up_and_never_pops_up_in_front(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_ANDREA);
+  step(world, NULL, 1.0f);
+  world->player.x += 900.0f; /* Fabio is suddenly far ahead (in the game he would have run there) */
+  float biggest = watch_friends_move(world, 4.0f);
+  ally_t* a = ally_of(world, ALLY_ANDREA);
+  CHECK(a && fabsf(a->x - world->player.x - ally_offset(ALLY_ANDREA)) < 40.0f);
+  CHECK(biggest < 60.0f);
+  world_free(world);
+}
+
+static void a_friend_who_fell_in_a_pit_runs_back_in_from_the_edge_of_the_screen(void) {
+  world_t* world = fresh();
+  world->player.x = 40.0f * TILE; /* away from the start, where there is room behind the screen */
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_GIULIA);
+  step(world, NULL, 1.0f);
+  ally_t* a = ally_of(world, ALLY_GIULIA);
+  a->y = level_height() + 100.0f; /* down the hole */
+  step(world, NULL, 0.1f);
+  a = ally_of(world, ALLY_GIULIA);
+  CHECK(a->x < world->camera_x); /* back in, out of sight behind Fabio... */
+  CHECK(a->y <= GROUND + 1.0f && a->vx > 100.0f); /* ...on the ground and running towards him */
+  float biggest = watch_friends_move(world, 5.0f);
+  a = ally_of(world, ALLY_GIULIA);
+  CHECK(fabsf(a->x - world->player.x - ally_offset(ALLY_GIULIA)) < 40.0f);
+  CHECK(biggest < 60.0f);
+  world_free(world);
+}
+
+static void a_friend_arrives_at_fabio_and_runs_on_ahead_to_his_place(void) {
+  for (int kind = 0; kind < ALLY_KIND_COUNT; kind++) {
+    world_t* world = fresh();
+    world_summon_ally(world, (ally_kind_t)kind);
+    ally_t* a = ally_of(world, (ally_kind_t)kind);
+    CHECK(fabsf(a->x - world->player.x) < 20.0f); /* he is there with Fabio, not already out in front */
+    float biggest = watch_friends_move(world, 2.0f);
+    a = ally_of(world, (ally_kind_t)kind);
+    CHECK(fabsf(a->x - world->player.x - ally_offset((ally_kind_t)kind)) < 12.0f);
+    CHECK(biggest < 60.0f);
+    world_free(world);
+  }
+}
+
+static void in_real_levels_with_enemies_the_friends_move_smoothly_all_the_way(void) {
+  for (uint32_t seed = 3; seed <= 6; seed++) {
+    world_t* world = world_new(seed, recording_events());
+    bot_t bot;
+    memset(&bot, 0, sizeof(bot));
+    controls_t controls;
+    memset(&controls, 0, sizeof(controls));
+    world->view_w = 960.0f;
+    for (int k = 0; k < ALLY_KIND_COUNT; k++) world_summon_ally(world, (ally_kind_t)k);
+    float last_x[ALLY_KIND_COUNT], last_y[ALLY_KIND_COUNT];
+    bool known[ALLY_KIND_COUNT] = {false};
+    size_t cursor = 0;
+    for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));) { /* where they stand before the first frame */
+      last_x[a->kind] = a->x;
+      last_y[a->kind] = a->y;
+      known[a->kind] = true;
+    }
+    float biggest = 0.0f, calm_after = 0.0f;
+    for (float t = 0.0f; t < 60.0f && world->state == STATE_PLAYING; t += 1.0f / 60.0f) {
+      /* a pipe to a cave is a change of scene: the friends arrive with him */
+      if (world->warp.phase != WARP_NONE) calm_after = t + 0.2f;
+      for (ally_kind_t kind = 0; kind < ALLY_KIND_COUNT; kind++) { /* keep them alive for the whole run */
+        ally_t* a = ally_of(world, kind);
+        if (a) a->left = ALLY_SECONDS;
+      }
+      buttons_t now = bot_decide(world, &bot, 1.0f / 60.0f);
+      controls_update(&controls, now);
+      world_update(world, &controls, 1.0f / 60.0f);
+      cursor = 0;
+      for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));) {
+        /* frame to frame: a jump is at most 14 pixels, a sprint 11, a pop from one place to another far more */
+        if (known[a->kind] && t > calm_after && (seen_at(world, a->x, a->y) || seen_at(world, last_x[a->kind], last_y[a->kind])))
+          biggest = fmaxf(biggest, fmaxf(fabsf(a->x - last_x[a->kind]), fabsf(a->y - last_y[a->kind])));
+        last_x[a->kind] = a->x;
+        last_y[a->kind] = a->y;
+        known[a->kind] = true;
+      }
+    }
+    CHECK(biggest < 25.0f);
+    world_free(world);
+  }
+}
+
+static void giacomo_left_behind_while_he_sits_catches_up_on_his_own_feet(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_GIACOMO);
+  world_summon_ally(world, ALLY_GIULIA);
+  buttons_t run_right = BTN_RIGHT | BTN_RUN;
+  float biggest = 0.0f, last_x[ALLY_KIND_COUNT], last_y[ALLY_KIND_COUNT];
+  bool known[ALLY_KIND_COUNT] = {false};
+  size_t cursor = 0;
+  for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));) {
+    last_x[a->kind] = a->x;
+    last_y[a->kind] = a->y;
+    known[a->kind] = true;
+  }
+  bool sat = false;
+  for (int i = 0; i < 400; i++) { /* 20 seconds with Fabio running on, and Giulia knocking Giacomo down */
+    step(world, &run_right, 0.05f);
+    cursor = 0;
+    for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));) {
+      if (a->kind == ALLY_GIACOMO && a->sitting) sat = true;
+      if (known[a->kind] && (seen_at(world, a->x, a->y) || seen_at(world, last_x[a->kind], last_y[a->kind])))
+        biggest = fmaxf(biggest, fmaxf(fabsf(a->x - last_x[a->kind]), fabsf(a->y - last_y[a->kind])));
+      last_x[a->kind] = a->x;
+      last_y[a->kind] = a->y;
+    }
+  }
+  CHECK(sat);
+  CHECK(biggest < 60.0f); /* nobody was ever picked up and put down somewhere else */
+  world_free(world);
+}
+
+static int facing_flips(world_t* world, ally_kind_t kind, float seconds) {
+  int flips = 0;
+  ally_t* a = ally_of(world, kind);
+  int last = a->facing;
+  for (float t = 0.0f; t < seconds; t += 1.0f / 120.0f) {
+    step(world, NULL, 1.0f / 120.0f);
+    a = ally_of(world, kind);
+    if (a->facing != last) flips++;
+    last = a->facing;
+  }
+  return flips;
+}
+
+static void a_friend_keeps_his_stance_while_fabio_stands_still_and_does_not_jitter(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_ANDREA);
+  step(world, NULL, 1.0f);
+  ally_t* a = ally_of(world, ALLY_ANDREA);
+  a->x = world->player.x + ally_offset(ALLY_ANDREA) + 7.0f; /* a little off his place, so he has to nudge back */
+  CHECK(facing_flips(world, ALLY_ANDREA, 3.0f) == 0);
+  CHECK(ally_of(world, ALLY_ANDREA)->facing == 1);
+  world_free(world);
+}
+
+static void the_formation_follows_the_way_fabio_travels_not_the_way_he_faces(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f; /* room to walk back */
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_ANDREA);
+  world_summon_ally(world, ALLY_GIULIA);
+  step(world, NULL, 1.5f);
+  /* He walks left while striking back to the right: facing says right, travel says left. */
+  buttons_t left = BTN_LEFT;
+  for (int i = 0; i < 40; i++) {
+    world->player.facing = 1;
+    step(world, &left, 0.05f);
+  }
+  CHECK(world->player.vx < -40.0f);
+  CHECK(ally_of(world, ALLY_ANDREA)->x < world->player.x - 40.0f);
+  CHECK(ally_of(world, ALLY_GIULIA)->x < world->player.x - 100.0f);
+  /* He stops, and turns to face the other way without moving: they stay where they are ahead of him. */
+  step(world, NULL, 1.0f);
+  world->player.facing = 1;
+  step(world, NULL, 1.0f);
+  CHECK(ally_of(world, ALLY_ANDREA)->x < world->player.x - 40.0f);
+  world_free(world);
+}
+
+static void recovery_never_shows_a_friend_moving_from_one_place_to_another(void) {
+  /* At the start of the level there is no ground behind the screen: he comes in from the other side. */
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_GIULIA);
+  step(world, NULL, 1.0f);
+  ally_t* a = ally_of(world, ALLY_GIULIA);
+  float view = world->view_w > 0.0f ? world->view_w : 1280.0f;
+  a->y = level_height() + 100.0f;
+  step(world, NULL, 0.05f);
+  a = ally_of(world, ALLY_GIULIA);
+  CHECK(!in_sight(world, a->x) && a->x > world->camera_x + view && a->y <= GROUND + 1.0f);
+  world_free(world);
+
+  /* The same at the far end of the level, facing left. */
+  world = fresh();
+  world->player.x = level_width() - 200.0f;
+  world->player.facing = -1;
+  world->camera_x = world->player.x - 700.0f;
+  world_summon_ally(world, ALLY_GIULIA);
+  buttons_t left = BTN_LEFT;
+  step(world, &left, 1.0f);
+  a = ally_of(world, ALLY_GIULIA);
+  a->y = level_height() + 100.0f;
+  step(world, &left, 0.05f);
+  a = ally_of(world, ALLY_GIULIA);
+  CHECK(!in_sight(world, a->x) && a->y <= GROUND + 1.0f);
+  world_free(world);
+
+  /* A friend who is far away but still on the screen is not moved at all: he sprints. */
+  world = fresh();
+  world->view_w = 2400.0f;
+  world_summon_ally(world, ALLY_ANDREA);
+  step(world, NULL, 1.0f);
+  a = ally_of(world, ALLY_ANDREA);
+  a->x = world->player.x + 1600.0f;
+  float before = a->x;
+  step(world, NULL, 0.05f);
+  a = ally_of(world, ALLY_ANDREA);
+  CHECK(fabsf(a->x - before) < 60.0f);
+  world_free(world);
+}
+
+static void a_friend_fallen_in_a_cave_comes_back_in_the_cave_not_on_its_roof(void) {
+  world_t* world = fresh();
+  level_generate_cave(&world->level, 7, 1);
+  platforms_reset(world);
+  world->player.x = 1100.0f;
+  world->player.y = GROUND;
+  world->player.facing = -1;
+  world->view_w = 960.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_GIULIA);
+  step(world, NULL, 0.5f);
+  ally_t* a = ally_of(world, ALLY_GIULIA);
+  a->y = level_height() + 100.0f;
+  step(world, NULL, 0.05f);
+  a = ally_of(world, ALLY_GIULIA);
+  CHECK(a->x > 0.0f && a->x < (float)(world->level.cols * TILE) && a->y > (float)(2 * TILE)); /* inside, on the cave floor */
+  world_free(world);
+}
+
+static void a_friend_comes_down_from_a_plank_that_the_plank_below_sits_inside(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_ANDREA);
+  step(world, NULL, 1.0f);
+  int upper = add_plank(world, 640.0f, GROUND - 200.0f, 200.0f);
+  int lower = add_plank(world, 640.0f, GROUND - 100.0f, 100.0f); /* narrower, right under it */
+  ally_t* a = ally_of(world, ALLY_ANDREA);
+  a->x = 640.0f;
+  a->y = GROUND - 200.0f;
+  a->vy = 0.0f;
+  a->platform = upper;
+  a->grounded = true;
+  fabio_stands(world, 640.0f, GROUND - 100.0f, lower);
+  float biggest = watch_friends_move(world, 14.0f);
+  a = ally_of(world, ALLY_ANDREA);
+  CHECK(a && a->platform == lower && fabsf(a->y - (GROUND - 100.0f)) < 1.5f);
+  CHECK(biggest < 60.0f);
+  world_free(world);
+}
+
+static void a_jump_that_would_hit_a_ceiling_is_made_from_somewhere_it_clears(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_ANDREA);
+  step(world, NULL, 1.0f);
+  for (int col = 19; col <= 21; col++) world->level.tiles[GROUND_ROW - 3][col] = TILE_BRICK; /* a roof under the plank */
+  int plank = add_plank(world, 20.5f * TILE, GROUND - 100.0f, 160.0f);
+  fabio_stands(world, 20.5f * TILE, GROUND - 100.0f, plank);
+  ally_t* under = ally_of(world, ALLY_ANDREA);
+  under->x = 20.0f * TILE; /* right under the roof, where a straight jump would hit it */
+  under->vx = 0.0f;
+  float biggest = watch_friends_move(world, 12.0f);
+  ally_t* a = ally_of(world, ALLY_ANDREA);
+  CHECK(a && a->platform == plank);
+  CHECK(biggest < 60.0f);
+  world_free(world);
+}
+
+static void a_friend_off_the_screen_with_nowhere_to_come_in_from_waits_unseen_then_runs_in(void) {
+  world_t* world = fresh();
+  level_generate_cave(&world->level, 7, 1); /* 1536 pixels wide */
+  platforms_reset(world);
+  world->player.x = 320.0f;
+  world->player.y = GROUND;
+  world->view_w = 1472.0f; /* the screen shows nearly all of it: no ground beyond either edge */
+  world->camera_x = 0.0f;
+  world_summon_ally(world, ALLY_GIULIA);
+  step(world, NULL, 0.5f);
+  ally_t* a = ally_of(world, ALLY_GIULIA);
+  a->y = level_height() + 100.0f;
+  float biggest = watch_friends_move(world, 1.0f);
+  a = ally_of(world, ALLY_GIULIA);
+  CHECK(!seen_at(world, a->x, a->y) && biggest < 60.0f); /* out of sight, and not moved where it can be seen */
+  world->view_w = 800.0f; /* now there is ground beyond the edge of what is shown */
+  float after = watch_friends_move(world, 4.0f);
+  a = ally_of(world, ALLY_GIULIA);
+  CHECK(a->y <= GROUND + 1.0f && fabsf(a->x - world->player.x - ally_offset(ALLY_GIULIA)) < 40.0f);
+  CHECK(after < 60.0f);
+  world_free(world);
+}
+
+static void a_friend_held_by_the_edge_of_his_plank_does_not_run_on_past_it_with_fabio(void) {
+  world_t* world = fresh();
+  int plank = add_plank(world, 768.0f, GROUND - 128.0f, 384.0f); /* 576 to 960 */
+  fabio_stands(world, 700.0f, GROUND - 128.0f, plank);
+  world_summon_ally(world, ALLY_GIACOMO);
+  ally_t* g = ally_of(world, ALLY_GIACOMO);
+  g->x = 940.0f;
+  g->y = GROUND - 128.0f;
+  g->platform = plank;
+  g->grounded = true;
+  buttons_t run_right = BTN_RIGHT | BTN_RUN;
+  for (int i = 0; i < 60; i++) { /* a second of Fabio running along the plank, towards the end of it */
+    step(world, &run_right, 1.0f / 60.0f);
+    g = ally_of(world, ALLY_GIACOMO);
+    CHECK(g && g->platform == plank && fabsf(g->y - (GROUND - 128.0f)) < 1.5f);
+  }
+  world_free(world);
+}
+
+static void a_plank_only_a_step_above_the_street_still_has_to_be_climbed(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_ANDREA);
+  step(world, NULL, 1.0f);
+  int plank = add_plank(world, 640.0f, GROUND - 20.0f, 200.0f); /* within 24 px of the street, but not the street */
+  fabio_stands(world, 640.0f, GROUND - 20.0f, plank);
+  float biggest = watch_friends_move(world, 10.0f);
+  ally_t* a = ally_of(world, ALLY_ANDREA);
+  CHECK(a && a->platform == plank && fabsf(a->y - (GROUND - 20.0f)) < 1.5f);
+  CHECK(biggest < 60.0f);
+  world_free(world);
+}
+
 void run_ally_tests(void) {
   RUN(the_opening_row_holds_the_three_pickups_and_each_brings_its_friend);
   RUN(each_friend_stands_a_few_steps_ahead_of_fabio_at_his_own_distance);
@@ -455,7 +894,6 @@ void run_ally_tests(void) {
   RUN(alessandro_runs_at_an_enemy_and_strikes_it_with_kung_fu);
   RUN(giulia_punches_what_comes_near_her);
   RUN(nothing_that_touches_a_friend_hurts_him_and_the_enemies_still_come_for_fabio);
-  RUN(a_friend_left_far_behind_or_fallen_in_a_pit_turns_up_at_fabios_side);
   RUN(the_friends_jump_the_holes_in_the_ground);
   RUN(the_friends_go_down_a_pipe_with_fabio);
   RUN(the_friends_have_their_poses_and_their_sounds);
@@ -468,4 +906,23 @@ void run_ally_tests(void) {
   RUN(giacomo_alone_is_never_punched_and_all_four_friends_fit);
   RUN(giulia_catches_giacomo_even_while_fabio_runs);
   RUN(giacomo_crouches_to_roll_the_ball_at_a_beetle_on_the_floor);
+  RUN(a_friend_on_the_street_jumps_up_to_a_plank_fabio_has_climbed_onto);
+  RUN(a_friend_climbs_a_staircase_of_planks_one_jump_at_a_time);
+  RUN(a_friend_gets_up_onto_a_block_that_has_sides_by_running_at_it);
+  RUN(a_friend_walks_off_the_edge_to_come_down_after_fabio);
+  RUN(a_friend_with_no_way_up_waits_below_and_keeps_pace_never_popping_up_to_fabio);
+  RUN(a_friend_left_far_behind_sprints_to_catch_up_and_never_pops_up_in_front);
+  RUN(a_friend_who_fell_in_a_pit_runs_back_in_from_the_edge_of_the_screen);
+  RUN(a_friend_arrives_at_fabio_and_runs_on_ahead_to_his_place);
+  RUN(giacomo_left_behind_while_he_sits_catches_up_on_his_own_feet);
+  RUN(in_real_levels_with_enemies_the_friends_move_smoothly_all_the_way);
+  RUN(a_friend_keeps_his_stance_while_fabio_stands_still_and_does_not_jitter);
+  RUN(the_formation_follows_the_way_fabio_travels_not_the_way_he_faces);
+  RUN(recovery_never_shows_a_friend_moving_from_one_place_to_another);
+  RUN(a_friend_fallen_in_a_cave_comes_back_in_the_cave_not_on_its_roof);
+  RUN(a_friend_comes_down_from_a_plank_that_the_plank_below_sits_inside);
+  RUN(a_jump_that_would_hit_a_ceiling_is_made_from_somewhere_it_clears);
+  RUN(a_friend_off_the_screen_with_nowhere_to_come_in_from_waits_unseen_then_runs_in);
+  RUN(a_friend_held_by_the_edge_of_his_plank_does_not_run_on_past_it_with_fabio);
+  RUN(a_plank_only_a_step_above_the_street_still_has_to_be_climbed);
 }

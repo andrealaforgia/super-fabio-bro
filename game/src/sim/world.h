@@ -321,7 +321,20 @@ typedef struct {
   bool crouching; /* Giacomo is throwing low, at something crawling on the ground */
   float sit_left; /* seconds still to sit on the ground after the punch */
   float grace;    /* seconds after getting up in which he cannot be punched */
+  float plan_in;  /* seconds until he works out his way to Fabio's floor again */
+  float go_x;     /* on another floor than Fabio: where to walk to next, */
+  float land_x;   /* where to head for once he has jumped, */
+  bool jump_next; /* and whether to jump when he gets there */
+  bool planned;   /* he has a way to Fabio's floor */
 } ally_t;
+
+/* The next move of a friend who is on another floor than Fabio (ally_path.c). */
+typedef struct {
+  bool found;   /* there is a way: take it */
+  float go_x;   /* walk to here... */
+  float land_x; /* ...and, once airborne, head for here... */
+  bool jump;    /* ...jumping when you arrive (otherwise just walk off the edge) */
+} ally_step_t;
 
 /* A water polo ball in flight: it kills the first enemy it meets. */
 typedef struct {
@@ -520,6 +533,7 @@ typedef struct {
   object_pool_t allies;    /* ally_t */
   object_pool_t force_bursts; /* force_burst_t */
   object_pool_t polo_balls;   /* polo_ball_t */
+  int ally_lead;              /* the way Fabio is going, -1 or 1: his friends go on ahead that way (0 before they have one) */
   bool item_taken[MAX_LEVEL_ITEMS];
   object_pool_t bullets;   /* bullet_t */
   object_pool_t rays;      /* ray_t */
@@ -798,6 +812,9 @@ int warp_pipe_under_fabio(const world_t* world);
 float warp_fade(const world_t* world);
 /* Everything that comes and goes (enemies, bullets, effects ...) is cleared. */
 void world_clear_actors(world_t* world);
+
+/* The way to Fabio's floor, step by step (ally_path.c). */
+ally_step_t ally_plan_step(const world_t* world, const ally_t* ally);
 
 /* allies.c: Fabio's friends. */
 /* Calls the ally in (or, if he is already here, keeps him another ALLY_SECONDS). */

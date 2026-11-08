@@ -253,7 +253,11 @@ static void from_the_capsule_at_three_oclock_he_steps_off_onto_the_viewing_deck(
   world_free(world);
 }
 
-static void his_friends_ride_the_capsule_with_him_and_hop_up_onto_balconies_too(void) {
+static bool on_a_capsule(const world_t* world, const ally_t* a) {
+  return a->platform >= world->level.eye_first_pod && a->platform < world->level.eye_first_pod + EYE_PODS;
+}
+
+static void his_friends_get_on_the_capsules_and_up_onto_balconies_by_jumping_not_by_magic(void) {
   world_t* world = world_for(3);
   const level_t* level = &world->level;
   player_t* p = &world->player;
@@ -262,20 +266,36 @@ static void his_friends_ride_the_capsule_with_him_and_hop_up_onto_balconies_too(
   step(world, NULL, 1.0f);
   int plank = ride_the_eye(world);
   CHECK(plank >= 0);
-  step(world, NULL, 3.0f);
-  int riding = 0;
-  size_t cursor = 0;
-  for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));) {
-    if (a->platform == p->platform) {
-      riding++;
-      CHECK(fabsf(a->y - world->planks[p->platform].top) < 1.5f);
-      CHECK(fabsf(a->x - world->planks[p->platform].x) <= POD_W * 0.5f);
-    }
+  /* They are on the ground and Fabio is up on a capsule: they jump onto the capsules as they come
+   * round, and never turn up anywhere they did not walk or jump to. */
+  bool been_on[ALLY_KIND_COUNT] = {false};
+  float last_x[ALLY_KIND_COUNT] = {0}, last_y[ALLY_KIND_COUNT] = {0};
+  bool known[ALLY_KIND_COUNT] = {false};
+  float biggest_move = 0.0f;
+  size_t first = 0;
+  for (ally_t* a; (a = pool_next_active(&world->allies, &first));) { /* where they are before the first step */
+    last_x[a->kind] = a->x;
+    last_y[a->kind] = a->y;
+    known[a->kind] = true;
   }
-  CHECK(riding == 2);
+  for (int i = 0; i < 160; i++) { /* eight seconds */
+    step(world, NULL, 0.05f);
+    size_t cursor = 0;
+    for (ally_t* a; (a = pool_next_active(&world->allies, &cursor));) {
+      if (on_a_capsule(world, a)) been_on[a->kind] = true;
+      if (known[a->kind]) biggest_move = fmaxf(biggest_move, fmaxf(fabsf(a->x - last_x[a->kind]), fabsf(a->y - last_y[a->kind])));
+      last_x[a->kind] = a->x;
+      last_y[a->kind] = a->y;
+      known[a->kind] = true;
+    }
+    (void)level;
+    (void)p;
+  }
+  CHECK(been_on[ALLY_ALESSANDRO] && been_on[ALLY_GIULIA]);
+  CHECK(biggest_move < 60.0f); /* in 0.05 s at most a fast jump or fall, never a leap to another floor */
   world_free(world);
 
-  /* On a balcony, too. */
+  /* On a balcony, too: Fabio is up there, his friend arrives beside him and finds his way up. */
   world = world_for(3);
   level = &world->level;
   p = &world->player;
@@ -289,8 +309,8 @@ static void his_friends_ride_the_capsule_with_him_and_hop_up_onto_balconies_too(
   p->grounded = true;
   p->platform = balcony;
   world->camera_x = p->x - 300.0f;
-  step(world, NULL, 2.0f);
-  cursor = 0;
+  step(world, NULL, 8.0f);
+  size_t cursor = 0;
   ally_t* a = pool_next_active(&world->allies, &cursor);
   CHECK(a && a->platform == balcony && fabsf(a->y - level->platforms[balcony].y) < 1.5f);
   world_free(world);
@@ -633,7 +653,7 @@ void run_city_tests(void) {
   RUN(the_london_eye_has_twelve_capsules_going_round_and_staying_level);
   RUN(fabio_jumps_onto_a_capsule_at_the_bottom_and_is_carried_up);
   RUN(from_the_capsule_at_three_oclock_he_steps_off_onto_the_viewing_deck);
-  RUN(his_friends_ride_the_capsule_with_him_and_hop_up_onto_balconies_too);
+  RUN(his_friends_get_on_the_capsules_and_up_onto_balconies_by_jumping_not_by_magic);
   RUN(ovid_and_the_aqueduct_are_among_the_monuments);
   RUN(every_balcony_and_roof_can_be_reached_by_jumping);
   RUN(fabio_jumps_up_from_the_street_to_a_balcony_then_the_next_and_the_roof);
