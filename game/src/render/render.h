@@ -16,6 +16,8 @@
 void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* world);
 void render_title(graphics_context_ptr gfx, const look_t* look, float time);
 void render_pause(graphics_context_ptr gfx, const look_t* look);
+/* The frame rate, small, in the bottom left corner (for --show-fps). */
+void render_fps(graphics_context_ptr gfx, const look_t* look, float fps);
 /* A big countdown, for setting up a screen recording. */
 void render_countdown(graphics_context_ptr gfx, const look_t* look,
                       float seconds_left);

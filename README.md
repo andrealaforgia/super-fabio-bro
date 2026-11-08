@@ -285,6 +285,8 @@ make snapshot       # a bot plays 20 s, saved to snapshot.bmp, plus the title
 ./super-fabio-bros --showcase --snapshot=show.bmp   # a staged fight
 ./super-fabio-bros --delay=10   # a countdown first, to start a screen recording
 ./super-fabio-bros --help       # every option, the engine's and the game's
+./super-fabio-bros --show-fps   # the frame rate, bottom left
+./super-fabio-bros --graphics-info   # the displays and their modes, then exit
 ```
 
 ## Layout

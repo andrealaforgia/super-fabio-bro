@@ -11,6 +11,7 @@
 #include "controls.h"
 #include "engine.h"
 #include "events.h"
+#include "fps_tracker.h"
 #include "graphics.h"
 #include "logger.h"
 #include "render.h"
@@ -156,15 +157,27 @@ int main(int argc, char** argv) {
   engine.window_mode = WINDOWED;
   engine.vsync = true;
   engine.volume = 128;
-  parse_command_line_options(argc, argv, &engine, custom, custom_count);
-  if (engine.help) {
+  /* The engine options this game acts on; it offers no others. */
+  const unsigned offered = CLI_WINDOW | CLI_VOLUME | CLI_GRAPHICS_INFO | CLI_SHOW_FPS;
+  command_line_result_t parsed =
+      parse_command_line(argc, argv, offered, &engine, custom, custom_count);
+  if (parsed.status == COMMAND_LINE_ERROR) {
+    fprintf(stderr, "%s\n", parsed.message);
+    return 2;
+  }
+  if (parsed.status == COMMAND_LINE_HELP) {
     printf("usage: super-fabio-bros [options]\n");
-    print_help(&engine, custom, custom_count);
+    print_help(offered, &engine, custom, custom_count);
     return 0;
   }
   if (!engine_start()) {
     fprintf(stderr, "cannot start the engine: %s\n", engine_last_error());
     return 1;
+  }
+  if (engine.graphics_info) {
+    print_graphics_info();
+    engine_stop();
+    return 0;
   }
   engine_set_log_level(LOG_LEVEL_WARN); /* the engine logs each texture */
   graphics_config_t config = default_graphics_config("Super Fabio Bros");
@@ -227,12 +240,14 @@ int main(int argc, char** argv) {
   controls_t controls;
   memset(&controls, 0, sizeof(controls));
   double last = get_clock_seconds();
+  fps_tracker_t fps = create_fps_tracker();
 
   while (running) {
     if (drain_events() == QUIT_EVENT) running = false;
     double now = get_clock_seconds();
     double frame = now - last;
     last = now;
+    fps_tracker_frame(&fps, now);
 
     buttons_t buttons = read_buttons();
     controls_update(&controls, buttons);
@@ -254,6 +269,7 @@ int main(int argc, char** argv) {
       delay_left -= (float)frame;
       if (audio) set_music_gain(audio, 0.0f);
       render_countdown(gfx, &look, delay_left);
+      if (engine.show_fps) render_fps(gfx, &look, fps_tracker_current(&fps));
       present_frame(gfx);
       continue;
     }
@@ -293,6 +309,7 @@ int main(int argc, char** argv) {
       render_world(gfx, &look, world);
       if (paused) render_pause(gfx, &look);
     }
+    if (engine.show_fps) render_fps(gfx, &look, fps_tracker_current(&fps));
     present_frame(gfx);
   }
 

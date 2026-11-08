@@ -1011,6 +1011,12 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
     draw_banner(&f, "YOU DID IT!", "PRESS SPACE TO PLAY AGAIN", 120, 255, 140);
 }
 
+void render_fps(graphics_context_ptr gfx, const look_t* look, float fps) {
+  char text[32];
+  snprintf(text, sizeof(text), "FPS %d", (int)(fps + 0.5f));
+  shadow_text(gfx, &look->font, 10.0f, VIEW_HEIGHT - 26.0f, text, 2.0f, 200, 255, 200);
+}
+
 void render_pause(graphics_context_ptr gfx, const look_t* look) {
   const pixel_font_t* font = &look->font;
   float w = graphics_view_width(gfx);

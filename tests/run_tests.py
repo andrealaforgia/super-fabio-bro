@@ -17,21 +17,16 @@ GROUPS = (
 )
 
 
-# The engine pieces that need no window, sound device or keyboard; the rest is
-# exercised by the engine's own tests and by the snapshots.
-ENGINE_PURE_SOURCES = (
-    "core/math/rng.c",
-    "core/math/geometry.c",
-    "core/time/stepper.c",
-    "core/input/controls.c",
-    "core/audio/mixer.c",
-    "core/events/event_system.c",
-    "core/memory/object_pool.c",
-)
+def ask_engine(target):
+    """What the engine's makefile exports under `target`, as a list of words."""
+    output = subprocess.run(
+        ["make", "--no-print-directory", "-s", "-C", str(ROOT / "engine"), "WITH_TTF=0", target],
+        capture_output=True, text=True, check=True).stdout
+    return output.split()
 
 
 def source_directories():
-    directories = [d for d in sorted((ROOT / "engine/core").iterdir()) if d.name != "internal"]
+    directories = [ROOT / "engine" / name for name in ask_engine("print-public-includes")]
     directories += sorted((ROOT / "game/src").iterdir())
     return [p for p in directories if p.is_dir()]
 
@@ -48,7 +43,8 @@ ENGINE_DRIVING_SOURCES = (
 
 
 def sources():
-    found = [ROOT / "engine" / name for name in ENGINE_PURE_SOURCES]
+    # The engine's own list of what needs no window, sound device or keyboard.
+    found = [ROOT / "engine" / name for name in ask_engine("print-headless-sources")]
     for directory in sorted((ROOT / "game/src").iterdir()):
         found += sorted(directory.glob("*.c"))
     skipped = {ROOT / name for name in ENGINE_DRIVING_SOURCES}
