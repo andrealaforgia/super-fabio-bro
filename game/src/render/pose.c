@@ -203,7 +203,7 @@ pose_t pose_player(const player_t* p) {
     static const int sway[4] = {0, 1, 2, 1};
     return make(STRIP_CHUTE_FALL, sway[(int)(p->anim_time * 2.0f) % 4]);
   }
-  if (p->landing > 0.0f && p->grounded) return make(STRIP_CHUTE_LAND, p->landing > PARACHUTE_LANDING_SECONDS * 0.5f ? 0 : 1);
+  if (p->landing > 0.0f && p->grounded) return make(STRIP_CHUTE_LAND, 3); /* Fabio alone: the canopy is already lying on the ground */
   if (p->flying) return make(STRIP_FAB_HELI, (int)(p->anim_time * 18.0f)); /* the rotor spins */
   if (p->hurt_timer > 0.0f) return p->jedi_time > 0.0f ? make(STRIP_FAB_JEDI_HURT, 0) : make(STRIP_FAB_HURT, 1);
   if (p->jedi_time > 0.0f) { /* the knight's robes, for as long as the Force is with him */

@@ -227,7 +227,7 @@ static void the_friends_have_their_poses_and_their_sounds(void) {
   a->grounded = true;
   a->attack = 0.2f;
   CHECK(pose_ally(a).strip == STRIP_ALLY_ALESSANDRO_ATTACK);
-  ally_t g = {ALLY_GIULIA, 0, 0, 0, 0, 1, true, 5.0f, 1.0f, 0.0f, 0.0f, 0.0f, false, -1, false, false};
+  ally_t g = {ALLY_GIULIA, 0, 0, 0, 0, 1, true, 5.0f, 1.0f, 0.0f, 0.0f, 0.0f, false, -1, false, false, 0.0f};
   CHECK(pose_ally(&g).strip == STRIP_ALLY_GIULIA_IDLE);
   CHECK(pose_ally_item(ALLY_ANDREA, 0.0f).strip == STRIP_ITEM_SUSHI && pose_ally_item(ALLY_GIULIA, 0.0f).strip == STRIP_ITEM_GLOVES);
   CHECK(pose_ally_effect(FX_ALLY_PUNCH, 0.1f, 0.35f).strip == STRIP_ALLY_GIULIA_FX);
@@ -294,25 +294,63 @@ static void giacomo_throws_the_ball_from_afar_and_it_kills_the_enemy_it_hits(voi
   world_free(world);
 }
 
-static void giulia_punches_giacomo_and_leaves_him_sitting_with_a_black_eye(void) {
+static void giulia_punches_giacomo_and_he_sits_five_seconds_and_she_punches_him_again_every_time_she_reaches_him(void) {
   for (int giacomo_first = 0; giacomo_first < 2; giacomo_first++) {
     world_t* world = fresh();
     world_summon_ally(world, giacomo_first ? ALLY_GIACOMO : ALLY_GIULIA);
     step(world, NULL, 1.0f);
     world_summon_ally(world, giacomo_first ? ALLY_GIULIA : ALLY_GIACOMO);
-    step(world, NULL, 4.0f);
     ally_t* g = ally_of(world, ALLY_GIACOMO);
-    CHECK(g && g->sitting && g->grounded);
+    for (int i = 0; i < 60 && !g->sitting; i++) step(world, NULL, 0.1f);
+    CHECK(g->sitting);
+    step(world, NULL, 0.5f); /* thrown back, and down */
+    CHECK(g->grounded);
     CHECK(world_has_event(world, EVENT_ALLY_PUNCH) && world_has_event(world, EVENT_ALLY_OUCH));
     CHECK(pose_ally(g).strip == STRIP_ALLY_GIACOMO_SIT);
-    /* He stays sitting: an enemy ahead of him is left alone, and he does not move. */
+    /* For the five seconds an enemy ahead of him is left alone and he does not move. */
     float where = g->x;
     still_zombie(world, g->x + 300.0f + 150.0f);
-    step(world, NULL, 3.0f);
+    step(world, NULL, GIACOMO_SIT_SECONDS - 1.0f);
     CHECK(world->zombies_killed == 0 && fabsf(g->x - where) < 2.0f && g->sitting);
     CHECK(allies(world) == 2);
+    /* He gets up after the five seconds; she is still on him, so down he goes again,
+     * and so on every time. Count the times he is knocked down. */
+    int punches = 1;
+    bool was_sitting = true;
+    float sat_for = GIACOMO_SIT_SECONDS - 1.0f + 0.5f, longest = 0.0f;
+    for (int i = 0; i < 300; i++) { /* 30 seconds */
+      step(world, NULL, 0.1f);
+      if (g->sitting) {
+        sat_for += 0.1f;
+      } else {
+        if (was_sitting) longest = fmaxf(longest, sat_for);
+        sat_for = 0.0f;
+      }
+      if (g->sitting && !was_sitting) punches++;
+      was_sitting = g->sitting;
+    }
+    CHECK(punches >= 4);
+    CHECK(longest > GIACOMO_SIT_SECONDS - 0.3f && longest < GIACOMO_SIT_SECONDS + 0.5f);
     world_free(world);
   }
+}
+
+static void giacomo_gets_up_and_carries_on_when_giulia_is_gone(void) {
+  world_t* world = fresh();
+  world_summon_ally(world, ALLY_GIACOMO);
+  world_summon_ally(world, ALLY_GIULIA);
+  ally_t* g = ally_of(world, ALLY_GIACOMO);
+  for (int i = 0; i < 60 && !g->sitting; i++) step(world, NULL, 0.1f);
+  CHECK(g->sitting);
+  ally_t* giulia = ally_of(world, ALLY_GIULIA);
+  giulia->left = 0.01f; /* she leaves */
+  step(world, NULL, GIACOMO_SIT_SECONDS + 0.5f);
+  CHECK(ally_of(world, ALLY_GIULIA) == NULL && !g->sitting);
+  world_clear_events(world);
+  still_zombie(world, g->x + 380.0f);
+  step(world, NULL, 3.0f);
+  CHECK(world->zombies_killed == 1 && world_has_event(world, EVENT_ALLY_THROW));
+  world_free(world);
 }
 
 static void giacomo_alone_is_never_punched_and_all_four_friends_fit(void) {
@@ -338,8 +376,12 @@ static void giulia_catches_giacomo_even_while_fabio_runs(void) {
   world_summon_ally(world, ALLY_GIACOMO);
   world_summon_ally(world, ALLY_GIULIA);
   buttons_t right = BTN_RIGHT;
-  for (int i = 0; i < 80; i++) step(world, &right, 0.1f);
-  CHECK(ally_of(world, ALLY_GIACOMO)->sitting);
+  bool was_punched = false;
+  for (int i = 0; i < 80; i++) {
+    step(world, &right, 0.1f);
+    was_punched = was_punched || ally_of(world, ALLY_GIACOMO)->sitting;
+  }
+  CHECK(was_punched);
   world_free(world);
 }
 
@@ -386,7 +428,8 @@ void run_ally_tests(void) {
   RUN(levels_offer_the_three_pickups_now_and_then);
   RUN(a_water_polo_ball_brings_giacomo);
   RUN(giacomo_throws_the_ball_from_afar_and_it_kills_the_enemy_it_hits);
-  RUN(giulia_punches_giacomo_and_leaves_him_sitting_with_a_black_eye);
+  RUN(giulia_punches_giacomo_and_he_sits_five_seconds_and_she_punches_him_again_every_time_she_reaches_him);
+  RUN(giacomo_gets_up_and_carries_on_when_giulia_is_gone);
   RUN(giacomo_alone_is_never_punched_and_all_four_friends_fit);
   RUN(giulia_catches_giacomo_even_while_fabio_runs);
   RUN(giacomo_crouches_to_roll_the_ball_at_a_beetle_on_the_floor);

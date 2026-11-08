@@ -249,10 +249,10 @@ SPEC = [
     ("one", FABIO_PARACHUTE, "chute_open_0", (262, 590, 408, 860), "light", "fixed", "centre", "scale=0.37"),
     ("one", FABIO_PARACHUTE, "chute_open_1", (495, 590, 765, 860), "light", "fixed", "centre", "scale=0.37"),
     ("one", FABIO_PARACHUTE, "chute_open_2", (795, 590, 1065, 860), "light", "fixed", "centre", "scale=0.37"),
-    ("one", FABIO_PARACHUTE, "chute_land_0", (165, 890, 340, 1150), "light", "fixed", "centre", "scale=0.37"),
-    ("one", FABIO_PARACHUTE, "chute_land_1", (390, 890, 610, 1150), "light", "fixed", "centre", "scale=0.37"),
-    ("one", FABIO_PARACHUTE, "chute_land_2", (650, 890, 890, 1150), "light", "fixed", "centre", "scale=0.37"),
-    ("one", FABIO_PARACHUTE, "chute_land_3", (970, 890, 1120, 1150), "light", "fixed", "centre", "scale=0.37"),
+    ("one", FABIO_PARACHUTE, "chute_land_0", (165, 890, 340, 1150), "light", "fixed", "centre", "scale=0.37", "trim"),
+    ("one", FABIO_PARACHUTE, "chute_land_1", (390, 890, 610, 1150), "light", "fixed", "centre", "scale=0.37", "trim"),
+    ("one", FABIO_PARACHUTE, "chute_land_2", (650, 890, 890, 1150), "light", "fixed", "centre", "scale=0.37", "trim"),
+    ("one", FABIO_PARACHUTE, "chute_land_3", (970, 890, 1120, 1150), "light", "fixed", "centre", "scale=0.37", "trim"),
     # The city of Sulmona: Ovid, the aqueduct, the tap, the water, the cars, the vases, the fountain.
     ("one", CITY_PROPS, "city_ovid", (322, 0, 480, 300), "light", "scale=0.5"),
     ("one", CITY_PROPS, "city_aqueduct", (360, 300, 895, 522), "light", "scale=0.755"),
@@ -844,6 +844,14 @@ def paint_bottle_label(sprite):
               text, font=font, fill=(10, 10, 10, 255))
 
 
+def trim_faint(sprite, floor=64):
+    """Crops away the margin that holds nothing but faint ink, so the bottom of
+    the picture is where the feet (or the pile of silk) really end."""
+    solid = sprite.split()[3].point(lambda a: 255 if a >= floor else 0)
+    box = solid.getbbox()
+    return sprite.crop(box) if box else sprite
+
+
 def baked(sprite, options):
     """Applies a "scale=F" option: the sprite is resized once, so the game draws it 1:1."""
     for option in options:
@@ -915,6 +923,8 @@ def cook(output):
             if "clean" in entry[5:]:
                 sprite = clean_edges(sprite)
             sprite = baked(sprite, entry[5:])
+            if "trim" in entry[5:]:
+                sprite = trim_faint(sprite)
             if "half" in entry[5:]:
                 sprite = sprite.resize((sprite.width // 2, sprite.height // 2), Image.LANCZOS)
             emit(name, sprite, "centre" in entry[5:])

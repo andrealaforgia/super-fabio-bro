@@ -83,13 +83,15 @@
  * and fights by himself: Andrea strokes his belly, a wobble that kills everything round him;
  * Alessandro and Giulia run at what comes within their reach and strike it. Nothing hurts them.
  * A water polo ball brings a fourth, Giacomo, who keeps his distance and throws the ball at what
- * comes up ahead of him. Put him next to Giulia and she punches him: he sits on the ground with a
- * black eye for the rest of his stay. */
+ * comes up ahead of him. Put him next to Giulia and she punches him, every time she reaches him:
+ * he sits on the ground with a black eye for five seconds, then gets up (and is punched again if
+ * she is still on him). */
 #define ALLY_SECONDS 30.0f
 #define ALLY_W 26.0f
 #define ALLY_H 54.0f
 #define ALLY_ARRIVE_SECONDS 0.35f
 #define MAX_ALLIES 4
+#define GIACOMO_SIT_SECONDS 5.0f /* on the ground after Giulia's punch, before he gets up and carries on */
 #define MAX_POLO_BALLS 8
 #define POLO_BALL_SPEED 700.0f
 #define POLO_BALL_LIFE 1.2f
@@ -316,6 +318,7 @@ typedef struct {
   int platform;   /* the plank he stands on (a balcony, a roof, a capsule), -1 for none */
   bool sitting;   /* Giacomo, punched by Giulia: on the ground with a black eye */
   bool crouching; /* Giacomo is throwing low, at something crawling on the ground */
+  float sit_left; /* seconds still to sit on the ground after the punch */
 } ally_t;
 
 /* A water polo ball in flight: it kills the first enemy it meets. */

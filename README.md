@@ -272,7 +272,8 @@ start.
   560 pixels away, in front of or behind him, and the ball kills the first enemy it meets. For the beetles crawling on the floor he crouches and rolls it along the ground (a second Codex sheet, `giacomo_low.png`). When
   he and Giulia are here together, in either order, she runs at him and punches him: he is
   thrown back and sits on the ground with a black eye and a ring of stars, out of the fight for
-  the rest of his stay. His frames are cut from `assets/source/ally_giacomo.png`.
+  five seconds. Then he gets up where he sat, and every time she reaches him again she punches him
+  again; once she has gone he carries on. His frames are cut from `assets/source/ally_giacomo.png`.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

@@ -49,7 +49,7 @@ static ally_t* friend_of_kind(world_t* world, ally_kind_t kind) {
   return NULL;
 }
 
-/* Giacomo, if he is here, on his feet and close enough to Giulia's glove. Giulia punches him on sight. */
+/* Giacomo, if he is here and on his feet. Giulia punches him every time she reaches him. */
 static ally_t* giulia_target(world_t* world, const ally_t* giulia) {
   if (giulia->kind != ALLY_GIULIA || giulia->age < ALLY_ARRIVE_SECONDS) return NULL;
   ally_t* g = friend_of_kind(world, ALLY_GIACOMO);
@@ -104,7 +104,7 @@ void world_summon_ally(world_t* world, ally_kind_t kind) {
   }
   ally_t* a = pool_acquire(&world->allies, NULL);
   if (!a) return;
-  *a = (ally_t){kind, 0, 0, 0, 0, world->player.facing, false, ALLY_SECONDS, 0.0f, 0.0f, 0.0f, 0.0f, false, -1, false, false};
+  *a = (ally_t){kind, 0, 0, 0, 0, world->player.facing, false, ALLY_SECONDS, 0.0f, 0.0f, 0.0f, 0.0f, false, -1, false, false, 0.0f};
   place_beside_fabio(world, a);
   world_add_effect(world, FX_ALLY_POOF, a->x, a->y, 0.5f, 1);
   world_burst(world, a->x, a->y - 28.0f, 10, 255, 240, 160, 200.0f);
@@ -145,6 +145,7 @@ static void throw_the_ball(world_t* world, ally_t* a) {
 /* Giulia's glove finds Giacomo: he is thrown back and ends up sitting on the ground. */
 static void punch_giacomo(world_t* world, ally_t* giulia, ally_t* g) {
   g->sitting = true;
+  g->sit_left = GIACOMO_SIT_SECONDS;
   g->attack = 0.0f;
   g->vx = (float)giulia->facing * 320.0f;
   g->vy = -380.0f;
@@ -218,6 +219,14 @@ void allies_update(world_t* world, float dt) {
       continue;
     }
     a->cooldown = fmaxf(0.0f, a->cooldown - dt);
+    if (a->sitting && a->grounded) { /* sits it out, then gets up where he sat */
+      a->sit_left -= dt;
+      if (a->sit_left <= 0.0f) {
+        a->sitting = false;
+        a->cooldown = 0.4f;
+        world_burst(world, a->x, a->y - 20.0f, 6, 255, 240, 160, 120.0f);
+      }
+    }
     bool here = a->age >= ALLY_ARRIVE_SECONDS; /* he is still taking shape as he turns up */
 
     /* Where he wants to be: his place ahead of Fabio, or in reach of the nearest enemy. */
