@@ -273,7 +273,8 @@ start.
   he and Giulia are here together, in either order, she runs at him and punches him: he is
   thrown back and sits on the ground with a black eye and a ring of stars, out of the fight for
   five seconds. Then he gets up where he sat, and every time she reaches him again she punches him
-  again; once she has gone he carries on. His frames are cut from `assets/source/ally_giacomo.png`.
+  again (after a moment of grace, 0.75 seconds, in which he can catch his breath and throw); once
+  she has gone he carries on. His frames are cut from `assets/source/ally_giacomo.png`.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

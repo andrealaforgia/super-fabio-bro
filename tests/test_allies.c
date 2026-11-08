@@ -227,7 +227,7 @@ static void the_friends_have_their_poses_and_their_sounds(void) {
   a->grounded = true;
   a->attack = 0.2f;
   CHECK(pose_ally(a).strip == STRIP_ALLY_ALESSANDRO_ATTACK);
-  ally_t g = {ALLY_GIULIA, 0, 0, 0, 0, 1, true, 5.0f, 1.0f, 0.0f, 0.0f, 0.0f, false, -1, false, false, 0.0f};
+  ally_t g = {ALLY_GIULIA, 0, 0, 0, 0, 1, true, 5.0f, 1.0f, 0.0f, 0.0f, 0.0f, false, -1, false, false, 0.0f, 0.0f};
   CHECK(pose_ally(&g).strip == STRIP_ALLY_GIULIA_IDLE);
   CHECK(pose_ally_item(ALLY_ANDREA, 0.0f).strip == STRIP_ITEM_SUSHI && pose_ally_item(ALLY_GIULIA, 0.0f).strip == STRIP_ITEM_GLOVES);
   CHECK(pose_ally_effect(FX_ALLY_PUNCH, 0.1f, 0.35f).strip == STRIP_ALLY_GIULIA_FX);
@@ -318,19 +318,27 @@ static void giulia_punches_giacomo_and_he_sits_five_seconds_and_she_punches_him_
     int punches = 1;
     bool was_sitting = true;
     float sat_for = GIACOMO_SIT_SECONDS - 1.0f + 0.5f, longest = 0.0f;
+    float up_for = 0.0f, shortest_up = 99.0f;
     for (int i = 0; i < 300; i++) { /* 30 seconds */
       step(world, NULL, 0.1f);
       if (g->sitting) {
+        if (!was_sitting) { /* knocked down again: how long was he up? */
+          shortest_up = fminf(shortest_up, up_for);
+          punches++;
+        }
         sat_for += 0.1f;
+        up_for = 0.0f;
       } else {
         if (was_sitting) longest = fmaxf(longest, sat_for);
         sat_for = 0.0f;
+        up_for += 0.1f;
       }
-      if (g->sitting && !was_sitting) punches++;
       was_sitting = g->sitting;
     }
-    CHECK(punches >= 4);
+    CHECK(punches >= 3);
     CHECK(longest > GIACOMO_SIT_SECONDS - 0.3f && longest < GIACOMO_SIT_SECONDS + 0.5f);
+    /* Up on his feet, he has at least his moment of grace before she hits him again. */
+    CHECK(shortest_up >= GIACOMO_GRACE_SECONDS - 0.15f);
     world_free(world);
   }
 }
