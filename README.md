@@ -305,8 +305,14 @@ mountains, trees, clouds and castle are drawn procedurally. Fabio, the
 zombies, the bugs, the blocks and the pipes come from the generated sheets in
 `assets/source`.
 
-The game depends on the engine and never the other way round. Files named
-`sdl_*.c` are the game's only ones that touch SDL, and the tests leave them
-out, along with the engine's SDL parts, which have their own tests in the
-engine repository. An autoplaying bot proves every generated level can be
+The game depends on the engine and never the other way round, and it knows
+nothing of what the engine runs on: no file in `game/` or `tests/` names the
+platform library, whose headers are not even on the game's compile line (`make
+boundary` checks the source and compiles the whole game with stub headers in
+front that refuse to compile). The engine owns the window, keys, timing and
+decoding, and the game talks to it through engine-defined types: key codes, an
+opaque graphics context, textures and the start and stop calls. The tests leave
+out the game files that drive the real engine (`main.c`, the key table and the
+renderer), along with the engine's platform parts, which have their own tests
+in the engine repository. An autoplaying bot proves every generated level can be
 finished.

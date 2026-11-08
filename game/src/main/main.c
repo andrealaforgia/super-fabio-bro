@@ -1,5 +1,3 @@
-#include <SDL.h>
-#include <SDL_image.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,11 +6,15 @@
 #include "bot.h"
 #include "audio.h"
 #include "buttons.h"
+#include "clock.h"
 #include "command_line.h"
 #include "controls.h"
+#include "engine.h"
+#include "events.h"
 #include "graphics.h"
+#include "logger.h"
 #include "render.h"
-#include "sdl_keys.h"
+#include "game_keys.h"
 #include "sfx.h"
 #include "stepper.h"
 #include "world.h"
@@ -68,7 +70,7 @@ static int take_snapshot(graphics_context_ptr gfx, const look_t* look, const opt
   world_t* world = world_new((uint32_t)o->seed, NULL);
   if (!world) return 1;
   begin_frame(gfx, 0, 0, 0);
-  world->view_w = gfx->view_width;
+  world->view_w = graphics_view_width(gfx);
   bot_t bot;
   memset(&bot, 0, sizeof(bot));
   controls_t controls;
@@ -160,12 +162,11 @@ int main(int argc, char** argv) {
     print_help(&engine, custom, custom_count);
     return 0;
   }
-  if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) {
-    fprintf(stderr, "SDL: %s\n", SDL_GetError());
+  if (!engine_start()) {
+    fprintf(stderr, "cannot start the engine: %s\n", engine_last_error());
     return 1;
   }
-  IMG_Init(IMG_INIT_PNG);
-  SDL_LogSetAllPriority(SDL_LOG_PRIORITY_WARN); /* the engine logs each texture */
+  engine_set_log_level(LOG_LEVEL_WARN); /* the engine logs each texture */
   graphics_config_t config = default_graphics_config("Super Fabio Bros");
   config.width = options.width;
   config.height = options.height;
@@ -174,20 +175,25 @@ int main(int argc, char** argv) {
   config.window_mode = engine.window_mode;
   config.vsync = engine.vsync;
   config.view_height = VIEW_HEIGHT;
-  graphics_context_t graphics = initialize_graphics_context(&config);
-  graphics_context_ptr gfx = &graphics;
-  if (!graphics.window || !graphics.renderer) {
-    fprintf(stderr, "cannot open a window: %s\n", SDL_GetError());
+  graphics_context_ptr gfx = create_graphics_context(&config);
+  if (!gfx) {
+    fprintf(stderr, "cannot open a window: %s\n", engine_last_error());
+    engine_stop();
     return 1;
   }
   look_t look;
-  if (!look_load(&look, gfx, SPRITE_DIR)) return 1;
+  if (!look_load(&look, gfx, SPRITE_DIR)) {
+    look_free(&look);
+    terminate_graphics_context(gfx);
+    engine_stop();
+    return 1;
+  }
 
   if (options.snapshot) {
     int status = take_snapshot(gfx, &look, &options);
     look_free(&look);
-    terminate_graphics_context(&graphics);
-    SDL_Quit();
+    terminate_graphics_context(gfx);
+    engine_stop();
     return status;
   }
 
@@ -207,20 +213,25 @@ int main(int argc, char** argv) {
     for (int kind = 0; kind < EVENT_KIND_COUNT; kind++)
       subscribe(&events, kind, play_event_sound, audio);
   world_t* world = world_new((uint32_t)options.seed, &events);
-  if (!world) return 1;
+  if (!world) {
+    fprintf(stderr, "out of memory\n");
+    terminate_audio_context(audio);
+    look_free(&look);
+    terminate_graphics_context(gfx);
+    engine_stop();
+    return 1;
+  }
   float delay_left = options.delay; /* time to start a screen recording */
   bool on_title = true, voiced = false, paused = false, running = true;
   float title_time = 0.0f;
   controls_t controls;
   memset(&controls, 0, sizeof(controls));
-  Uint64 last = SDL_GetPerformanceCounter();
+  double last = get_clock_seconds();
 
   while (running) {
-    SDL_Event event;
-    while (SDL_PollEvent(&event))
-      if (event.type == SDL_QUIT) running = false;
-    Uint64 now = SDL_GetPerformanceCounter();
-    double frame = (double)(now - last) / (double)SDL_GetPerformanceFrequency();
+    if (drain_events() == QUIT_EVENT) running = false;
+    double now = get_clock_seconds();
+    double frame = now - last;
     last = now;
 
     buttons_t buttons = read_buttons();
@@ -237,7 +248,7 @@ int main(int argc, char** argv) {
     bool start = controls_pressed(&controls, BTN_JUMP) || controls_pressed(&controls, BTN_CONFIRM);
 
     begin_frame(gfx, 0, 0, 0);
-    world->view_w = gfx->view_width;
+    world->view_w = graphics_view_width(gfx);
 
     if (delay_left > 0.0f) {
       delay_left -= (float)frame;
@@ -258,7 +269,7 @@ int main(int argc, char** argv) {
         on_title = false;
         if (audio) set_music_gain(audio, 0.5f);
         world_restart(world, (uint32_t)options.seed);
-        world->view_w = gfx->view_width;
+        world->view_w = graphics_view_width(gfx);
         play_sound_at_volume(audio, SFX_PICKUP, 0.6f);
       }
       render_title(gfx, &look, title_time);
@@ -266,9 +277,9 @@ int main(int argc, char** argv) {
       bool over = world->state == STATE_GAME_OVER || world->state == STATE_WON;
       if (controls_pressed(&controls, BTN_PAUSE) && !over) paused = !paused;
       if (over && start && world->state_time > 1.0f) {
-        options.seed = (int)(((uint32_t)time(NULL) + (uint32_t)SDL_GetTicks()) & 0x7fffffffu);
+        options.seed = (int)(((uint32_t)time(NULL) + (uint32_t)get_clock_ticks_ms()) & 0x7fffffffu);
         world_restart(world, (uint32_t)options.seed);
-        world->view_w = gfx->view_width;
+        world->view_w = graphics_view_width(gfx);
       } else if (!paused) {
         double step;
         int steps = stepper_plan(frame, FIXED_STEP, 0.1, &step);
@@ -287,9 +298,8 @@ int main(int argc, char** argv) {
 
   terminate_audio_context(audio);
   look_free(&look);
-  terminate_graphics_context(&graphics);
+  terminate_graphics_context(gfx);
   world_free(world);
-  IMG_Quit();
-  SDL_Quit();
+  engine_stop();
   return 0;
 }

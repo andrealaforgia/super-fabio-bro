@@ -14,40 +14,47 @@ else
     $(error Unsupported platform)
 endif
 
-SDL2_CFLAGS := $(shell $(SDL2_CONFIG) --cflags)
-SDL2_LFLAGS := $(shell $(SDL2_CONFIG) --libs) -lSDL2_image
-
-ENGINE_CORE = graphics math input audio time utils memory events
-ENGINE_DIRS = $(foreach d,$(ENGINE_CORE),engine/core/$(d))
-GAME_DIRS = $(wildcard game/src/*)
-
-ENGINE_SRC = $(foreach dir,$(ENGINE_DIRS),$(wildcard $(dir)/*.c))
+# The engine is built by its own makefile and consumed through what it exports:
+# a library, the directories holding its public headers, and the flags to link
+# it. Nothing here names its sources, its internals or what it runs on.
+ENGINE_DIR = engine
+ENGINE_LIB = $(ENGINE_DIR)/libsdl2d.a
 # TrueType text is optional in the engine, and this game does not use it.
-ENGINE_SRC := $(filter-out engine/core/graphics/ttf_text.c,$(ENGINE_SRC))
+ENGINE_MAKE = $(MAKE) --no-print-directory -C $(ENGINE_DIR) WITH_TTF=0
+ENGINE_INCLUDES := $(foreach dir,$(shell $(ENGINE_MAKE) -s print-public-includes),-I$(ENGINE_DIR)/$(dir))
+ENGINE_LFLAGS := $(shell $(ENGINE_MAKE) -s print-link-flags)
+
+GAME_DIRS = $(wildcard game/src/*)
 GAME_SRC = $(foreach dir,$(GAME_DIRS),$(wildcard $(dir)/*.c))
-HEADERS = $(foreach dir,$(ENGINE_DIRS) $(GAME_DIRS),$(wildcard $(dir)/*.h))
-HEADERS := $(filter-out engine/core/graphics/ttf_text.h,$(HEADERS))
+OWN_HEADERS = $(foreach dir,$(GAME_DIRS),$(wildcard $(dir)/*.h))
 TEST_SRC = $(wildcard tests/*.c)
 
-OBJ = $(ENGINE_SRC:.c=.o) $(GAME_SRC:.c=.o)
-DEP = $(OBJ:.o=.d)
--include $(DEP)
+GAME_OBJ = $(GAME_SRC:.c=.o)
+GAME_DEP = $(GAME_OBJ:.o=.d)
+-include $(GAME_DEP)
 
-INCLUDES = $(foreach dir,$(ENGINE_DIRS) $(GAME_DIRS),-I$(dir))
 OPT ?= -O2
-CFLAGS := -ggdb3 $(OPT) --std=c99 -Wall -Wextra -pedantic-errors -D_DEFAULT_SOURCE \
-          $(INCLUDES) $(SDL2_CFLAGS)
-LFLAGS := $(SDL2_LFLAGS) -lm
+# The game is never compiled against the platform library: its compile line
+# carries no platform include path, and stub headers searched first turn any
+# attempt to include the library into an error.
+GAME_CFLAGS := -ggdb3 $(OPT) --std=c99 -Wall -Wextra -pedantic-errors -D_DEFAULT_SOURCE \
+               -Iscripts/boundary_stubs $(ENGINE_INCLUDES) $(foreach dir,$(GAME_DIRS),-I$(dir))
 
 TARGET = super-fabio-bros
 SPRITES = assets_cooked/sprites/manifest.txt
 
-.PHONY: all assets install dev_install clean lint format test sanitize run snapshot
+.PHONY: all assets install dev_install clean lint format test sanitize run snapshot boundary FORCE
 
 all: $(TARGET) assets
 
-$(TARGET): $(OBJ)
-	$(CC) -o $@ $^ $(LFLAGS)
+$(TARGET): $(GAME_OBJ) $(ENGINE_LIB)
+	$(CC) -o $@ $(GAME_OBJ) $(ENGINE_LIB) $(ENGINE_LFLAGS)
+
+# Always asked, and the engine's makefile decides whether anything is stale.
+$(ENGINE_LIB): FORCE
+	$(ENGINE_MAKE) libsdl2d.a
+
+FORCE:
 
 # Cuts the generated sprite sheets in assets/source into transparent PNGs.
 $(SPRITES): scripts/cook_sprites.py $(wildcard assets/source/*.jpeg assets/source/*.png)
@@ -55,8 +62,19 @@ $(SPRITES): scripts/cook_sprites.py $(wildcard assets/source/*.jpeg assets/sourc
 
 assets: $(SPRITES)
 
-%.o: %.c
-	$(CC) $(CFLAGS) -MMD -MP -c -o $@ $<
+$(GAME_OBJ): %.o: %.c
+	$(CC) $(GAME_CFLAGS) -MMD -MP -c -o $@ $<
+
+# The game must stay on the engine's side of the line. Independent of any
+# earlier build: the source check, every game file compiled afresh with the
+# compiler's include environment cleared, and the engine's public headers
+# checked for the platform library.
+boundary:
+	python3 scripts/check_boundary.py
+	@for source in $(GAME_SRC); do \
+	  env -u CPATH -u C_INCLUDE_PATH -u CPLUS_INCLUDE_PATH $(CC) $(GAME_CFLAGS) -fsyntax-only $$source || exit 1; \
+	done
+	python3 $(ENGINE_DIR)/tests/run_tests.py --check-headers
 
 install:
 	$(INSTALL_CMD)
@@ -66,7 +84,6 @@ dev_install:
 
 # The engine is a submodule and lints and formats itself; only the game's own
 # files are checked here.
-OWN_HEADERS = $(filter-out engine/%,$(HEADERS))
 
 lint:
 	cpplint --quiet --root=. $(GAME_SRC) $(OWN_HEADERS) $(TEST_SRC)
@@ -74,10 +91,10 @@ lint:
 format:
 	clang-format -i $(GAME_SRC) $(OWN_HEADERS) $(TEST_SRC)
 
-test: assets
+test: assets boundary
 	python3 tests/run_tests.py
 
-sanitize: assets
+sanitize: assets boundary
 	python3 tests/run_tests.py --sanitize
 
 run: all
@@ -89,4 +106,5 @@ snapshot: all
 	./$(TARGET) --snapshot snapshot_title.bmp --title
 
 clean:
-	rm -f $(OBJ) $(DEP) $(TARGET) snapshot*.bmp
+	$(ENGINE_MAKE) clean
+	rm -f $(GAME_OBJ) $(GAME_DEP) $(TARGET) snapshot*.bmp

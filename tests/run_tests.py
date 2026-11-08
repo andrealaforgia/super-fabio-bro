@@ -1,4 +1,4 @@
-"""Compile the engine and game logic (no SDL window, no GPU) into one test
+"""Compile the engine and game logic (no window, no GPU) into one test
 binary and run each group in its own process."""
 
 import argparse
@@ -17,8 +17,8 @@ GROUPS = (
 )
 
 
-# The engine pieces with no SDL in them; the rest is exercised by the engine's
-# own tests and by the snapshots.
+# The engine pieces that need no window, sound device or keyboard; the rest is
+# exercised by the engine's own tests and by the snapshots.
 ENGINE_PURE_SOURCES = (
     "core/math/rng.c",
     "core/math/geometry.c",
@@ -31,16 +31,28 @@ ENGINE_PURE_SOURCES = (
 
 
 def source_directories():
-    directories = sorted((ROOT / "engine/core").iterdir())
+    directories = [d for d in sorted((ROOT / "engine/core").iterdir()) if d.name != "internal"]
     directories += sorted((ROOT / "game/src").iterdir())
     return [p for p in directories if p.is_dir()]
+
+
+# The game files that drive the real engine (window, keyboard, drawing); the
+# tests build only the logic, which needs none of that.
+ENGINE_DRIVING_SOURCES = (
+    "game/src/main/main.c",
+    "game/src/main/game_keys.c",
+    "game/src/render/look.c",
+    "game/src/render/render.c",
+    "game/src/render/city_view.c",
+)
 
 
 def sources():
     found = [ROOT / "engine" / name for name in ENGINE_PURE_SOURCES]
     for directory in sorted((ROOT / "game/src").iterdir()):
         found += sorted(directory.glob("*.c"))
-    return [p for p in found if p.name != "main.c" and not p.name.startswith("sdl_")]
+    skipped = {ROOT / name for name in ENGINE_DRIVING_SOURCES}
+    return [p for p in found if p not in skipped]
 
 
 def build(destination, sanitize):

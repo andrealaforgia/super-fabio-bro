@@ -1,4 +1,4 @@
-#include "sdl_city.h"
+#include "city_view.h"
 
 #include <math.h>
 #include <stdio.h>

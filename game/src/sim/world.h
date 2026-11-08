@@ -1,6 +1,6 @@
 /**
  * @file world.h
- * @brief The whole game state and its rules, with no drawing and no SDL:
+ * @brief The whole game state and its rules, with no drawing and no platform code:
  * Fabio, zombies, bugs, bullets, spells, pickups and the level. Everything
  * is advanced by `world_update` with explicit time, so tests can play it.
  *

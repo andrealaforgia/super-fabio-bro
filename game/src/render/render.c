@@ -1,5 +1,5 @@
 #include "render.h"
-#include "sdl_city.h"
+#include "city_view.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -976,9 +976,9 @@ static void draw_banner(const frame_t* f, const char* title, const char* subtitl
 }
 
 void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* world) {
-  frame_t f = {gfx, look, world, 0.0f, gfx->view_width};
+  frame_t f = {gfx, look, world, 0.0f, graphics_view_width(gfx)};
   /* Snap the camera to whole screen pixels so tiles never shimmer. */
-  float scale = gfx->view_scale;
+  float scale = graphics_view_scale(gfx);
   f.cam_x = floorf(world->camera_x * scale) / scale;
   draw_backdrop(&f);
   city_draw_back(gfx, look, world, f.cam_x, f.view_w);
@@ -1013,14 +1013,14 @@ void render_world(graphics_context_ptr gfx, const look_t* look, const world_t* w
 
 void render_pause(graphics_context_ptr gfx, const look_t* look) {
   const pixel_font_t* font = &look->font;
-  float w = gfx->view_width;
+  float w = graphics_view_width(gfx);
   fill_rect(gfx, rect(0, 0, w, VIEW_HEIGHT), 10, 0, 20, 140);
   centred_text(gfx, font, w * 0.5f, 220.0f, "PAUSED", 8.0f, 255, 255, 255);
 }
 
 void render_title(graphics_context_ptr gfx, const look_t* look, float time) {
   const pixel_font_t* font = &look->font;
-  float w = gfx->view_width;
+  float w = graphics_view_width(gfx);
   /* A scrolling red and green check, like the border of the box. */
   float cell = 64.0f, shift = fmodf(time * 20.0f, cell * 2.0f);
   fill_rect(gfx, rect(0, 0, w, VIEW_HEIGHT), 120, 24, 30, 255);
@@ -1035,7 +1035,7 @@ void render_title(graphics_context_ptr gfx, const look_t* look, float time) {
 
   float size = 430.0f;
   float bob = sinf(time * 2.0f) * 4.0f;
-  if (look->cover.texture) {
+  if (texture_valid(&look->cover)) {
     fill_rect(gfx, rect(w * 0.5f - size * 0.5f - 6.0f, 10.0f + bob - 6.0f, size + 12.0f, size + 12.0f),
              250, 220, 90, 255);
     render_sprite(gfx, &look->cover, NULL, rect(w * 0.5f - size * 0.5f, 10.0f + bob, size, size), NULL);
@@ -1067,7 +1067,7 @@ void render_title(graphics_context_ptr gfx, const look_t* look, float time) {
 void render_countdown(graphics_context_ptr gfx, const look_t* look,
                       float seconds_left) {
   const pixel_font_t* font = &look->font;
-  float w = gfx->view_width;
+  float w = graphics_view_width(gfx);
   fill_rect(gfx, rect(0, 0, w, VIEW_HEIGHT), 16, 10, 40, 255);
   char text[16];
   snprintf(text, sizeof(text), "%d", (int)ceilf(seconds_left));

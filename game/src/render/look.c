@@ -24,7 +24,7 @@ static bool read_file(const char* path, char** text) {
 
 static texture_t load_image(graphics_context_ptr gfx, const char* path,
                             bool smooth) {
-  texture_t texture = load_texture(gfx->renderer, path);
+  texture_t texture = load_texture(gfx, path);
   set_texture_smooth(&texture, smooth);
   return texture;
 }
@@ -49,7 +49,7 @@ static bool load_strip(look_t* look, graphics_context_ptr gfx, const char* dir,
     snprintf(path, sizeof(path), "%s/%s", dir, entry->file);
     sprite_t* sprite = &look->frames[id][f];
     sprite->texture = load_image(gfx, path, true);
-    if (!sprite->texture.texture) {
+    if (!texture_valid(&sprite->texture)) {
       fprintf(stderr, "cannot load %s\n", path);
       return false;
     }
@@ -62,7 +62,7 @@ static bool load_strip(look_t* look, graphics_context_ptr gfx, const char* dir,
 }
 
 static texture_t from_image(graphics_context_ptr gfx, image_t* image, bool smooth, bool additive) {
-  texture_t texture = {NULL, 0, 0};
+  texture_t texture = {0};
   if (image->pixels)
     texture = texture_from_pixels(gfx, image->pixels, image->w, image->h,
                                       smooth, additive);
@@ -107,7 +107,7 @@ bool look_load(look_t* look, graphics_context_ptr gfx, const char* sprite_dir) {
   if (scenery_glow(&image)) look->glow = from_image(gfx, &image, true, true);
   snprintf(path, sizeof(path), "%s/cover.png", sprite_dir);
   look->cover = load_image(gfx, path, true);
-  return look->sky.texture && look->castle.texture && look->glow.texture;
+  return texture_valid(&look->sky) && texture_valid(&look->castle) && texture_valid(&look->glow);
 }
 
 void look_free(look_t* look) {

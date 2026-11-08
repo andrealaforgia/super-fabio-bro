@@ -2,7 +2,7 @@
  * @file scenery.h
  * @brief Procedural pixel art for the backdrop: sky, three layers of
  * mountains and forest that tile sideways, clouds, trees, bushes, the
- * castle and the glow of the spell. Pure pixel buffers, no SDL; the
+ * castle and the glow of the spell. Pure pixel buffers; the
  * renderer turns them into textures.
  *
  * Pixels are 0xAABBGGRR (bytes R, G, B, A in memory).
