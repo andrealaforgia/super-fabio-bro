@@ -74,7 +74,9 @@ static bool is_pit_at(const world_t* world, float x, float feet) {
 static void place_beside_fabio(const world_t* world, ally_t* a) {
   const player_t* p = &world->player;
   a->x = p->x + (float)p->facing * kAlly[a->kind].offset;
-  if (level_solid_at(&world->level, a->x, p->y - 10.0f)) a->x = p->x;
+  /* Not into a wall, and not over a hole: he would fall again, be fetched to the same spot, and
+   * (sitting) never get up. */
+  if (level_solid_at(&world->level, a->x, p->y - 10.0f) || is_pit_at(world, a->x, p->y)) a->x = p->x;
   a->y = p->y;
   a->vx = a->vy = 0.0f;
   a->platform = -1;

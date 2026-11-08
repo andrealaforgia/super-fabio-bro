@@ -343,6 +343,32 @@ static void giulia_punches_giacomo_and_he_sits_five_seconds_and_she_punches_him_
   }
 }
 
+static void a_sitting_friend_who_falls_in_a_pit_is_set_down_on_ground_and_still_gets_up(void) {
+  world_t* world = fresh();
+  world->player.x = 10 * TILE;
+  world_summon_ally(world, ALLY_GIACOMO);
+  step(world, NULL, 1.0f);
+  /* A hole exactly where his place beside Fabio is, and he is down in it, sitting. */
+  float offset = ally_offset(ALLY_GIACOMO);
+  int col = (int)((world->player.x + offset) / TILE);
+  for (int c = col - 2; c <= col + 2; c++)
+    for (int row = GROUND_ROW; row < LEVEL_ROWS; row++) world->level.tiles[row][c] = TILE_EMPTY;
+  ally_t* g = ally_of(world, ALLY_GIACOMO);
+  g->sitting = true;
+  g->sit_left = GIACOMO_SIT_SECONDS;
+  g->left = 100.0f;
+  g->y = level_height() + 100.0f;
+  /* Without the fix he is fetched back to the same hole again and again and never stands. */
+  float stood_at = -1.0f;
+  for (int i = 0; i < 150 && stood_at < 0.0f; i++) {
+    step(world, NULL, 0.1f);
+    g = ally_of(world, ALLY_GIACOMO);
+    if (g && !g->sitting) stood_at = (float)(i + 1) * 0.1f;
+  }
+  CHECK(stood_at > GIACOMO_SIT_SECONDS - 0.2f && stood_at < GIACOMO_SIT_SECONDS + 3.0f);
+  world_free(world);
+}
+
 static void giacomo_gets_up_and_carries_on_when_giulia_is_gone(void) {
   world_t* world = fresh();
   world_summon_ally(world, ALLY_GIACOMO);
@@ -437,6 +463,7 @@ void run_ally_tests(void) {
   RUN(a_water_polo_ball_brings_giacomo);
   RUN(giacomo_throws_the_ball_from_afar_and_it_kills_the_enemy_it_hits);
   RUN(giulia_punches_giacomo_and_he_sits_five_seconds_and_she_punches_him_again_every_time_she_reaches_him);
+  RUN(a_sitting_friend_who_falls_in_a_pit_is_set_down_on_ground_and_still_gets_up);
   RUN(giacomo_gets_up_and_carries_on_when_giulia_is_gone);
   RUN(giacomo_alone_is_never_punched_and_all_four_friends_fit);
   RUN(giulia_catches_giacomo_even_while_fabio_runs);
