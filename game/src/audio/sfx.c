@@ -261,6 +261,17 @@ static double ally_punch_voice(double t, double d, rng_t* r, void* s) {
   return (0.9 * lp[0] * decay(t, 28.0)) + 0.8 * sin(TAU * (160.0 - 400.0 * t) * t) * decay(t, 22.0);
 }
 
+/* Michele: a short grunt of air, then a much heavier blow than Giulia's, deep and booming. */
+static double ally_smash_voice(double t, double d, rng_t* r, void* s) {
+  (void)d;
+  double* lp = (double*)s;
+  lp[0] += 0.18 * (noise(r) - lp[0]);
+  double swing = t < 0.06 ? lp[0] * 0.6 * (t / 0.06) : 0.0;
+  double hit = t >= 0.06 ? t - 0.06 : 0.0;
+  double boom = t >= 0.06 ? 1.1 * sin(TAU * (95.0 - 120.0 * hit) * hit) * decay(hit, 11.0) + 1.0 * lp[0] * decay(hit, 20.0) : 0.0;
+  return swing + boom;
+}
+
 /* Giacomo's throw: a quick whoosh with a wet, bubbly pop at the end. */
 static double ally_throw_voice(double t, double d, rng_t* r, void* s) {
   (void)d;
@@ -534,6 +545,7 @@ bool sfx_build(sample_t clips[SFX_COUNT]) {
   ok = ok && render(&clips[SFX_ALLY_PUNCH], 0.2, ally_punch_voice, 36);
   ok = ok && render(&clips[SFX_ALLY_THROW], 0.35, ally_throw_voice, 43);
   ok = ok && render(&clips[SFX_ALLY_OUCH], 0.45, ally_ouch_voice, 44);
+  ok = ok && render(&clips[SFX_ALLY_SMASH], 0.4, ally_smash_voice, 45);
   ok = ok && render(&clips[SFX_BUBBLE_SHOT], 0.16, bubble_shot_voice, 21);
   ok = ok && render(&clips[SFX_BUBBLE_WRAP], 0.5, bubble_wrap_voice, 22);
   ok = ok && render(&clips[SFX_BUBBLE_POP], 0.3, bubble_pop_voice, 23);
@@ -624,6 +636,7 @@ sfx_id_t sfx_for_event(event_kind_t kind, float* volume) {
     case EVENT_ALLY_PUNCH: *volume = 0.9f; return SFX_ALLY_PUNCH;
     case EVENT_ALLY_THROW: *volume = 0.8f; return SFX_ALLY_THROW;
     case EVENT_ALLY_OUCH: *volume = 0.9f; return SFX_ALLY_OUCH;
+    case EVENT_ALLY_SMASH: *volume = 1.0f; return SFX_ALLY_SMASH;
     case EVENT_SKEWER_THROWN: *volume = 0.8f; return SFX_SKEWER;
     case EVENT_HELICOPTER_BOARDS: *volume = 0.8f; return SFX_PICKUP;
     case EVENT_HELICOPTER_EXPLODES: *volume = 1.0f; return SFX_BOOK_READER_BOOM;

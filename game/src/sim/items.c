@@ -37,6 +37,7 @@ static void collect(world_t* world, item_kind_t kind, float x, float y) {
     case ITEM_DRAGON:
     case ITEM_GLOVES:
     case ITEM_POLO_BALL:
+    case ITEM_BICEP:
       world_summon_ally(world, ally_for_item(kind));
       world_award(world, 300, x, y);
       return; /* the arrival has its own fanfare */

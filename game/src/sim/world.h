@@ -85,12 +85,17 @@
  * A water polo ball brings a fourth, Giacomo, who keeps his distance and throws the ball at what
  * comes up ahead of him. Put him next to Giulia and she punches him, every time she reaches him:
  * he sits on the ground with a black eye for five seconds, then gets up and has a moment
- * of grace before she can punch him again. */
+ * of grace before she can punch him again.
+ * A flexed bicep brings a fifth, Michele, who keeps no place beside Fabio: he goes on ahead, left to right,
+ * punching everything in his way, and never out of sight: he stops to wait just short of the right edge of the
+ * screen, or, with other friends about, MICHELE_LEAD_TIMES as far ahead of Fabio as the furthest of them is from him. */
 #define ALLY_SECONDS 30.0f
 #define ALLY_W 26.0f
 #define ALLY_H 54.0f
 #define ALLY_ARRIVE_SECONDS 0.35f
-#define MAX_ALLIES 4
+#define MAX_ALLIES 5
+#define MICHELE_LEAD_TIMES 4.0f /* Michele goes this many times as far ahead of Fabio as his furthest other friend is from him */
+#define MICHELE_SCREEN_MARGIN 60.0f /* and never nearer the right edge of the screen than this: all of him stays in sight */
 #define GIACOMO_GRACE_SECONDS 0.75f /* on his feet again before Giulia may punch him once more */
 #define GIACOMO_SIT_SECONDS 3.0f /* on the ground after Giulia's punch, before he gets up and carries on */
 #define MAX_POLO_BALLS 8
@@ -171,6 +176,7 @@ typedef enum {
   EVENT_ALLY_PUNCH,  /* Giulia punches */
   EVENT_ALLY_THROW,  /* Giacomo throws the ball */
   EVENT_ALLY_OUCH,   /* Giacomo is punched */
+  EVENT_ALLY_SMASH,  /* Michele punches */
   EVENT_LIGHTSABER,
   EVENT_FORCE_BURST,
   EVENT_SLOP_THROWN,
@@ -304,7 +310,7 @@ typedef struct {
 } bubble_t;
 #define MAX_BUBBLES 64
 
-typedef enum { ALLY_ANDREA, ALLY_ALESSANDRO, ALLY_GIULIA, ALLY_GIACOMO, ALLY_KIND_COUNT } ally_kind_t;
+typedef enum { ALLY_ANDREA, ALLY_ALESSANDRO, ALLY_GIULIA, ALLY_GIACOMO, ALLY_MICHELE, ALLY_KIND_COUNT } ally_kind_t;
 typedef struct {
   ally_kind_t kind;
   float x, y, vx, vy; /* the middle of the feet */
@@ -401,6 +407,7 @@ typedef enum {
   FX_ALLY_WAVE,  /* Andrea's belly wobble, 4 frames */
   FX_ALLY_SLASH, /* Alessandro's chi slash, 4 frames */
   FX_ALLY_PUNCH, /* Giulia's punch burst, 4 frames */
+  FX_ALLY_SMASH, /* Michele's punch landing, 4 frames */
   FX_FORCE_HIT, /* a green burst meeting an enemy, 6 frames */
   FX_SLOP_DEATH, /* the slop monster tearing into noise and dripping away, 8 frames */
   FX_SLOP_SPLAT, /* a ball of slop landing, 6 frames */

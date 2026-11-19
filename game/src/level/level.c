@@ -176,8 +176,8 @@ static item_kind_t roll_content(generator_t* g) {
   }
   if (g->since_ally > 50 || rng_chance(&g->rng, 0.14f)) { /* friends turn up often */
     g->since_ally = 0;
-    static const item_kind_t kFriends[4] = {ITEM_SUSHI, ITEM_DRAGON, ITEM_GLOVES, ITEM_POLO_BALL};
-    return kFriends[rng_range(&g->rng, 0, 3)];
+    static const item_kind_t kFriends[5] = {ITEM_SUSHI, ITEM_DRAGON, ITEM_GLOVES, ITEM_POLO_BALL, ITEM_BICEP};
+    return kFriends[rng_range(&g->rng, 0, 4)];
   }
   if (g->since_pistol > 110 || rng_chance(&g->rng, 0.04f)) {
     g->since_pistol = 0;
@@ -365,8 +365,8 @@ static void building(generator_t* g, building_kind_t kind, int columns, int floo
     add_item_at(g, x + (float)c * TILE + 16.0f, roof - 34.0f, potion ? ITEM_POTION : ITEM_COIN);
   }
   if (kind == BUILDING_APARTMENT || kind == BUILDING_RISTORANTE) { /* and a friend's pickup on each apartment roof */
-    static const item_kind_t kFriends[4] = {ITEM_SUSHI, ITEM_DRAGON, ITEM_GLOVES, ITEM_POLO_BALL};
-    add_item_at(g, x + w * 0.5f - 16.0f + (level->building_count % 2) * 32.0f, roof - 34.0f, kFriends[level->building_count % 4]);
+    static const item_kind_t kFriends[5] = {ITEM_SUSHI, ITEM_DRAGON, ITEM_GLOVES, ITEM_POLO_BALL, ITEM_BICEP};
+    add_item_at(g, x + w * 0.5f - 16.0f + (level->building_count % 2) * 32.0f, roof - 34.0f, kFriends[level->building_count % 5]);
   }
   g->since_hazard = 0;
 }
@@ -433,8 +433,8 @@ static int ledge(generator_t* g, float cx, float height, float w, item_kind_t ex
 }
 
 static item_kind_t friend_of(generator_t* g) {
-  static const item_kind_t kFriends[4] = {ITEM_SUSHI, ITEM_DRAGON, ITEM_GLOVES, ITEM_POLO_BALL};
-  return kFriends[g->city % 4];
+  static const item_kind_t kFriends[5] = {ITEM_SUSHI, ITEM_DRAGON, ITEM_GLOVES, ITEM_POLO_BALL, ITEM_BICEP};
+  return kFriends[g->city % 5];
 }
 
 static void welcome(generator_t* g) {
@@ -692,7 +692,7 @@ void level_generate(level_t* level, uint32_t seed) {
   g->last_drums = 25;
   flat(g, 9, true);
   int left = g->x;
-  for (int i = 0; i < 9; i++) ground_column(g, left + i);
+  for (int i = 0; i < 10; i++) ground_column(g, left + i);
   int row = GROUND_ROW - 4;
   question_block(g, left, row, ITEM_GLOVES);
   question_block(g, left + 1, row, ITEM_SUSHI);
@@ -703,7 +703,8 @@ void level_generate(level_t* level, uint32_t seed) {
   question_block(g, left + 6, row, ITEM_BUBBLE_GUN);
   add_item(g, ITEM_COIN, left + 7, GROUND_ROW - 2);
   question_block(g, left + 8, row, ITEM_POLO_BALL);
-  g->x += 9;
+  question_block(g, left + 9, row, ITEM_BICEP);
+  g->x += 10;
   g->since_potion = 0;
   g->since_pistol = 0;
   g->since_bubble_gun = 0;

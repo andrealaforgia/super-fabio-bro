@@ -62,7 +62,8 @@ typedef enum {
   ITEM_SUSHI,  /* a sushi dumpling: Andrea turns up */
   ITEM_DRAGON, /* a Chinese dragon: Alessandro */
   ITEM_GLOVES, /* boxing gloves: Giulia */
-  ITEM_POLO_BALL /* a water polo ball: Giacomo */
+  ITEM_POLO_BALL, /* a water polo ball: Giacomo */
+  ITEM_BICEP /* a flexed bicep: Michele */
 } item_kind_t;
 
 /* The scenery zones: the level runs from forest through desert into snow before the

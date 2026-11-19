@@ -40,6 +40,7 @@ typedef enum {
   SFX_ALLY_PUNCH,  /* a solid thud */
   SFX_ALLY_THROW,  /* a whoosh and a splashy plop */
   SFX_ALLY_OUCH,   /* Giacomo yelps */
+  SFX_ALLY_SMASH,  /* Michele's fist: a heavy boom */
   SFX_WARP,        /* down (or up) a pipe: a sliding boing */
   SFX_SABER_ON,    /* a lightsaber igniting: a snap, then a rising hum */
   SFX_FORCE_BURST, /* a swinging whoosh and a green zap */

@@ -148,6 +148,12 @@ const strip_spec_t kStripSpecs[STRIP_COUNT] = {
     [STRIP_ALLY_GIACOMO_JUMP] = {"ally_giacomo_jump", 3},
     [STRIP_ALLY_GIACOMO_ATTACK] = {"ally_giacomo_attack", 6},
     [STRIP_ALLY_GIACOMO_FX] = {"ally_giacomo_fx", 4},
+    [STRIP_ALLY_MICHELE_IDLE] = {"ally_michele_idle", 4},
+    [STRIP_ALLY_MICHELE_WALK] = {"ally_michele_walk", 6},
+    [STRIP_ALLY_MICHELE_JUMP] = {"ally_michele_jump", 3},
+    [STRIP_ALLY_MICHELE_ATTACK] = {"ally_michele_attack", 6},
+    [STRIP_ALLY_MICHELE_FX] = {"ally_michele_fx", 4},
+    [STRIP_ITEM_BICEP] = {"item_bicep", 4},
     [STRIP_ITEM_POLO_BALL] = {"item_polo_ball", 4},
     [STRIP_ALLY_GIACOMO_SIT] = {"ally_giacomo_sit", 2},
     [STRIP_ALLY_GIACOMO_LOW] = {"ally_giacomo_low", 6},
@@ -383,6 +389,7 @@ pose_t pose_effect(fx_kind_t kind) {
     case FX_ALLY_WAVE: return make(STRIP_ALLY_ANDREA_FX, 0);
     case FX_ALLY_SLASH: return make(STRIP_ALLY_ALESSANDRO_FX, 0);
     case FX_ALLY_PUNCH: return make(STRIP_ALLY_GIULIA_FX, 0);
+    case FX_ALLY_SMASH: return make(STRIP_ALLY_MICHELE_FX, 0);
     case FX_FORCE_HIT: return make(STRIP_FORCE_HIT, 0);
     case FX_SLOP_DEATH: return make(STRIP_SLOP_DEATH, 0);
     case FX_SLOP_SPLAT: return make(STRIP_SLOP_SPLAT, 0);
@@ -449,7 +456,8 @@ pose_t pose_ally(const ally_t* a) {
 pose_t pose_ally_effect(fx_kind_t kind, float age, float duration) {
   strip_id_t strip = kind == FX_ALLY_POOF ? STRIP_ALLY_POOF
                      : kind == FX_ALLY_WAVE ? STRIP_ALLY_ANDREA_FX
-                     : kind == FX_ALLY_SLASH ? STRIP_ALLY_ALESSANDRO_FX : STRIP_ALLY_GIULIA_FX;
+                     : kind == FX_ALLY_SLASH ? STRIP_ALLY_ALESSANDRO_FX
+                     : kind == FX_ALLY_SMASH ? STRIP_ALLY_MICHELE_FX : STRIP_ALLY_GIULIA_FX;
   return make(strip, (int)(age / duration * (float)kStripSpecs[strip].frames));
 }
 

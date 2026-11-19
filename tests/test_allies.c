@@ -9,6 +9,8 @@
 #include "test_world.h"
 
 #define GROUND ((float)(GROUND_ROW * TILE))
+#define FOLLOWERS ALLY_MICHELE /* the kinds before him keep to Fabio; Michele goes on ahead by himself */
+#define MICHELE_SPRINTS_ABOVE (RUN_SPEED * 1.5f) /* faster than his march: only the catch-up sprint is */
 
 static world_t* fresh(void) {
   world_t* world = new_empty_world();
@@ -587,7 +589,7 @@ static float watch_friends_move(world_t* world, float seconds) {
 }
 
 static void a_friend_on_the_street_jumps_up_to_a_plank_fabio_has_climbed_onto(void) {
-  for (int kind = 0; kind < ALLY_KIND_COUNT; kind++) {
+  for (int kind = 0; kind < FOLLOWERS; kind++) {
     world_t* world = fresh();
     world_summon_ally(world, (ally_kind_t)kind);
     step(world, NULL, 1.0f);
@@ -692,7 +694,7 @@ static void a_friend_who_fell_in_a_pit_runs_back_in_from_the_edge_of_the_screen(
 }
 
 static void a_friend_arrives_at_fabio_and_runs_on_ahead_to_his_place(void) {
-  for (int kind = 0; kind < ALLY_KIND_COUNT; kind++) {
+  for (int kind = 0; kind < FOLLOWERS; kind++) {
     world_t* world = fresh();
     world_summon_ally(world, (ally_kind_t)kind);
     ally_t* a = ally_of(world, (ally_kind_t)kind);
@@ -1051,6 +1053,328 @@ static void giulia_does_not_leave_fabio_to_chase_a_giacomo_who_is_far_behind(voi
   world_free(world);
 }
 
+static float screen(const world_t* world) { return world->view_w > 0.0f ? world->view_w : 1280.0f; }
+
+static void a_flexed_bicep_brings_michele(void) {
+  world_t* world = world_new(5, recording_events());
+  bool in_opening_row = false;
+  for (int row = 0; row < LEVEL_ROWS; row++)
+    for (int col = 0; col < 30; col++)
+      in_opening_row = in_opening_row || (level_tile(&world->level, col, row) == TILE_QBLOCK && world->level.content[row][col] == ITEM_BICEP);
+  CHECK(in_opening_row);
+  world->spawning = false;
+  world_spawn_pickup(world, ITEM_BICEP, world->player.x, world->player.y - 10.0f);
+  step(world, NULL, 0.5f);
+  CHECK(allies(world) == 1 && ally_of(world, ALLY_MICHELE));
+  CHECK(world_has_event(world, EVENT_ALLY_ARRIVES));
+  world_free(world);
+}
+
+static void levels_offer_the_bicep_now_and_then(void) {
+  int found = 0;
+  for (uint32_t seed = 1; seed <= 20; seed++) {
+    level_t* level = calloc(1, sizeof(*level));
+    level_generate(level, seed);
+    for (int row = 0; row < LEVEL_ROWS; row++)
+      for (int col = 30; col < LEVEL_COLS; col++) found += level->tiles[row][col] == TILE_QBLOCK && level->content[row][col] == ITEM_BICEP;
+    free(level);
+  }
+  CHECK(found > 3);
+}
+
+static void all_five_friends_can_be_here_at_once(void) {
+  world_t* world = fresh();
+  for (int kind = 0; kind < ALLY_KIND_COUNT; kind++) world_summon_ally(world, (ally_kind_t)kind);
+  CHECK(ALLY_KIND_COUNT == 5 && allies(world) == 5);
+  world_free(world);
+}
+
+static void michele_goes_on_ahead_to_the_right_while_fabio_stands_still(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_MICHELE);
+  step(world, NULL, 0.8f);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  CHECK(m->x - world->player.x > 200.0f); /* no waiting by Fabio's side for him */
+  CHECK(m->facing == 1 && m->vx > RUN_SPEED); /* and faster than Fabio can run */
+  world_free(world);
+}
+
+/* Where Michele stops when he is Fabio's only friend: just short of the right edge of the screen. */
+static float by_the_edge(const world_t* world) { return world->camera_x + screen(world) - MICHELE_SCREEN_MARGIN; }
+
+static void michele_alone_stops_just_before_the_right_edge_of_the_screen_and_waits(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_MICHELE);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  bool out_of_sight = false;
+  for (int i = 0; i < 200; i++) {
+    step(world, NULL, 0.05f);
+    out_of_sight = out_of_sight || m->x > world->camera_x + screen(world) - 40.0f;
+  }
+  CHECK(!out_of_sight);
+  CHECK(fabsf(m->x - by_the_edge(world)) < 8.0f && fabsf(m->vx) < 1.0f && m->grounded && m->facing == 1);
+  float waited_at = m->x;
+  step(world, NULL, 3.0f);
+  CHECK(fabsf(m->x - waited_at) < 1.0f); /* he waits */
+  buttons_t right = BTN_RIGHT;
+  for (int i = 0; i < 60; i++) { /* Fabio comes on: so does he, with the screen */
+    step(world, &right, 0.05f);
+    out_of_sight = out_of_sight || m->x > world->camera_x + screen(world) - 40.0f;
+  }
+  CHECK(m->x > waited_at + 300.0f && !out_of_sight);
+  world_free(world);
+}
+
+static void michele_keeps_four_times_as_far_from_fabio_as_his_furthest_other_friend(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_ANDREA);
+  world_summon_ally(world, ALLY_GIULIA);
+  world_summon_ally(world, ALLY_MICHELE);
+  step(world, NULL, 6.0f);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  float andrea = fabsf(ally_of(world, ALLY_ANDREA)->x - world->player.x), giulia = fabsf(ally_of(world, ALLY_GIULIA)->x - world->player.x);
+  CHECK(andrea > giulia + 30.0f && andrea > 100.0f); /* Andrea waits the further off of the two */
+  CHECK(MICHELE_LEAD_TIMES == 4.0f);
+  CHECK(fabsf(m->x - world->player.x - 4.0f * andrea) < 8.0f);
+  CHECK(m->x < by_the_edge(world) - 50.0f && fabsf(m->vx) < 1.0f); /* well short of the edge: it is his friends that hold him */
+  world_free(world);
+}
+
+static void michele_with_friends_far_from_fabio_still_stops_before_the_edge_of_the_screen(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_GIACOMO); /* he waits 260 behind Fabio: four times that is off the screen */
+  world_summon_ally(world, ALLY_MICHELE);
+  step(world, NULL, 8.0f);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  CHECK(4.0f * fabsf(ally_of(world, ALLY_GIACOMO)->x - world->player.x) > by_the_edge(world) - world->player.x);
+  CHECK(fabsf(m->x - by_the_edge(world)) < 8.0f);
+  world_free(world);
+}
+
+static void michele_goes_right_when_fabio_goes_left_and_walks_back_when_the_screen_leaves_him(void) {
+  world_t* world = fresh();
+  world->player.x = 6000.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_MICHELE);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  float start = m->x;
+  buttons_t left = BTN_LEFT;
+  step(world, &left, 0.6f);
+  CHECK(m->x > start + 60.0f && world->player.x < 6000.0f - 60.0f); /* Fabio one way, he the other */
+  bool lost_from_sight = false;
+  for (int i = 0; i < 160; i++) { /* 8 seconds of Fabio running the other way */
+    step(world, &left, 0.05f);
+    lost_from_sight = lost_from_sight || m->x > world->camera_x + screen(world) + 40.0f;
+  }
+  CHECK(world->player.x < 6000.0f - 1000.0f);
+  CHECK(!lost_from_sight && m->x < start); /* he came back with the screen, on his own feet */
+  step(world, NULL, 3.0f);
+  CHECK(fabsf(m->x - by_the_edge(world)) < MICHELE_SCREEN_MARGIN && fabsf(m->vx) < 1.0f); /* and waits by its edge again */
+  world_free(world);
+}
+
+static void michele_comes_back_to_his_place_when_a_friend_arrives_and_it_is_nearer(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_MICHELE);
+  step(world, NULL, 6.0f);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  CHECK(fabsf(m->x - by_the_edge(world)) < 8.0f); /* alone: by the edge of the screen */
+  world_summon_ally(world, ALLY_GIULIA); /* she waits 70 behind Fabio: his place is now 280 ahead of him */
+  step(world, NULL, 6.0f);
+  float giulia = fabsf(ally_of(world, ALLY_GIULIA)->x - world->player.x);
+  CHECK(m->x - world->player.x <= 4.0f * giulia + 45.0f && m->x - world->player.x >= 4.0f * giulia - 8.0f);
+  CHECK(fabsf(m->vx) < 1.0f);
+  world_free(world);
+}
+
+static void michele_coming_back_to_the_screen_leaps_a_hole_the_right_way(void) {
+  world_t* world = fresh();
+  world->player.x = 6000.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_MICHELE);
+  step(world, NULL, 6.0f);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  int hole = (int)(m->x / TILE) - 6; /* behind him, between him and where the screen is going */
+  for (int col = hole - 2; col <= hole; col++)
+    for (int row = GROUND_ROW; row < LEVEL_ROWS; row++) world->level.tiles[row][col] = TILE_EMPTY;
+  buttons_t left = BTN_LEFT;
+  bool fell = false;
+  for (int i = 0; i < 160; i++) {
+    step(world, &left, 0.05f);
+    fell = fell || m->y > GROUND + 4.0f;
+  }
+  CHECK(!fell && m->x < (float)((hole - 2) * TILE)); /* over it, and on after the screen */
+  CHECK(m->x < world->camera_x + screen(world));
+  world_free(world);
+}
+
+static void michele_punches_every_enemy_in_his_way(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  still_zombie(world, 1700.0f);
+  still_zombie(world, 1850.0f);
+  still_zombie(world, 1950.0f);
+  world_summon_ally(world, ALLY_MICHELE);
+  world_clear_events(world);
+  bool smashed = false, punching_pose = false;
+  for (int i = 0; i < 200 && world_count_enemies(world, ENEMY_ZOMBIE) > 0; i++) {
+    step(world, NULL, 0.05f);
+    smashed = smashed || effect_live(world, FX_ALLY_SMASH);
+    const ally_t* m = ally_of(world, ALLY_MICHELE);
+    punching_pose = punching_pose || (m->attack > 0.0f && pose_ally(m).strip == STRIP_ALLY_MICHELE_ATTACK);
+  }
+  CHECK(world_count_enemies(world, ENEMY_ZOMBIE) == 0);
+  CHECK(smashed && punching_pose && world_has_event(world, EVENT_ALLY_SMASH));
+  CHECK(world->player.x < 1510.0f); /* Fabio never moved: Michele went and did it */
+  world_free(world);
+}
+
+static void michele_turns_on_an_enemy_that_comes_up_behind_him(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_MICHELE);
+  step(world, NULL, 10.0f); /* he is waiting by the edge of the screen, facing on */
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  float waited_at = m->x;
+  still_zombie(world, m->x - 50.0f);
+  step(world, NULL, 1.5f);
+  CHECK(world_count_enemies(world, ENEMY_ZOMBIE) == 0);
+  CHECK(fabsf(m->x - waited_at) < 1.0f); /* without leaving his post */
+  world_free(world);
+}
+
+static void michele_on_the_march_stops_dead_for_an_enemy_just_behind_him(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_MICHELE);
+  step(world, NULL, 0.8f);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  CHECK(m->vx > RUN_SPEED); /* at full march */
+  still_zombie(world, m->x - 80.0f); /* in his reach now, and out of it a moment later if he walked on */
+  step(world, NULL, 1.0f);
+  CHECK(world_count_enemies(world, ENEMY_ZOMBIE) == 0);
+  world_free(world);
+}
+
+static void michele_waits_before_a_hole_that_lies_where_he_would_stop(void) {
+  world_t* dry = fresh(); /* where he stops with no hole in the way */
+  dry->player.x = 1500.0f;
+  dry->camera_x = dry->player.x - 400.0f;
+  world_summon_ally(dry, ALLY_MICHELE);
+  step(dry, NULL, 8.0f);
+  float limit = ally_of(dry, ALLY_MICHELE)->x;
+  world_free(dry);
+  for (int shift = 0; shift < 4; shift++) { /* the hole at, and just short of, that place */
+    world_t* world = fresh();
+    world->player.x = 1500.0f;
+    world->camera_x = world->player.x - 400.0f;
+    int hole = (int)(limit / TILE) - shift;
+    for (int col = hole - 2; col <= hole; col++)
+      for (int row = GROUND_ROW; row < LEVEL_ROWS; row++) world->level.tiles[row][col] = TILE_EMPTY;
+    world_summon_ally(world, ALLY_MICHELE);
+    ally_t* m = ally_of(world, ALLY_MICHELE);
+    bool fell = false;
+    float furthest = m->x;
+    for (int i = 0; i < 300; i++) { /* 15 seconds, Fabio standing still */
+      step(world, NULL, 0.05f);
+      fell = fell || m->y > GROUND + 4.0f || m->x < furthest - 2.0f; /* down the hole, or brought back from it */
+      furthest = fmaxf(furthest, m->x);
+    }
+    CHECK(!fell && m->grounded && fabsf(m->vx) < 1.0f);
+    CHECK(m->x < (float)((hole - 2) * TILE) && m->x > (float)((hole - 4) * TILE)); /* at the near brink */
+    world_free(world);
+  }
+}
+
+static void michele_is_not_called_back_to_defend_fabio(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_MICHELE);
+  step(world, NULL, 0.5f);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  float was = m->x;
+  enemy_t* e = still_zombie(world, world->player.x - 150.0f); /* right on Fabio, behind him */
+  step(world, NULL, 1.0f);
+  CHECK(m->x > was + 100.0f); /* on he went */
+  CHECK(world_count_enemies(world, ENEMY_ZOMBIE) == 1 && e->x < world->player.x);
+  world_free(world);
+}
+
+static void michele_leaps_the_holes_and_hops_the_walls_in_his_way(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  for (int col = 50; col < 53; col++) /* a hole three tiles wide */
+    for (int row = GROUND_ROW; row < LEVEL_ROWS; row++) world->level.tiles[row][col] = TILE_EMPTY;
+  for (int up = 1; up <= 2; up++) world->level.tiles[GROUND_ROW - up][56] = TILE_ROCK; /* and a wall two tiles high */
+  world_summon_ally(world, ALLY_MICHELE);
+  step(world, NULL, 6.0f);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  CHECK(m->x > 57.0f * TILE && m->y <= GROUND + 1.0f);
+  world_free(world);
+}
+
+static void michele_waits_at_a_wall_he_cannot_hop_instead_of_jumping_at_it(void) {
+  world_t* world = fresh();
+  world->player.x = 1500.0f;
+  world->camera_x = world->player.x - 400.0f;
+  for (int up = 1; up <= 8; up++) world->level.tiles[GROUND_ROW - up][60] = TILE_ROCK;
+  world_summon_ally(world, ALLY_MICHELE);
+  step(world, NULL, 4.0f);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  bool hopped = false;
+  for (int i = 0; i < 40; i++) {
+    step(world, NULL, 0.05f);
+    hopped = hopped || !m->grounded;
+  }
+  CHECK(!hopped && m->x < 60.0f * TILE && m->x > 58.0f * TILE && fabsf(m->vx) < 1.0f);
+  world_free(world);
+}
+
+static void michele_left_behind_fabio_sprints_to_get_ahead_again(void) {
+  world_t* world = fresh();
+  world->player.x = 3000.0f;
+  world->camera_x = world->player.x - 400.0f;
+  world_summon_ally(world, ALLY_MICHELE);
+  ally_t* m = ally_of(world, ALLY_MICHELE);
+  step(world, NULL, 0.5f);
+  m->x = world->player.x - 350.0f; /* on the screen still, but behind */
+  step(world, NULL, 0.4f);
+  CHECK(m->vx > MICHELE_SPRINTS_ABOVE);
+  step(world, NULL, 2.0f);
+  CHECK(m->x > world->player.x);
+  world_free(world);
+}
+
+static void michele_has_his_own_pictures_and_sound(void) {
+  ally_t m = {.kind = ALLY_MICHELE, .facing = 1, .grounded = true, .left = 5.0f, .age = 1.0f, .platform = -1};
+  CHECK(pose_ally(&m).strip == STRIP_ALLY_MICHELE_IDLE);
+  m.vx = 150.0f;
+  CHECK(pose_ally(&m).strip == STRIP_ALLY_MICHELE_WALK);
+  m.grounded = false;
+  CHECK(pose_ally(&m).strip == STRIP_ALLY_MICHELE_JUMP);
+  CHECK(pose_ally_item(ALLY_MICHELE, 0.0f).strip == STRIP_ITEM_BICEP);
+  CHECK(pose_ally_effect(FX_ALLY_SMASH, 0.1f, 0.35f).strip == STRIP_ALLY_MICHELE_FX);
+  CHECK(pose_ally_effect(FX_ALLY_PUNCH, 0.1f, 0.35f).strip == STRIP_ALLY_GIULIA_FX);
+  float volume;
+  CHECK(sfx_for_event(EVENT_ALLY_SMASH, &volume) == SFX_ALLY_SMASH);
+  CHECK(ally_for_item(ITEM_BICEP) == ALLY_MICHELE && ally_for_item(ITEM_POLO_BALL) == ALLY_GIACOMO);
+}
+
 void run_ally_tests(void) {
   RUN(the_opening_row_holds_the_three_pickups_and_each_brings_its_friend);
   RUN(with_nothing_to_fight_the_friends_wait_behind_fabio_when_he_is_still_and_walk_beside_him_when_he_moves);
@@ -1098,4 +1422,23 @@ void run_ally_tests(void) {
   RUN(a_friend_never_starts_on_an_enemy_a_friend_before_him_just_killed);
   RUN(a_friend_left_on_a_high_ledge_comes_down_and_follows_even_when_fabio_is_far_off);
   RUN(giulia_does_not_leave_fabio_to_chase_a_giacomo_who_is_far_behind);
+  RUN(a_flexed_bicep_brings_michele);
+  RUN(levels_offer_the_bicep_now_and_then);
+  RUN(all_five_friends_can_be_here_at_once);
+  RUN(michele_goes_on_ahead_to_the_right_while_fabio_stands_still);
+  RUN(michele_alone_stops_just_before_the_right_edge_of_the_screen_and_waits);
+  RUN(michele_keeps_four_times_as_far_from_fabio_as_his_furthest_other_friend);
+  RUN(michele_with_friends_far_from_fabio_still_stops_before_the_edge_of_the_screen);
+  RUN(michele_goes_right_when_fabio_goes_left_and_walks_back_when_the_screen_leaves_him);
+  RUN(michele_comes_back_to_his_place_when_a_friend_arrives_and_it_is_nearer);
+  RUN(michele_coming_back_to_the_screen_leaps_a_hole_the_right_way);
+  RUN(michele_punches_every_enemy_in_his_way);
+  RUN(michele_turns_on_an_enemy_that_comes_up_behind_him);
+  RUN(michele_on_the_march_stops_dead_for_an_enemy_just_behind_him);
+  RUN(michele_waits_before_a_hole_that_lies_where_he_would_stop);
+  RUN(michele_is_not_called_back_to_defend_fabio);
+  RUN(michele_leaps_the_holes_and_hops_the_walls_in_his_way);
+  RUN(michele_waits_at_a_wall_he_cannot_hop_instead_of_jumping_at_it);
+  RUN(michele_left_behind_fabio_sprints_to_get_ahead_again);
+  RUN(michele_has_his_own_pictures_and_sound);
 }

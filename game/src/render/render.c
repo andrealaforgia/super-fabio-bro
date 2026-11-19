@@ -318,6 +318,7 @@ static void draw_items(const frame_t* f) {
       case ITEM_DRAGON:
       case ITEM_GLOVES:
       case ITEM_POLO_BALL:
+      case ITEM_BICEP:
         draw_centred(f, pose_ally_item(ally_for_item(item->kind), t + item->x * 0.01f),
                      item->x, item->y + bob, 1.0f, 1.0f, 0.0f, false, 1.0f);
         break;
@@ -343,9 +344,10 @@ static void draw_items(const frame_t* f) {
                        : p->kind == ITEM_SUSHI ? STRIP_ITEM_SUSHI
                        : p->kind == ITEM_DRAGON ? STRIP_ITEM_DRAGON
                        : p->kind == ITEM_GLOVES ? STRIP_ITEM_GLOVES
-                       : p->kind == ITEM_POLO_BALL ? STRIP_ITEM_POLO_BALL : STRIP_MUSHROOM;
+                       : p->kind == ITEM_POLO_BALL ? STRIP_ITEM_POLO_BALL
+                       : p->kind == ITEM_BICEP ? STRIP_ITEM_BICEP : STRIP_MUSHROOM;
     float scale = p->kind == ITEM_POTION || p->kind == ITEM_BUBBLE_GUN ? 0.3f
-                  : (p->kind == ITEM_LIGHTSABER || p->kind == ITEM_SUSHI || p->kind == ITEM_DRAGON || p->kind == ITEM_GLOVES || p->kind == ITEM_POLO_BALL) ? 1.0f : 0.4f;
+                  : (p->kind == ITEM_LIGHTSABER || p->kind == ITEM_SUSHI || p->kind == ITEM_DRAGON || p->kind == ITEM_GLOVES || p->kind == ITEM_POLO_BALL || p->kind == ITEM_BICEP) ? 1.0f : 0.4f;
     /* Standing on the block: the bottom of the picture where its box rests. */
     float feet = p->y + PICKUP_SIZE * 0.5f;
     if (p->kind == ITEM_POTION) {
@@ -689,7 +691,7 @@ static void draw_effects(const frame_t* f) {
       draw_centred(f, pose_force_hit(fx->age, fx->duration), fx->x, fx->y, 1.2f, 1.2f, 0.0f, false, 1.0f);
       continue;
     }
-    if (fx->kind >= FX_ALLY_POOF && fx->kind <= FX_ALLY_PUNCH) {
+    if (fx->kind >= FX_ALLY_POOF && fx->kind <= FX_ALLY_SMASH) {
       float left = fx->duration - fx->age;
       float lift = fx->kind == FX_ALLY_POOF ? 30.0f : 0.0f; /* the poof is centred on his middle, the rest are */
       if (fx->kind == FX_ALLY_WAVE) { /* Andrea's belly: a warm glow swelling behind the wobble ring */
@@ -921,9 +923,9 @@ static void draw_hud(const frame_t* f) {
     render_sprite(gfx, &icon->texture, NULL, rect(cx - icon_w * 0.5f, top + 24.0f - icon_h * 0.5f, icon_w, icon_h), &none);
     float share = clampf(ally->left / ALLY_SECONDS, 0.0f, 1.0f);
     fill_rect(gfx, rect(cx - 22.0f, top + 46.0f, 44.0f, 6.0f), 40, 40, 60, 255);
-    fill_rect(gfx, rect(cx - 22.0f, top + 46.0f, 44.0f * share, 6.0f), kind == ALLY_ANDREA ? 120 : (kind == ALLY_GIACOMO ? 60 : 255),
-              kind == ALLY_ANDREA ? 190 : (kind == ALLY_ALESSANDRO ? 200 : (kind == ALLY_GIACOMO ? 160 : 90)),
-              kind == ALLY_ANDREA ? 255 : (kind == ALLY_ALESSANDRO ? 60 : (kind == ALLY_GIACOMO ? 255 : 90)), 255);
+    /* Andrea's is pale blue, Alessandro's gold, Giulia's red, Giacomo's water blue, Michele's army green. */
+    static const uint8_t kBar[ALLY_KIND_COUNT][3] = {{120, 190, 255}, {255, 200, 60}, {255, 90, 90}, {60, 160, 255}, {130, 170, 70}};
+    fill_rect(gfx, rect(cx - 22.0f, top + 46.0f, 44.0f * share, 6.0f), kBar[kind][0], kBar[kind][1], kBar[kind][2], 255);
     shown++;
   }
 

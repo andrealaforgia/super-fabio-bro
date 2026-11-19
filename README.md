@@ -251,7 +251,7 @@ start.
   or the AI slop monster). A pipe at each end leads back up, out of the pipe he went down;
   that pipe stays shut afterwards. Nothing spawns in a cave and nothing in it can
   end the run. The cave's tiles, crystals and stalactites are also in the two sheets above.
-- Fabio has four friends who turn up when he picks up the right thing (all of them are in the
+- Fabio has five friends who turn up when he picks up the right thing (all of them are in the
   opening row of `?` blocks, and now and then along the level). A sushi dumpling brings
   Andrea, short-black-haired, black-bearded and round-bellied; a Chinese dragon brings Alessandro, a
   chubby, scruffy, bearded kung fu grandmaster in black glasses; a pair of boxing gloves brings
@@ -286,6 +286,21 @@ start.
   five seconds. Then he gets up where he sat, and every time she reaches him again she punches him
   again (after a moment of grace, 0.75 seconds, in which he can catch his breath and throw); once
   she has gone he carries on. His frames are cut from `assets/source/ally_giacomo.png`.
+- A fifth friend, Michele, turns up with a flexed bicep (the last block of the opening row, and along
+  the level). He is forty, with a military crop and a black leather jacket, his chest and arms far bigger
+  than his legs.
+  He keeps no place beside Fabio: he goes on ahead, left to right whichever way Fabio goes,
+  faster than Fabio can run, leaping the holes and hopping the walls, and punches every enemy in
+  his way (and any that comes up behind him). He is never out of sight. Alone with Fabio he stops
+  and waits just short of the right edge of the screen (`MICHELE_SCREEN_MARGIN`); with other
+  friends about he stops sooner, four times as far ahead of Fabio as the furthest of them is from
+  him (`MICHELE_LEAD_TIMES`), and still never beyond the edge of the screen. He waits too at a
+  wall too high to hop (the end of a cave), and before a hole that lies where he would stop. When
+  his place falls behind him (Fabio goes back and the screen with him, or his friends draw in)
+  he walks back to it. He is never sent
+  to meet what comes for Fabio; left behind Fabio, he sprints to get ahead again. His frames and
+  his pickup are cut from `assets/source/ally_michele.png` and `ally_michele_item.png`, drawn by
+  Codex.
 - Whenever points are scored (a kill, a coin, a pickup) the amount appears
   where it was earned, floats upwards and fades away.
 

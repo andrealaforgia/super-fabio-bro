@@ -135,7 +135,7 @@ typedef enum {
   STRIP_DECOR_CAR, /* the city: cars, Ovid, the fountain (the code-drawn signs have no strip) */
   STRIP_DECOR_OVID,
   STRIP_DECOR_FOUNTAIN,
-  /* Fabio's friends: five strips each, in this order, Andrea then Alessandro then Giulia then Giacomo
+  /* Fabio's friends: five strips each, in this order, Andrea then Alessandro then Giulia then Giacomo then Michele
    * (the strip of a kind is STRIP_ALLY_ANDREA_IDLE + kind * 5 + the part). */
   STRIP_ALLY_ANDREA_IDLE,
   STRIP_ALLY_ANDREA_WALK,
@@ -157,10 +157,16 @@ typedef enum {
   STRIP_ALLY_GIACOMO_JUMP,
   STRIP_ALLY_GIACOMO_ATTACK,
   STRIP_ALLY_GIACOMO_FX,
-  STRIP_ITEM_SUSHI, /* the four pickups */
+  STRIP_ALLY_MICHELE_IDLE, /* his FX strip is the burst where his fist lands */
+  STRIP_ALLY_MICHELE_WALK,
+  STRIP_ALLY_MICHELE_JUMP,
+  STRIP_ALLY_MICHELE_ATTACK,
+  STRIP_ALLY_MICHELE_FX,
+  STRIP_ITEM_SUSHI, /* the five pickups, in the order of the friends (STRIP_ITEM_SUSHI + kind) */
   STRIP_ITEM_DRAGON,
   STRIP_ITEM_GLOVES,
   STRIP_ITEM_POLO_BALL,
+  STRIP_ITEM_BICEP,
   STRIP_ALLY_GIACOMO_SIT, /* Giacomo on the ground with a black eye, 2 frames */
   STRIP_ALLY_GIACOMO_LOW, /* Giacomo crouched, rolling the ball at a crawler, 6 frames */
   STRIP_ALLY_POOF,
